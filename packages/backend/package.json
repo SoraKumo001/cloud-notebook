@@ -1,0 +1,43 @@
+{
+  "name": "backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc --noEmit",
+    "test": "vitest",
+    "db:generate": "drizzle-kit generate && node scripts/sync-d1-migrations.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc",
+    "db:migrate:remote:prod": "wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc",
+    "db:studio": "drizzle-kit studio",
+    "setup:production": "node scripts/setup-production.mjs",
+    "setup:secrets": "node scripts/setup-secrets.mjs",
+    "vectorize:create": "wrangler vectorize create cloud-notebook-vector-bge --dimensions 1024 --metric cosine",
+    "vectorize:create-metadata-indexes": "wrangler vectorize create-metadata-index cloud-notebook-vector-bge --property-name=notebook_id --type=string || true && wrangler vectorize create-metadata-index cloud-notebook-vector-bge --property-name=source_id --type=string || true",
+    "vectorize:list": "wrangler vectorize list",
+    "vectorize:list-metadata-indexes": "wrangler vectorize list-metadata-index cloud-notebook-vector-bge",
+    "vectorize:info": "wrangler vectorize get cloud-notebook-vector-bge",
+    "vectorize:delete": "wrangler vectorize delete cloud-notebook-vector-bge"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "0.8.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "agents": "0.17.1",
+    "aws4fetch": "^1.0.20",
+    "drizzle-orm": "1.0.0-rc.4",
+    "hono": "^4.12.27",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.16.20",
+    "@cloudflare/workers-types": "^4.20260629.1",
+    "@types/better-sqlite3": "7.6.13",
+    "better-sqlite3": "12.11.1",
+    "drizzle-kit": "1.0.0-rc.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
+    "wrangler": "^4.105.0"
+  }
+}

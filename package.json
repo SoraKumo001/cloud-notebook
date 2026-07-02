@@ -1,0 +1,21 @@
+{
+  "name": "cloud-notebook",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "deploy:full": "pnpm run setup:production && pnpm run deploy",
+    "setup:production": "pnpm --filter backend exec node scripts/setup-production.mjs",
+    "setup:secrets": "pnpm --filter backend exec node scripts/setup-secrets.mjs",
+    "test": "pnpm -r test",
+    "lint:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  }
+}

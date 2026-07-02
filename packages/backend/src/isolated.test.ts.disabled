@@ -1,0 +1,101 @@
+// packages/backend/src/isolated.test.ts
+// Sample integration tests using Miniflare isolated bindings.
+//
+// These tests demonstrate how to use the `cloudflare:test` module to access
+// auto-mocked D1, R2, Vectorize and AI bindings provided by the workers pool.
+// Unlike the unit tests in other files, these tests exercise real I/O against
+// in-memory Miniflare instances (no manual env mocks needed).
+
+import { describe, it, expect, beforeAll } from 'vitest'
+import { env } from 'cloudflare:test'
+
+// ---------------------------------------------------------------------------
+// Basic D1 smoke test
+// ---------------------------------------------------------------------------
+
+describe('isolated D1 binding', () => {
+  beforeAll(async () => {
+    // Create the notebooks table so we can INSERT and SELECT
+    // This matches the schema from migrations/0000_init.sql
+    await env.DB.exec(`
+      CREATE TABLE IF NOT EXISTS notebooks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        ai_provider TEXT DEFAULT 'workers-ai',
+        ai_embedding_model TEXT DEFAULT '@cf/baai/bge-large-en-v1.5',
+        model_chat TEXT DEFAULT '@cf/meta/llama-3-8b-instruct',
+        model_summarization TEXT DEFAULT '@cf/meta/llama-3-8b-instruct',
+        model_podcast_script TEXT DEFAULT '@cf/meta/llama-3-8b-instruct',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    // Also create sources table (without text_content per M4-L4+L5)
+    await env.DB.exec(`
+      CREATE TABLE IF NOT EXISTS sources (
+        id TEXT PRIMARY KEY,
+        notebook_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        r2_key TEXT,
+        status TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+  })
+
+  it('INSERT and SELECT a notebook', async () => {
+    const id = crypto.randomUUID()
+    await env.DB.prepare(
+      `INSERT INTO notebooks (id, user_id, title, description)
+       VALUES (?, ?, ?, ?)`,
+    ).bind(id, 'test-user', 'Isolated Test Notebook', 'Created by workers pool').run()
+
+    const row = await env.DB.prepare(
+      `SELECT id, user_id, title FROM notebooks WHERE id = ?`,
+    ).bind(id).first<{ id: string; user_id: string; title: string }>()
+
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe(id)
+    expect(row!.user_id).toBe('test-user')
+    expect(row!.title).toBe('Isolated Test Notebook')
+  })
+
+  it('INSERT and SELECT a source (without text_content column)', async () => {
+    const id = crypto.randomUUID()
+    await env.DB.prepare(
+      `INSERT INTO sources (id, notebook_id, user_id, name, type, r2_key, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(id, 'nb-1', 'test-user', 'test.txt', 'text', 'r2/key.txt', 'completed').run()
+
+    const row = await env.DB.prepare(
+      `SELECT id, name, status FROM sources WHERE id = ?`,
+    ).bind(id).first<{ id: string; name: string; status: string }>()
+
+    expect(row).not.toBeNull()
+    expect(row!.id).toBe(id)
+    expect(row!.name).toBe('test.txt')
+    expect(row!.status).toBe('completed')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Basic R2 smoke test
+// ---------------------------------------------------------------------------
+
+describe('isolated R2 binding', () => {
+  it('PUT and GET an object', async () => {
+    const key = 'test/hello.txt'
+    const content = 'Hello from workers pool!'
+
+    await env.BUCKET.put(key, content)
+    const obj = await env.BUCKET.get(key)
+
+    expect(obj).not.toBeNull()
+    const body = await obj!.text()
+    expect(body).toBe('Hello from workers pool!')
+  })
+})

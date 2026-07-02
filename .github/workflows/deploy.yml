@@ -1,0 +1,72 @@
+# ──────────────────────────────────────────────────────────
+# Deploy Pipeline — push to master only
+# Deploys the full app (backend + frontend bundled together)
+# to Cloudflare Workers using Wrangler static assets.
+# ──────────────────────────────────────────────────────────
+
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Deploy Backend (Cloudflare Workers) ────────────────
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm --filter frontend build
+
+      - name: Generate production wrangler config
+        run: |
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('packages/backend/wrangler.jsonc', 'utf8'));
+            config.d1_databases[0].database_id = '${{ secrets.CF_D1_DATABASE_ID }}';
+            delete config.build;
+            fs.writeFileSync('packages/backend/wrangler.production.jsonc', JSON.stringify(config, null, '\t'));
+          "
+
+      - name: Deploy to Cloudflare Workers
+        run: pnpm --filter backend exec wrangler deploy --config wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Apply D1 migrations
+        run: pnpm --filter backend exec wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Set Worker secrets
+        env:
+          CI: 'true'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          API_KEY_ENCRYPTION_MASTER: ${{ secrets.API_KEY_ENCRYPTION_MASTER }}
+        run: pnpm run setup:secrets
+

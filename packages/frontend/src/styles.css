@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: dark --default;
+  root: ":root";
+  include: ;
+  exclude: ;
+  prefix: ;
+  logs: false;
+}
+
+/* ── Custom dark theme: cloud-notebook ──────────────────────────────── */
+/* Inherits DaisyUI's "dark" theme; overrides primary/secondary/accent
+   to match the original slate + teal/indigo palette. */
+@plugin "daisyui/theme" {
+  name: "cloud-notebook";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(20% 0.02 260); /* slate-900 surface */
+  --color-base-200: oklch(15% 0.02 260); /* slate-950 deep bg */
+  --color-base-300: oklch(25% 0.02 260); /* slate-800 borders */
+  --color-base-content: oklch(95% 0.01 260); /* slate-100 text */
+
+  --color-primary: oklch(70% 0.13 180); /* teal-500 */
+  --color-primary-content: oklch(15% 0.02 260); /* on-primary */
+
+  --color-secondary: oklch(65% 0.18 280); /* indigo-500 */
+  --color-secondary-content: oklch(98% 0.01 260);
+
+  --color-accent: oklch(75% 0.15 160); /* emerald-500 */
+  --color-accent-content: oklch(15% 0.02 260);
+
+  --color-neutral: oklch(25% 0.02 260); /* slate-800 */
+  --color-neutral-content: oklch(95% 0.01 260);
+
+  --color-info: oklch(70% 0.13 240);
+  --color-info-content: oklch(15% 0.02 260);
+  --color-success: oklch(72% 0.15 160);
+  --color-success-content: oklch(15% 0.02 260);
+  --color-warning: oklch(75% 0.15 70);
+  --color-warning-content: oklch(15% 0.02 260);
+  --color-error: oklch(65% 0.2 25);
+  --color-error-content: oklch(98% 0.01 260);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
