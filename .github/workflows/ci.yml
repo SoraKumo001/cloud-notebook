@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: TypeScript type check
-        run: pnpm exec tsc --noEmit
+        run: pnpm -r exec tsc --noEmit
 
   format-check:
     needs: setup
