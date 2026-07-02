@@ -4,7 +4,12 @@
 	"build": {
 		"command": "pnpm --filter frontend build",
 		"cwd": "../",
-		"watch_dir": ["../frontend/src", "../frontend/package.json", "../frontend/vite.config.ts", "../frontend/index.html"]
+		"watch_dir": [
+			"../frontend/src",
+			"../frontend/package.json",
+			"../frontend/vite.config.ts",
+			"../frontend/index.html"
+		]
 	},
 	"compatibility_date": "2024-06-20",
 	"compatibility_flags": [
@@ -30,7 +35,7 @@
 	"vectorize": [
 		{
 			"binding": "VECTORIZE",
-			"index_name": "cloud-notebook-vector-bge",
+			"index_name": "cloud-notebook-vector-bge-dev",
 			"remote": true
 		}
 	],
@@ -42,6 +47,10 @@
 		"binding": "ASSETS",
 		"html_handling": "auto-trailing-slash",
 		"not_found_handling": "single-page-application",
-		"run_worker_first": ["/api/*", "/mcp", "/local-uploads"]
+		"run_worker_first": [
+			"/api/*",
+			"/mcp",
+			"/local-uploads"
+		]
 	}
 }

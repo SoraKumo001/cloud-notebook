@@ -12,6 +12,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc",
     "db:migrate:remote:prod": "wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc",
     "db:studio": "drizzle-kit studio",
+    "setup:dev": "node scripts/setup-dev.mjs",
     "setup:production": "node scripts/setup-production.mjs",
     "setup:secrets": "node scripts/setup-secrets.mjs",
     "vectorize:create": "wrangler vectorize create cloud-notebook-vector-bge --dimensions 1024 --metric cosine",
@@ -19,7 +20,9 @@
     "vectorize:list": "wrangler vectorize list",
     "vectorize:list-metadata-indexes": "wrangler vectorize list-metadata-index cloud-notebook-vector-bge",
     "vectorize:info": "wrangler vectorize get cloud-notebook-vector-bge",
-    "vectorize:delete": "wrangler vectorize delete cloud-notebook-vector-bge"
+    "vectorize:delete": "wrangler vectorize delete cloud-notebook-vector-bge",
+    "vectorize:create-dev": "wrangler vectorize create cloud-notebook-vector-bge-dev --dimensions 1024 --metric cosine",
+    "vectorize:create-metadata-indexes-dev": "wrangler vectorize create-metadata-index cloud-notebook-vector-bge-dev --property-name=notebook_id --type=string || true && wrangler vectorize create-metadata-index cloud-notebook-vector-bge-dev --property-name=source_id --type=string || true"
   },
   "dependencies": {
     "@hono/zod-validator": "0.8.0",

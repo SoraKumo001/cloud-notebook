@@ -3,10 +3,11 @@
   "private": true,
   "scripts": {
     "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
+    "setup:dev": "pnpm --filter backend exec node scripts/setup-dev.mjs",
     "deploy:full": "pnpm run setup:production && pnpm run deploy",
     "setup:production": "pnpm --filter backend exec node scripts/setup-production.mjs",
     "setup:secrets": "pnpm --filter backend exec node scripts/setup-secrets.mjs",
+    "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint:fix": "biome check --write ."
   },

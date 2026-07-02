@@ -151,6 +151,7 @@ async function writeProductionConfig(databaseId) {
   const raw = await readFile(wranglerJsonc, 'utf8')
   const config = JSON.parse(raw)
   config.d1_databases[0].database_id = databaseId
+  config.vectorize[0].index_name = 'cloud-notebook-vector-bge'
   delete config.build
   await writeFile(productionJsonc, JSON.stringify(config, null, '\t'))
   console.log(`Wrote ${productionJsonc} with database_id ${databaseId}`)
