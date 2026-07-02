@@ -54,6 +54,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Route Tree
+        run: pnpm --filter frontend generate-routes
+
       - name: Run Tests
         run: pnpm run test
         env:
@@ -79,6 +82,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Route Tree
+        run: pnpm --filter frontend generate-routes
 
       - name: Build
         run: pnpm run build
