@@ -8,6 +8,7 @@ import {
 } from '../../components/CreateNotebookModal'
 import { type Notebook, NotebookCard } from '../../components/NotebookCard'
 import { useAuth } from '../../contexts/AuthContext'
+import { LanguageSwitcher } from '../../i18n/components/LanguageSwitcher'
 
 const GlobalSettingsModal = React.lazy(() =>
   import('../../components/GlobalSettingsModal').then((m) => ({
@@ -195,6 +196,7 @@ function NotebooksPage() {
             >
               <Settings size={20} strokeWidth={2} aria-hidden='true' />
             </button>
+            <LanguageSwitcher />
             <button
               type='button'
               onClick={async () => {

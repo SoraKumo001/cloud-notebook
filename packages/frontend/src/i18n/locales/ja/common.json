@@ -214,7 +214,8 @@
   },
   "notebookCard": {
     "noDescription": "説明なし",
-    "sourceCount": "{count, plural, other {ソース #件}}"
+    "sourceCountOne": "ソース {count}件",
+    "sourceCountOther": "ソース {count}件"
   },
   "sourceList": {
     "sectionTitle": "ソース",

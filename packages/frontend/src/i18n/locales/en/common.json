@@ -214,7 +214,8 @@
   },
   "notebookCard": {
     "noDescription": "No description",
-    "sourceCount": "{count, plural, one {# source} other {# sources}}"
+    "sourceCountOne": "{count} source",
+    "sourceCountOther": "{count} sources"
   },
   "sourceList": {
     "sectionTitle": "Sources",

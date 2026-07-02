@@ -8,6 +8,7 @@ import type { IngestProgressItem } from '../../hooks/useIngestPipeline'
 import { useIngestPipeline } from '../../hooks/useIngestPipeline'
 import { useNotes } from '../../hooks/useNotes'
 import { useSources } from '../../hooks/useSources'
+import { LanguageSwitcher } from '../../i18n/components/LanguageSwitcher'
 
 // Heavy components loaded on demand (React.lazy)
 const ChatPanel = React.lazy(() =>
@@ -313,7 +314,8 @@ function NotebookDetailPage() {
           </div>
 
           {!loading && notebook && (
-            <div ref={menuRef} className='relative flex-shrink-0'>
+            <div ref={menuRef} className='relative flex-shrink-0 flex items-center space-x-2'>
+              <LanguageSwitcher />
               <button
                 type='button'
                 onClick={(e) => {
@@ -335,7 +337,7 @@ function NotebookDetailPage() {
                         setIsSettingsOpen(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content'
+                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content cursor-pointer'
                     >
                       {t('notebookDetail.settingsMenu')}
                     </button>
@@ -347,7 +349,7 @@ function NotebookDetailPage() {
                         setIsGlobalSettingsOpen(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content'
+                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content cursor-pointer'
                     >
                       {t('notebookDetail.globalSettingsMenu')}
                     </button>
@@ -359,7 +361,7 @@ function NotebookDetailPage() {
                         setIsConfirmingDelete(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-error/10 text-error transition-colors font-medium'
+                      className='w-full text-left px-4 py-2 hover:bg-error/10 text-error transition-colors font-medium cursor-pointer'
                     >
                       {t('notebookDetail.deleteMenu')}
                     </button>

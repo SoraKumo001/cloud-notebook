@@ -32,7 +32,12 @@ export function NotebookCard({ notebook }: NotebookCardProps) {
           <BookOpen size={20} strokeWidth={2} aria-hidden='true' />
         </div>
         <span className='badge badge-ghost'>
-          {t('notebookCard.sourceCount', { count: notebook.sourceCount ?? 0 })}
+          {t(
+            notebook.sourceCount === 1
+              ? 'notebookCard.sourceCountOne'
+              : 'notebookCard.sourceCountOther',
+            { count: notebook.sourceCount ?? 0 },
+          )}
         </span>
       </div>
 

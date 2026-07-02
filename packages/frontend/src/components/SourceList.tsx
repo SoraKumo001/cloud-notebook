@@ -91,6 +91,7 @@ function SourceActions({
   isConfirmingDelete,
   setIsConfirmingDelete,
   onRenameStart,
+  refreshStats,
   t,
 }: {
   source: Source
@@ -99,11 +100,17 @@ function SourceActions({
   isConfirmingDelete: boolean
   setIsConfirmingDelete: (val: boolean) => void
   onRenameStart: () => void
+  refreshStats: () => Promise<void>
   t: (key: string) => string
 }) {
   async function confirmDelete() {
     await onDelete?.(source.id)
     setIsConfirmingDelete(false)
+    // Trigger stats refresh after delete completes; the parent already
+    // optimistically updates the list, but `useNotebookStats` only watches
+    // its `sourcesVersion` prop, so we ask for an explicit refresh to make
+    // sure the new server-side vector count is reflected.
+    await refreshStats()
   }
 
   if (isConfirmingDelete) {
@@ -157,12 +164,14 @@ function SortableSourceItem({
   source,
   onDelete,
   onRename,
+  refreshStats,
   t,
   locale,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
 }) {
@@ -191,6 +200,10 @@ function SortableSourceItem({
     const trimmed = editName.trim()
     if (trimmed && trimmed !== source.fileName) {
       await onRename?.(source.id, trimmed)
+      // Names don't affect vector counts, but keeping the manual-refresh
+      // call symmetric with the delete path makes it easier to add new
+      // server-side counters later without missing this hook.
+      await refreshStats()
     }
     setIsEditing(false)
   }
@@ -265,6 +278,7 @@ function SortableSourceItem({
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}
+            refreshStats={refreshStats}
             t={t}
           />
         )}
@@ -277,12 +291,14 @@ function StaticSourceItem({
   source,
   onDelete,
   onRename,
+  refreshStats,
   t,
   locale,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
 }) {
@@ -302,6 +318,8 @@ function StaticSourceItem({
     const trimmed = editName.trim()
     if (trimmed && trimmed !== source.fileName) {
       await onRename?.(source.id, trimmed)
+      // See SortableSourceItem.submitRename for the rationale.
+      await refreshStats()
     }
     setIsEditing(false)
   }
@@ -361,6 +379,7 @@ function StaticSourceItem({
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}
+            refreshStats={refreshStats}
             t={t}
           />
         )}
@@ -381,7 +400,7 @@ export function SourceList({
 }: SourceListProps) {
   const { t } = useTranslation('common')
   const { locale } = useLocale()
-  const { stats } = useNotebookStats(notebookId ?? '', sources.length)
+  const { stats, refresh: refreshStats } = useNotebookStats(notebookId ?? '', sources.length)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -389,6 +408,24 @@ export function SourceList({
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = React.useState(false)
+
+  // Track which uploadProgress entries have already been seen as "done" so
+  // we refresh stats exactly once per completion (and never on every render
+  // while the entry is still visible).
+  const seenDoneRef = React.useRef(new Set<string>())
+  React.useEffect(() => {
+    if (!uploadProgress) return
+    let needsRefresh = false
+    for (const item of uploadProgress) {
+      if (item.status === 'done' && !seenDoneRef.current.has(item.fileName)) {
+        seenDoneRef.current.add(item.fileName)
+        needsRefresh = true
+      }
+    }
+    if (needsRefresh) {
+      void refreshStats()
+    }
+  }, [uploadProgress, refreshStats])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -635,6 +672,7 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              refreshStats={refreshStats}
               t={t}
               locale={locale}
             />
@@ -644,6 +682,7 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              refreshStats={refreshStats}
               t={t}
               locale={locale}
             />

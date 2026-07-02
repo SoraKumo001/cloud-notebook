@@ -48,6 +48,11 @@ void i18n
     load: 'currentOnly',
     debug: false,
     interpolation: {
+      // Catalog strings use single-brace placeholders (e.g. "{count}") which
+      // match the convention used by hand-written translations and ICU plural
+      // strings in this project. Override the i18next default ("{{" / "}}").
+      prefix: '{',
+      suffix: '}',
       escapeValue: false, // React already escapes
     },
     detection: {
