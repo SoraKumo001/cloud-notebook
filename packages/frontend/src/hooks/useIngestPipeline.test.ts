@@ -62,12 +62,16 @@ function renderHook<T>(useHook: () => T): RenderHookResult<T> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
-  root.render(React.createElement(TestComponent))
+  act(() => {
+    root.render(React.createElement(TestComponent))
+  })
 
   return {
     result,
     unmount: () => {
-      root.unmount()
+      act(() => {
+        root.unmount()
+      })
       document.body.removeChild(container)
     },
   }

@@ -114,7 +114,7 @@ pnpm --filter backend run db:migrate:local
 ### 開発サーバー起動
 
 ```bash
-# ルートから両方同時起動
+# ルートから両方同時起動(推奨)
 pnpm dev
 
 # 個別
@@ -122,7 +122,15 @@ pnpm --filter frontend dev       # Vite, http://localhost:5173
 pnpm --filter backend dev        # wrangler dev, http://localhost:8787
 ```
 
-> **課金注意**: `wrangler dev` でも `AI` と `VECTORIZE` binding は `remote: true` でリモートリソースにアクセスします。大量データの upsert や LLM 呼び出しを繰り返すと Cloudflare の無料枠を超えて課金が発生します。詳細は [`packages/backend/docs/deployment.md`](packages/backend/docs/deployment.md) の「ローカル開発の課金リスク」を参照。
+フロントエンドの Vite は `/api/*` を wrangler dev (`http://127.0.0.1:8787`) へプロキシする設定が `vite.config.ts` に組み込まれているため、ブラウザからは `http://localhost:5173/api/...` の同一オリジンで backend に届きます。`pnpm dev` で両方起動すれば、プロキシ経由でそのまま動きます。
+
+ポートを変更する場合:
+```bash
+pnpm --filter backend dev -- --port 8788         # wrangler
+pnpm --filter frontend dev -- --port 5174 --strictPort  # vite + proxy 設定も要更新
+```
+
+> **課金注意**: `wrangler dev` でも `AI`(Workers AI)と `VECTORIZE` はリモートリソースにアクセスします。`vectorize` は `wrangler.jsonc` で `remote: true` が明示されています。大量データの upsert や LLM 呼び出しを繰り返すと Cloudflare の無料枠を超えて課金が発生します。詳細は [`packages/backend/docs/deployment.md`](packages/backend/docs/deployment.md) の「ローカル開発の課金リスク」を参照。
 
 ### ビルド・テスト
 
@@ -134,8 +142,8 @@ pnpm --filter frontend build     # vite build
 
 # テスト
 pnpm test                        # 両方 (vitest)
-pnpm --filter backend test       # 242 tests
-pnpm --filter frontend test      # 101 tests
+pnpm --filter backend test       # 254 tests
+pnpm --filter frontend test      # 118 tests
 pnpm --filter frontend e2e       # Playwright(ブラウザ要インストール)
 ```
 
@@ -147,15 +155,15 @@ pnpm lint:fix                    # Biome (format + lint 自動修正)
 
 ## デプロイ
 
-### ワンショットセットアップ(初回・再実行可能)
+### デプロイ(最短手順)
 
-`setup:production` は **D1 / R2 / Vectorize インフラ作成 → 設定ファイル書き込み → D1 マイグレーション → Worker secrets 自動生成** までを冪等に実行するワンショットコマンドです。`wrangler` が認証済みであれば、これ 1 つでデプロイに必要なすべてが揃います。
+`pnpm run deploy:full` を 1 回実行すれば、Cloudflare インフラ(D1 / R2 / Vectorize)の作成から Worker secrets の自動生成、Workers のデプロイまで全自動で完了します。再実行は冪等(2 回目以降は setup が no-op になり実質 deploy のみ)なので、CI / 本番反映どちらでも同じコマンドで扱えます。
 
 ```bash
-pnpm run setup:production
+pnpm run deploy:full
 ```
 
-実行内容(順序):
+`deploy:full` = `setup:production && deploy` のエイリアス(`package.json:7`)で、実行内容は次のとおりです。
 
 | Step | 内容 | 冪等性 |
 |---|---|---|
@@ -165,24 +173,25 @@ pnpm run setup:production
 | 4. Config | `wrangler.production.jsonc` に実 `database_id` を書き込み | ファイル存在時は skip |
 | 5. Migrations | `wrangler d1 migrations apply DB --remote` (3×2s retry) | `d1_migrations` テーブルで追跡、再実行は no-op |
 | 6. Secrets | `SESSION_SECRET` + `API_KEY_ENCRYPTION_MASTER` を自動生成して `wrangler secret put` | `wrangler secret list` で既存検出 → skip |
+| 7. Deploy | `wrangler deploy`(`wrangler.production.jsonc` を自動選択) | 通常の Workers デプロイ |
 
-完了後の残作業はデプロイだけです:
+`setup:production` がマイグレーションまで実行するため、別途 `db:migrate:remote:prod` を呼ぶ必要はありません。
+
+### 関連コマンド(個別実行)
+
+通常は `deploy:full` だけで十分ですが、ステップを分けたい / 一部だけ再実行したいケース向けに個別コマンドも公開しています。
 
 ```bash
+# 初回セットアップのみ再実行(インフラ再作成や設定変更時)
+pnpm run setup:production
+
+# デプロイのみ再実行(コード変更だけ反映したいとき)
 pnpm run deploy
 ```
 
-### デプロイ実行
+`setup:production` は **D1 / R2 / Vectorize インフラ作成 → 設定ファイル書き込み → D1 マイグレーション → Worker secrets 自動生成** までを冪等に実行するワンショットコマンドです。`wrangler` が認証済みであれば、これ 1 つで deploy に必要なすべてが揃います。
 
-```bash
-# 手動デプロイ
-pnpm run deploy
-
-# または setup + deploy を一発で(再実行時は setup が no-op なので実質 deploy のみ)
-pnpm run deploy:full
-```
-
-`deploy:full` は `setup:production && deploy` のエイリアスです。`setup:production` がマイグレーションまで実行するため、別途 `db:migrate:remote:prod` を呼ぶ必要はありません。
+### 自動デプロイ(CI/CD)
 
 `master` ブランチへの push で GitHub Actions が自動デプロイします:
 
