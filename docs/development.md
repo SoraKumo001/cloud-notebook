@@ -65,7 +65,7 @@
   - `Vectorize` によるコサイン類似度検索と、LLMによる回答のストリーミング生成 API の実装。
   - 用途別LLMモデル選択（Chat / Summarize）ロジックのバックエンド・UI実装。
   - Cloudflare Access (JWKS公開鍵検証) を用いた JWT 認証の実装、および D1 での所有権認可（`user_id`）の導入。
-  - Workers上での MCP（Model Context Protocol）SSEサーバー実装と、ローカル接続時の認証バイパス設定。
+   - Workers上での MCP（Model Context Protocol）SSEサーバー実装と、ローカル接続時の Bearer 認証設定。
    - TanStack Router (CSR) と Tailwind CSS によるメイン画面および設定 UI の構築。
 
 ### 2.3 長期計画 (Long-Term: 1〜2ヶ月)
@@ -124,4 +124,4 @@ graph TD
 - WebページのURLインジェスト時にクローラーブロックを防ぐため、Cloudflare `browser-rendering` (Headless Chrome) の導入や、YouTubeインジェスト時には公式 API、またはブラウザ（クライアント）側で一度フェッチしてからテキストを投げる方針を想定します。
 
 ### 4.3 ローカル開発環境でのMCP接続
-- `wrangler dev` (localhost:8787) で動作するローカルMCPサーバーに、開発環境限定（`process.env.NODE_ENV === 'development'`）で Cloudflare Access 認証をバイパスしてダミーのユーザーを返却するデバッグコードを用意します。
+- `wrangler dev` (localhost:8787) で動作するローカルMCPサーバーに、開発環境限定（`process.env.NODE_ENV === 'development'`）で onError ハンドラがスタックトレースを露出するようになります(`/local-uploads` dev proxy の有効化フラグも兼ねます)。**認証バイパスは 2026-07 削除済み**。

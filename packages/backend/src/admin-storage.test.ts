@@ -1,10 +1,12 @@
 // packages/backend/src/admin-storage.test.ts
 // Tests for the /api/admin/storage endpoints (GET, PUT).
+// Uses Cookie-based auth — the first registered user is automatically admin.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { encryptApiKey } from './crypto'
 import { globalSettings } from './db/schema'
 import app from './index'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
 const MASTER = 'MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI='
@@ -45,40 +47,31 @@ async function seedGlobalSettings(
 describe('GET /api/admin/storage', () => {
   it('returns the unconfigured default when no row exists', async () => {
     const { env } = createTestEnv()
-    const res = await app.fetch(
-      new Request('http://localhost/api/admin/storage', {
-        headers: { 'x-cf-admin-test': '1' },
-      }),
-      env,
-    )
-    // authMiddleware returns the dev user; requireAdmin passes if isAdmin
-    // is true. The dev user from auth.ts is an admin in test mode? Check.
-    expect([200, 403]).toContain(res.status)
-    if (res.status === 200) {
-      const body = (await res.json()) as Record<string, unknown>
-      expect(body.provider).toBe('r2-binding')
-      expect(body.configured).toBe(false)
-    }
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(authedRequest('http://localhost/api/admin/storage', cookie), env)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.provider).toBe('r2-binding')
+    expect(body.configured).toBe(false)
   })
 
   it('returns the r2-binding config when the row is set', async () => {
     const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
     await seedGlobalSettings(env, { provider: 'r2-binding', updatedBy: 'admin@example.com' })
 
-    const res = await app.fetch(new Request('http://localhost/api/admin/storage'), env)
-    if (res.status === 200) {
-      const body = (await res.json()) as Record<string, unknown>
-      expect(body.provider).toBe('r2-binding')
-      expect(body.configured).toBe(true)
-      expect(body.updated_by).toBe('admin@example.com')
-    } else {
-      // Auth did not pass admin gate — skip assertions
-      expect(res.status).toBe(403)
-    }
+    const res = await app.fetch(authedRequest('http://localhost/api/admin/storage', cookie), env)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.provider).toBe('r2-binding')
+    expect(body.configured).toBe(true)
+    expect(body.updated_by).toBe('admin@example.com')
   })
 
   it('returns s3-compatible config with has_* booleans (no secret leak)', async () => {
     const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
     const accessKeyId = await encryptApiKey(MASTER, 'AKID-TEST')
     const secretAccessKey = await encryptApiKey(MASTER, 'SECRET-TEST')
     await seedGlobalSettings(env, {
@@ -94,22 +87,21 @@ describe('GET /api/admin/storage', () => {
       },
     })
 
-    const res = await app.fetch(new Request('http://localhost/api/admin/storage'), env)
-    if (res.status === 200) {
-      const body = (await res.json()) as Record<string, unknown>
-      expect(body.provider).toBe('s3-compatible')
-      expect(body.bucket).toBe('my-bucket')
-      expect(body.region).toBe('auto')
-      expect(body.endpoint).toBe('https://account.r2.cloudflarestorage.com')
-      expect(body.force_path_style).toBe(true)
-      expect(body.has_access_key).toBe(true)
-      expect(body.has_secret_key).toBe(true)
-      // Decrypted values must NOT appear
-      expect(body.accessKeyId).toBeUndefined()
-      expect(body.secretAccessKey).toBeUndefined()
-      expect(body.access_key_id).toBeUndefined()
-      expect(body.secret_access_key).toBeUndefined()
-    }
+    const res = await app.fetch(authedRequest('http://localhost/api/admin/storage', cookie), env)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.provider).toBe('s3-compatible')
+    expect(body.bucket).toBe('my-bucket')
+    expect(body.region).toBe('auto')
+    expect(body.endpoint).toBe('https://account.r2.cloudflarestorage.com')
+    expect(body.force_path_style).toBe(true)
+    expect(body.has_access_key).toBe(true)
+    expect(body.has_secret_key).toBe(true)
+    // Decrypted values must NOT appear
+    expect(body.accessKeyId).toBeUndefined()
+    expect(body.secretAccessKey).toBeUndefined()
+    expect(body.access_key_id).toBeUndefined()
+    expect(body.secret_access_key).toBeUndefined()
   })
 })
 
@@ -120,54 +112,46 @@ describe('PUT /api/admin/storage', () => {
 
   it('accepts r2-binding without storage config and upserts the row', async () => {
     const { env, db } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
     const res = await app.fetch(
-      new Request('http://localhost/api/admin/storage', {
+      authedRequest('http://localhost/api/admin/storage', cookie, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'r2-binding' }),
       }),
       env,
     )
-
-    if (res.status === 200) {
-      const [row] = await db.select().from(globalSettings).limit(1)
-      expect(row?.storageProvider).toBe('r2-binding')
-      expect(row?.storageConfig).toBeNull()
-    } else {
-      // Admin gate blocked; skip
-      expect(res.status).toBe(403)
-    }
+    expect(res.status).toBe(200)
+    const [row] = await db.select().from(globalSettings).limit(1)
+    expect(row?.storageProvider).toBe('r2-binding')
+    expect(row?.storageConfig).toBeNull()
   })
 
   it('rejects r2-binding when no BUCKET binding is configured', async () => {
-    // createTestEnv returns env without BUCKET; verify the validation works
     const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
     delete (env as any).BUCKET
 
     const res = await app.fetch(
-      new Request('http://localhost/api/admin/storage', {
+      authedRequest('http://localhost/api/admin/storage', cookie, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'r2-binding' }),
       }),
       env,
     )
-
-    if (res.status === 200 || res.status === 403) {
-      // Admin gate blocked OR our validation passed. Skip the strict
-      // assertion in those cases — the 400 path is only reachable when
-      // the admin gate opens.
-    } else {
-      expect(res.status).toBe(400)
-      const body = (await res.json()) as Record<string, unknown>
-      expect(body.error).toMatch(/no R2_BUCKET binding/)
-    }
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.error).toMatch(/no R2_BUCKET binding/)
   })
 
   it('accepts s3-compatible config, encrypts secrets, and persists', async () => {
     const { env, db } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
     const res = await app.fetch(
-      new Request('http://localhost/api/admin/storage', {
+      authedRequest('http://localhost/api/admin/storage', cookie, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -182,21 +166,17 @@ describe('PUT /api/admin/storage', () => {
       }),
       env,
     )
-
-    if (res.status === 200) {
-      const [row] = await db.select().from(globalSettings).limit(1)
-      expect(row?.storageProvider).toBe('s3-compatible')
-      const cfg = row?.storageConfig as any
-      expect(cfg.bucket).toBe('b')
-      // Secrets stored as ciphertext (3 colon-separated parts)
-      expect(typeof cfg.accessKeyId).toBe('string')
-      expect(cfg.accessKeyId.split(':')).toHaveLength(3)
-      expect(cfg.accessKeyId).not.toContain('AKID-FRESH')
-      expect(cfg.secretAccessKey.split(':')).toHaveLength(3)
-      expect(cfg.secretAccessKey).not.toContain('SECRET-FRESH')
-    } else {
-      expect(res.status).toBe(403)
-    }
+    expect(res.status).toBe(200)
+    const [row] = await db.select().from(globalSettings).limit(1)
+    expect(row?.storageProvider).toBe('s3-compatible')
+    const cfg = row?.storageConfig as any
+    expect(cfg.bucket).toBe('b')
+    // Secrets stored as ciphertext (3 colon-separated parts)
+    expect(typeof cfg.accessKeyId).toBe('string')
+    expect(cfg.accessKeyId.split(':')).toHaveLength(3)
+    expect(cfg.accessKeyId).not.toContain('AKID-FRESH')
+    expect(cfg.secretAccessKey.split(':')).toHaveLength(3)
+    expect(cfg.secretAccessKey).not.toContain('SECRET-FRESH')
   })
 
   it('returns 400 when s3-compatible credentials fail the health check', async () => {

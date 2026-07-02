@@ -1,10 +1,13 @@
 // packages/backend/src/mcp.test.ts
 // Tests for MCP auth middleware, token management, and tools.
+// - MCP auth middleware uses Bearer token (not Cookie).
+// - /api/notebooks/:id/mcp-token routes use Cookie auth (under authMiddleware).
 
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { notebooks } from './db/schema'
 import app from './index'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
 // ---------------------------------------------------------------------------
@@ -14,24 +17,25 @@ import { createTestEnv } from './test/d1-adapter'
 describe('MCP auth middleware', () => {
   async function seedEnvWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
+    const { userId } = await createAuthedRequest(testEnv.env)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
-      userId: 'dev-user',
+      userId,
       title: 'Test',
       description: '',
       mcpToken: token,
     })
-    return testEnv.env
+    return { env: testEnv.env, userId }
   }
 
   it('returns 401 when Authorization header is missing', async () => {
-    const env = await seedEnvWithToken('valid-token')
+    const { env } = await seedEnvWithToken('valid-token')
     const res = await app.fetch(new Request('http://localhost/mcp'), env)
     expect(res.status).toBe(401)
   })
 
   it('returns 401 when Authorization header does not start with Bearer', async () => {
-    const env = await seedEnvWithToken('valid-token')
+    const { env } = await seedEnvWithToken('valid-token')
     const res = await app.fetch(
       new Request('http://localhost/mcp', { headers: { Authorization: 'Basic xxx' } }),
       env,
@@ -41,7 +45,7 @@ describe('MCP auth middleware', () => {
 
   it('returns 401 when token is invalid', async () => {
     // Notebook exists but with a different token
-    const env = await seedEnvWithToken('valid-token')
+    const { env } = await seedEnvWithToken('valid-token')
     const res = await app.fetch(
       new Request('http://localhost/mcp', { headers: { Authorization: 'Bearer invalid-token' } }),
       env,
@@ -57,23 +61,23 @@ describe('MCP auth middleware', () => {
 describe('POST /api/notebooks/:id/mcp-token', () => {
   async function seedNotebook(notebookId = 'nb-1') {
     const testEnv = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(testEnv.env)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
-      userId: 'dev-user',
+      userId,
       title: 'Test',
       description: '',
     })
-    return testEnv
+    return { ...testEnv, cookie, userId }
   }
 
   it('generates and returns a new token', async () => {
-    const testEnv = await seedNotebook()
+    const { env, cookie } = await seedNotebook()
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'POST' }),
+      env,
     )
-
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, unknown>
     expect(body).toHaveProperty('token')
@@ -82,10 +86,12 @@ describe('POST /api/notebooks/:id/mcp-token', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const testEnv = await seedNotebook('nb-other')
+    const { env, cookie } = await seedNotebook('nb-other')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nonexistent/mcp-token', cookie, {
+        method: 'POST',
+      }),
+      env,
     )
     expect(res.status).toBe(404)
   })
@@ -98,42 +104,42 @@ describe('POST /api/notebooks/:id/mcp-token', () => {
 describe('GET /api/notebooks/:id/mcp-token', () => {
   async function seedNotebook(notebookId = 'nb-1') {
     const testEnv = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(testEnv.env)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
-      userId: 'dev-user',
+      userId,
       title: 'Test',
       description: '',
     })
-    return testEnv
+    return { ...testEnv, cookie, userId }
   }
 
   it('returns has_token=false when no token exists', async () => {
-    const testEnv = await seedNotebook()
+    const { env, cookie } = await seedNotebook()
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token'),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie),
+      env,
     )
-
     expect(res.status).toBe(200)
     const body = (await res.json()) as { has_token: boolean }
     expect(body.has_token).toBe(false)
   })
 
   it('returns has_token=true after a token is generated', async () => {
-    const testEnv = await seedNotebook()
+    const { env, cookie } = await seedNotebook()
 
     // First create a token via POST
     const postRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'POST' }),
+      env,
     )
     expect(postRes.status).toBe(200)
 
     // Then GET it back
     const getRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token'),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie),
+      env,
     )
     expect(getRes.status).toBe(200)
     const getBody = (await getRes.json()) as { has_token: boolean }
@@ -141,26 +147,26 @@ describe('GET /api/notebooks/:id/mcp-token', () => {
   })
 
   it('returns has_token=true after regeneration', async () => {
-    const testEnv = await seedNotebook()
+    const { env, cookie } = await seedNotebook()
 
     // Create first token
     const postRes1 = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'POST' }),
+      env,
     )
     expect(postRes1.status).toBe(200)
 
     // Regenerate
     const postRes2 = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'POST' }),
+      env,
     )
     expect(postRes2.status).toBe(200)
 
     // GET still returns has_token=true
     const getRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token'),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie),
+      env,
     )
     expect(getRes.status).toBe(200)
     const getBody = (await getRes.json()) as { has_token: boolean }
@@ -168,35 +174,35 @@ describe('GET /api/notebooks/:id/mcp-token', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const testEnv = await seedNotebook('nb-other')
+    const { env, cookie } = await seedNotebook('nb-other')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent/mcp-token'),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nonexistent/mcp-token', cookie),
+      env,
     )
     expect(res.status).toBe(404)
   })
 
   it('returns has_token=false after token is deleted', async () => {
-    const testEnv = await seedNotebook()
+    const { env, cookie } = await seedNotebook()
 
     // Create token
     const postRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'POST' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'POST' }),
+      env,
     )
     expect(postRes.status).toBe(200)
 
     // Delete it
     const delRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'DELETE' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'DELETE' }),
+      env,
     )
     expect(delRes.status).toBe(204)
 
     // GET should return has_token=false
     const getRes = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token'),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie),
+      env,
     )
     expect(getRes.status).toBe(200)
     const getBody = (await getRes.json()) as { has_token: boolean }
@@ -211,9 +217,10 @@ describe('GET /api/notebooks/:id/mcp-token', () => {
 describe('POST /mcp — JSON-RPC dispatch', () => {
   async function seedEnvWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
+    const { userId } = await createAuthedRequest(testEnv.env)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
-      userId: 'dev-user',
+      userId,
       title: 'Test',
       description: '',
       mcpToken: token,
@@ -328,27 +335,27 @@ describe('POST /mcp — JSON-RPC dispatch', () => {
 describe('DELETE /api/notebooks/:id/mcp-token', () => {
   async function seedNotebookWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(testEnv.env)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
-      userId: 'dev-user',
+      userId,
       title: 'Test',
       description: '',
       mcpToken: token,
     })
-    return testEnv
+    return { ...testEnv, cookie, userId }
   }
 
   it('deletes the token', async () => {
-    const testEnv = await seedNotebookWithToken('existing-token')
+    const { env, db, cookie } = await seedNotebookWithToken('existing-token')
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/mcp-token', { method: 'DELETE' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nb-1/mcp-token', cookie, { method: 'DELETE' }),
+      env,
     )
-
     expect(res.status).toBe(204)
     // Verify the token was cleared
-    const [updated] = await testEnv.db
+    const [updated] = await db
       .select({ mcpToken: notebooks.mcpToken })
       .from(notebooks)
       .where(eq(notebooks.id, 'nb-1'))
@@ -356,10 +363,12 @@ describe('DELETE /api/notebooks/:id/mcp-token', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const testEnv = await seedNotebookWithToken('existing-token', 'nb-other')
+    const { env, cookie } = await seedNotebookWithToken('existing-token', 'nb-other')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent/mcp-token', { method: 'DELETE' }),
-      testEnv.env,
+      authedRequest('http://localhost/api/notebooks/nonexistent/mcp-token', cookie, {
+        method: 'DELETE',
+      }),
+      env,
     )
     expect(res.status).toBe(404)
   })

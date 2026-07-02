@@ -14,7 +14,7 @@ TanStack Router frontend: React 19 SPA (CSR only, no SSR), TanStack Router (file
 - **Testing**: Vitest (unit), Playwright (`e2e/`).
 
 ## Dev Workflow
-- `pnpm --filter frontend dev` — Vite dev on `:5173`. Proxies `/api/*` to `http://127.0.0.1:8787` (wrangler dev) so the browser sees the same origin. Production uses the Access-issued JWT header sent from the frontend to the Worker domain.
+- `pnpm --filter frontend dev` — Vite dev on `:5173`. Proxies `/api/*` to `http://127.0.0.1:8787` (wrangler dev) so the browser sees the same origin. Production uses the HMAC-signed session cookie (set by `/api/auth/login`) sent from the frontend to the Worker domain.
 - `pnpm --filter frontend build` — vite build. Output `dist/` is bundled into the Worker as static assets by `.github/workflows/deploy.yml`.
 - `pnpm --filter frontend test` — Vitest unit tests.
 - `pnpm --filter frontend e2e` — Playwright tests (browser required).

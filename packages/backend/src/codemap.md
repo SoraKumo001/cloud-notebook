@@ -7,7 +7,7 @@ All backend TypeScript source code. The Hono app (`index.ts`) wires every route;
 `index.ts` mounts (in order):
 1. _(CORS removed — same-origin via Workers Static Assets)_
 2. **Security headers** (`app.use('*', async ...)` — runs after handler) — sets `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
-3. **Auth middleware** for `/api/*` — `authMiddleware` (HMAC-signed session cookie or dev-user bypass).
+3. **Auth middleware** for `/api/*` — `authMiddleware` (HMAC-signed session cookie).
 4. **DB middleware** for `/api/*` — `dbMiddleware()` sets `c.get('db')` to a drizzle instance.
 5. **Storage middleware** for `/api/*` — `storageMiddleware()` resolves the active `ObjectStorage` adapter (R2 binding or S3-compatible) from the `global_settings` row and exposes it as `c.get('storage')`.
 6. **MCP server** mounted at `/mcp` — own Bearer-token auth (`mcpAuthMiddleware`).

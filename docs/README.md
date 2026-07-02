@@ -28,7 +28,7 @@ graph TD
     Client -->|PDF解析・画像抽出・チャンキング| Client
     Client -->|テキスト / 抽出画像| R2[(Cloudflare R2 Storage)]
     
-    ExternalAI[外部AIクライアント <br> Claude Desktop / Cursor等] <-->|MCP Protocol / SSE <br> Cloudflare Accessバイパス| Worker
+    ExternalAI[外部AIクライアント <br> Claude Desktop / Cursor等] <-->|MCP Protocol / SSE <br> Bearer トークン認証| Worker
     
     Worker -->|メタデータ・チャット履歴| D1[(Cloudflare D1 Database)]
     Worker -->|ベクトルデータ検索| Vectorize[(Cloudflare Vectorize)]

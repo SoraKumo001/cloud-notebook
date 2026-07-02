@@ -56,27 +56,6 @@ describe('password', () => {
 // ---------------------------------------------------------------------------
 
 describe('getAuthContext', () => {
-  it('returns dev user when NODE_ENV=development', async () => {
-    const c = {
-      env: { NODE_ENV: 'development' },
-      req: { header: vi.fn() },
-    } as any
-
-    const user = await getAuthContext(c)
-    expect(user.id).toBe('dev-user')
-    expect(user.email).toBe('dev@example.com')
-  })
-
-  it('returns dev user when CF_DEV_BYPASS_AUTH=1', async () => {
-    const c = {
-      env: { CF_DEV_BYPASS_AUTH: '1' },
-      req: { header: vi.fn() },
-    } as any
-
-    const user = await getAuthContext(c)
-    expect(user.id).toBe('dev-user')
-  })
-
   it('throws when SESSION_SECRET is not set in prod', async () => {
     const c = {
       env: {},
@@ -110,27 +89,6 @@ describe('getAuthContext', () => {
 // ---------------------------------------------------------------------------
 
 describe('authMiddleware', () => {
-  it('sets user on context and calls next in dev mode', async () => {
-    const c = {
-      env: { NODE_ENV: 'development' },
-      req: { url: 'http://localhost/api/me', header: vi.fn() },
-      set: vi.fn(),
-    } as any
-    let nextCalled = false
-    const next = async () => {
-      nextCalled = true
-    }
-
-    await authMiddleware(c, next)
-    expect(c.set).toHaveBeenCalledWith('user', {
-      id: 'dev-user',
-      email: 'dev@example.com',
-      name: 'Dev User',
-      isAdmin: true,
-    })
-    expect(nextCalled).toBe(true)
-  })
-
   it('returns 401 JSON when auth fails', async () => {
     const c = {
       env: { SESSION_SECRET: TEST_SESSION_SECRET },
@@ -178,20 +136,8 @@ describe('authMiddleware', () => {
 // ---------------------------------------------------------------------------
 
 describe('GET /api/me (integration)', () => {
-  it('returns dev user when NODE_ENV=development', async () => {
-    const { env } = createTestEnv()
-    const res = await app.fetch(new Request('http://localhost/api/me'), env)
-    expect(res.status).toBe(200)
-    const body = (await res.json()) as Record<string, unknown>
-    expect(body.id).toBe('dev-user')
-  })
-
   it('returns 401 when no cookie in prod mode', async () => {
     const { env } = createTestEnv()
-    // Switch off the default dev-bypass in createTestEnv.
-    ;(env as Record<string, unknown>).NODE_ENV = 'production'
-    ;(env as Record<string, unknown>).CF_ENV = undefined
-    ;(env as Record<string, unknown>).CF_DEV_BYPASS_AUTH = undefined
     ;(env as Record<string, unknown>).SESSION_SECRET = TEST_SESSION_SECRET
     const res = await app.fetch(new Request('http://localhost/api/me'), env)
     expect(res.status).toBe(401)
@@ -203,11 +149,6 @@ describe('GET /api/me (integration)', () => {
 describe('POST /api/auth/register and /api/auth/login (integration)', () => {
   function buildEnv() {
     const { env } = createTestEnv()
-    // createTestEnv sets NODE_ENV=development for the dev-bypass path; we want
-    // the real session-cookie flow here.
-    ;(env as Record<string, unknown>).NODE_ENV = 'production'
-    ;(env as Record<string, unknown>).CF_ENV = undefined
-    ;(env as Record<string, unknown>).CF_DEV_BYPASS_AUTH = undefined
     ;(env as Record<string, unknown>).SESSION_SECRET = TEST_SESSION_SECRET
     return env
   }
@@ -400,9 +341,6 @@ describe('Invitation-gated registration (integration)', () => {
   // underlying SQLite DB (in-memory) is shared.
   function sharedEnv() {
     const { env, db } = createTestEnv()
-    ;(env as Record<string, unknown>).NODE_ENV = 'production'
-    ;(env as Record<string, unknown>).CF_ENV = undefined
-    ;(env as Record<string, unknown>).CF_DEV_BYPASS_AUTH = undefined
     ;(env as Record<string, unknown>).SESSION_SECRET = TEST_SESSION_SECRET
     return { env, db }
   }

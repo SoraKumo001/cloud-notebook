@@ -69,7 +69,6 @@ type Bindings = {
   ASSETS: Fetcher
   NODE_ENV?: string
   CF_ENV?: string
-  CF_DEV_BYPASS_AUTH?: string
   SESSION_SECRET?: string
   API_KEY_ENCRYPTION_MASTER?: string
   /** Test override — when set, the storage middleware uses this directly. */
@@ -1236,17 +1235,6 @@ app.get('/api/me', (c) => {
 
 // ---- Email + password auth --------------------------------------------------
 
-function isProdRequest(c: Context): boolean {
-  // Treat anything that is NOT a dev bypass as production.
-  const env = c.env as Bindings
-  const bypass =
-    env.CF_DEV_BYPASS_AUTH === '1' ||
-    env.CF_DEV_BYPASS_AUTH === 'true' ||
-    env.NODE_ENV === 'development' ||
-    env.CF_ENV === 'development'
-  return !bypass
-}
-
 function cookieSecure(c: Context): boolean {
   const url = new URL(c.req.url)
   return url.protocol === 'https:'
@@ -1319,17 +1307,13 @@ app.post(
       })
       await consumeInvitation(db, invitation.id, userId)
 
-      let cookie: string | null = null
-      if (isProdRequest(c)) {
-        const secret = c.env.SESSION_SECRET
-        if (!secret) {
-          return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
-        }
-        const { id: sessionId } = await createSession(db, userId)
-        cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+      const secret = c.env.SESSION_SECRET
+      if (!secret) {
+        return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
       }
-      const headers: Record<string, string> = {}
-      if (cookie) headers['Set-Cookie'] = cookie
+      const { id: sessionId } = await createSession(db, userId)
+      const cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+      const headers: Record<string, string> = { 'Set-Cookie': cookie }
       return c.json(
         { id: userId, email: normalizedEmail, name: name?.trim() || null, isAdmin: false },
         201,
@@ -1348,17 +1332,13 @@ app.post(
       isAdmin: true,
     })
 
-    let cookie: string | null = null
-    if (isProdRequest(c)) {
-      const secret = c.env.SESSION_SECRET
-      if (!secret) {
-        return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
-      }
-      const { id: sessionId } = await createSession(db, userId)
-      cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+    const secret = c.env.SESSION_SECRET
+    if (!secret) {
+      return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
     }
-    const headers: Record<string, string> = {}
-    if (cookie) headers['Set-Cookie'] = cookie
+    const { id: sessionId } = await createSession(db, userId)
+    const cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+    const headers: Record<string, string> = { 'Set-Cookie': cookie }
     return c.json(
       { id: userId, email: normalizedEmail, name: name?.trim() || null, isAdmin: true },
       201,
@@ -1392,18 +1372,13 @@ app.post(
       return errorResponse(c, ErrorCode.AuthInvalidCredentials, 'Invalid email or password', 401)
     }
 
-    let cookie: string | null = null
-    if (isProdRequest(c)) {
-      const secret = c.env.SESSION_SECRET
-      if (!secret) {
-        return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
-      }
-      const { id: sessionId } = await createSession(db, user.id)
-      cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+    const secret = c.env.SESSION_SECRET
+    if (!secret) {
+      return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
     }
-
-    const headers: Record<string, string> = {}
-    if (cookie) headers['Set-Cookie'] = cookie
+    const { id: sessionId } = await createSession(db, user.id)
+    const cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
+    const headers: Record<string, string> = { 'Set-Cookie': cookie }
     return c.json(
       { id: user.id, email: user.email, name: user.name ?? null, isAdmin: user.isAdmin },
       200,

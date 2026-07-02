@@ -4,22 +4,28 @@
 import { describe, expect, it } from 'vitest'
 import { chatSessions, notebooks } from './db/schema'
 import app from './index'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
-const DEV_USER = 'dev-user'
+// ---------------------------------------------------------------------------
+// Seed helpers
+// ---------------------------------------------------------------------------
 
-async function seedEnv() {
-  const testEnv = createTestEnv()
+async function seedSessions(
+  userId: string,
+  otherUserId: string,
+  testEnv: ReturnType<typeof createTestEnv>,
+) {
   await testEnv.db.insert(notebooks).values([
     {
       id: 'nb-1',
-      userId: DEV_USER,
+      userId,
       title: 'Test Notebook',
       description: '',
     },
     {
       id: 'nb-2',
-      userId: 'other-user',
+      userId: otherUserId,
       title: 'Other Notebook',
       description: '',
     },
@@ -36,7 +42,6 @@ async function seedEnv() {
       title: 'Other chat',
     },
   ])
-  return testEnv.env
 }
 
 // ---------------------------------------------------------------------------
@@ -45,35 +50,57 @@ async function seedEnv() {
 
 describe('DELETE /api/sessions/:sessionId', () => {
   it('deletes a session owned by the current user', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-delete-sess-ok@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/sess-1', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/sessions/sess-1', cookie, {
+        method: 'DELETE',
+      }),
       env,
     )
-
     expect(res.status).toBe(204)
   })
 
   it('returns 404 when session does not exist', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-delete-sess-nonexist@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/nonexistent', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/sessions/nonexistent', cookie, {
+        method: 'DELETE',
+      }),
       env,
     )
-
     expect(res.status).toBe(404)
   })
 
   it('returns 404 when session belongs to another user', async () => {
-    const env = await seedEnv()
-    // sess-2 belongs to nb-2 which is owned by 'other-user'
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-delete-sess-other@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
+
+    // sess-2 belongs to nb-2 which is owned by otherUserId
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/sess-2', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/sessions/sess-2', cookie, {
+        method: 'DELETE',
+      }),
       env,
     )
-
     expect(res.status).toBe(404)
   })
 })
@@ -84,17 +111,22 @@ describe('DELETE /api/sessions/:sessionId', () => {
 
 describe('PATCH /api/sessions/:sessionId', () => {
   it('renames a session', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-sess-rename@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/sess-1', {
+      authedRequest('http://localhost/api/sessions/sess-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Renamed Chat' }),
       }),
       env,
     )
-
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.title).toBe('Renamed Chat')
@@ -102,47 +134,62 @@ describe('PATCH /api/sessions/:sessionId', () => {
   })
 
   it('returns 400 when title is empty', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-sess-empty@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/sess-1', {
+      authedRequest('http://localhost/api/sessions/sess-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: '' }),
       }),
       env,
     )
-
     expect(res.status).toBe(400)
   })
 
   it('returns 404 when session does not exist', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-sess-nonexist@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/nonexistent', {
+      authedRequest('http://localhost/api/sessions/nonexistent', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Title' }),
       }),
       env,
     )
-
     expect(res.status).toBe(404)
   })
 
   it('returns 404 when session belongs to another user', async () => {
-    const env = await seedEnv()
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-sess-other@example.com',
+      adminCookie: cookie,
+    })
+    await seedSessions(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sessions/sess-2', {
+      authedRequest('http://localhost/api/sessions/sess-2', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Hacked' }),
       }),
       env,
     )
-
     expect(res.status).toBe(404)
   })
 })

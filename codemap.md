@@ -42,7 +42,7 @@ Google NotebookLM-style RAG chat app, optimised for the Cloudflare serverless st
 | `packages/frontend/src/` | React routes, components, hooks, lib (PDF/tokenizer/webpage) | [View Map](packages/frontend/src/codemap.md) |
 | `packages/frontend/src/hooks/` | Custom hooks wrapping the backend REST API | [View Map](packages/frontend/src/hooks/codemap.md) |
 | `packages/frontend/src/lib/` | Browser-only utilities (PDF parsing, tokenization, webpage fetch) | [View Map](packages/frontend/src/lib/codemap.md) |
-| `docs/` | Architecture / database / access-setup design docs | — |
+| `docs/` | Architecture / database / development design docs | — |
 
 ## Cross-Cutting Patterns
 

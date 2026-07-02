@@ -31,7 +31,7 @@ For deep work on a specific folder, also read that folder's `codemap.md`.
 
 - **Backend**: Hono + Cloudflare Workers + D1 + R2 + Vectorize + Workers AI. All routes zod-validated via `vHook`. Authorization checks `notebooks.user_id === c.get('user').id` before every write.
 - **Frontend**: TanStack Router (CSR, no SSR) + React 19 + Tailwind. Bundled into the Worker via `wrangler deploy`. Dynamic imports for heavy deps (`pdfjs-dist`, `mammoth`, `js-tiktoken`). Error envelope `{ error: string }` matched by `(body as { error?: string }).error`.
-- **Testing**: vitest (backend 210 tests, frontend 98 tests). Use `createTestEnv()` for backend tests (D1 in-memory adapter).
+- **Testing**: vitest (backend 250 tests, frontend 98 tests). Use `createTestEnv()` for backend tests (D1 in-memory adapter).
 - **Tooling**: Biome for lint/format (NOT ESLint). pnpm workspaces. Default branch is `master`.
 
 ## Common Tasks

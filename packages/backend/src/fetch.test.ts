@@ -1,26 +1,11 @@
 // packages/backend/src/fetch.test.ts
 // Tests for GET /api/fetch — CORS proxy endpoint.
+// Uses Cookie-based auth (under authMiddleware).
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import app from './index'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function callFetch(url: string | undefined, env?: Record<string, unknown>) {
-  const path = url !== undefined ? `/api/fetch?url=${encodeURIComponent(url)}` : '/api/fetch'
-  return app.fetch(new Request(`http://localhost${path}`), {
-    NODE_ENV: 'development',
-    ...env,
-  })
-}
-
-/** Build an env that includes the default storage mock from createTestEnv. */
-function baseEnv(): Record<string, unknown> {
-  return createTestEnv().env
-}
 
 // ---------------------------------------------------------------------------
 // URL validation
@@ -28,40 +13,97 @@ function baseEnv(): Record<string, unknown> {
 
 describe('GET /api/fetch — URL validation', () => {
   it('returns 400 when url param is missing', async () => {
-    const res = await callFetch(undefined, baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(authedRequest('http://localhost/api/fetch', cookie), env)
     expect(res.status).toBe(400)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toContain('Validation failed')
   })
 
   it('returns 400 for non-http protocol', async () => {
-    const res = await callFetch('ftp://example.com/file.txt', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('ftp://example.com/file.txt')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(400)
   })
 
   it('rejects localhost URLs (SSRF)', async () => {
-    const res = await callFetch('http://localhost:8080/secret', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('http://localhost:8080/secret')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(400)
   })
 
   it('rejects 127.0.0.1 (SSRF)', async () => {
-    const res = await callFetch('http://127.0.0.1:8787/admin', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('http://127.0.0.1:8787/admin')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(400)
   })
 
   it('rejects 192.168.* (SSRF)', async () => {
-    const res = await callFetch('http://192.168.1.1/config', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('http://192.168.1.1/config')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(400)
   })
 
   it('rejects 10.* (SSRF)', async () => {
-    const res = await callFetch('http://10.0.0.1/internal', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('http://10.0.0.1/internal')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(400)
   })
 
   it('accepts a valid public HTTPS URL', async () => {
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
     // We only test validation — fetch mock happens below
-    const res = await callFetch('https://example.com/page', baseEnv())
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('https://example.com/page')}`,
+        cookie,
+      ),
+      env,
+    )
     // Will fail at the fetch stage (no mock), not validation
     expect(res.status).not.toBe(400)
   })
@@ -83,7 +125,16 @@ describe('GET /api/fetch — fetch behaviour', () => {
       text: () => Promise.resolve(fakeHtml),
     } as Response)
 
-    const res = await callFetch('https://example.com', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('https://example.com')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8')
     const text = await res.text()
@@ -98,7 +149,16 @@ describe('GET /api/fetch — fetch behaviour', () => {
       text: () => Promise.resolve(''),
     } as Response)
 
-    const res = await callFetch('https://example.com/missing', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('https://example.com/missing')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(502)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toContain('404')
@@ -107,7 +167,16 @@ describe('GET /api/fetch — fetch behaviour', () => {
   it('returns 502 when fetch throws (network error)', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ENOTFOUND'))
 
-    const res = await callFetch('https://nonexistent.example.com', baseEnv())
+    const { env } = createTestEnv()
+    const { cookie } = await createAuthedRequest(env)
+
+    const res = await app.fetch(
+      authedRequest(
+        `http://localhost/api/fetch?url=${encodeURIComponent('https://nonexistent.example.com')}`,
+        cookie,
+      ),
+      env,
+    )
     expect(res.status).toBe(502)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toContain('ENOTFOUND')

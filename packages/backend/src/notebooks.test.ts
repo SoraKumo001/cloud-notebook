@@ -5,26 +5,29 @@
 import { describe, expect, it, vi } from 'vitest'
 import { notebooks, sources } from './db/schema'
 import app from './index'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
 // ---------------------------------------------------------------------------
 // Seed helpers
 // ---------------------------------------------------------------------------
 
-const DEV_USER = 'dev-user'
-
-/** Seed two notebooks: one for dev-user, one for other-user. */
-async function seedBasicNotebooks(testEnv = createTestEnv()) {
+/** Seed two notebooks: one for the primary user, one for another user. */
+async function seedBasicNotebooks(
+  userId: string,
+  otherUserId: string,
+  testEnv: ReturnType<typeof createTestEnv>,
+) {
   await testEnv.db.insert(notebooks).values([
     {
       id: 'nb-1',
-      userId: DEV_USER,
+      userId,
       title: 'Alpha Project',
       description: 'First notebook',
     },
     {
       id: 'nb-2',
-      userId: 'other-user',
+      userId: otherUserId,
       title: 'Other',
       description: '',
     },
@@ -33,12 +36,16 @@ async function seedBasicNotebooks(testEnv = createTestEnv()) {
 }
 
 /** Seed three sources: two for nb-1, one for nb-2. */
-async function seedBasicSources(testEnv: ReturnType<typeof createTestEnv>) {
+async function seedBasicSources(
+  userId: string,
+  otherUserId: string,
+  testEnv: ReturnType<typeof createTestEnv>,
+) {
   await testEnv.db.insert(sources).values([
     {
       id: 'src-1',
       notebookId: 'nb-1',
-      userId: DEV_USER,
+      userId,
       name: 'a.pdf',
       type: 'pdf',
       status: 'completed',
@@ -48,7 +55,7 @@ async function seedBasicSources(testEnv: ReturnType<typeof createTestEnv>) {
     {
       id: 'src-2',
       notebookId: 'nb-1',
-      userId: DEV_USER,
+      userId,
       name: 'b.pdf',
       type: 'pdf',
       status: 'completed',
@@ -58,7 +65,7 @@ async function seedBasicSources(testEnv: ReturnType<typeof createTestEnv>) {
     {
       id: 'src-3',
       notebookId: 'nb-2',
-      userId: 'other-user',
+      userId: otherUserId,
       name: 'c.pdf',
       type: 'pdf',
       status: 'completed',
@@ -74,14 +81,20 @@ async function seedBasicSources(testEnv: ReturnType<typeof createTestEnv>) {
 
 describe('GET /api/notebooks', () => {
   it('returns only the user-owned notebooks with whitelisted columns', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-get-whitelist@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
 
-    const res = await app.fetch(new Request('http://localhost/api/notebooks'), env)
+    const res = await app.fetch(authedRequest('http://localhost/api/notebooks', cookie), env)
     expect(res.status).toBe(200)
     const body = (await res.json()) as Array<Record<string, unknown>>
-    expect(body).toHaveLength(1) // only dev-user's notebooks
+    expect(body).toHaveLength(1) // only user's notebooks
     expect(body[0].id).toBe('nb-1')
-    expect(body[0].userId).toBe(DEV_USER)
+    expect(body[0].userId).toBe(userId)
     // Sensitive fields MUST NOT be included
     expect(body[0].aiApiKey).toBeUndefined()
     expect(body[0].aiBaseUrl).toBeUndefined()
@@ -89,14 +102,21 @@ describe('GET /api/notebooks', () => {
   })
 
   it('returns correct sourceCount per notebook (counts only completed sources)', async () => {
-    const testEnv = await seedBasicNotebooks()
-    await seedBasicSources(testEnv)
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-get-srccount@example.com',
+      adminCookie: cookie,
+    })
+    const testEnv = { env, db, sqlite }
+    await seedBasicNotebooks(userId, otherUserId, testEnv)
+    await seedBasicSources(userId, otherUserId, testEnv)
     // Add a processing and a failed source to nb-1 (should not be counted)
     await testEnv.db.insert(sources).values([
       {
         id: 'src-proc',
         notebookId: 'nb-1',
-        userId: DEV_USER,
+        userId,
         name: 'proc.pdf',
         type: 'pdf',
         status: 'processing',
@@ -106,7 +126,7 @@ describe('GET /api/notebooks', () => {
       {
         id: 'src-fail',
         notebookId: 'nb-1',
-        userId: DEV_USER,
+        userId,
         name: 'fail.pdf',
         type: 'pdf',
         status: 'failed',
@@ -114,9 +134,8 @@ describe('GET /api/notebooks', () => {
         displayOrder: 3,
       },
     ])
-    const env = testEnv.env
 
-    const res = await app.fetch(new Request('http://localhost/api/notebooks'), env)
+    const res = await app.fetch(authedRequest('http://localhost/api/notebooks', cookie), env)
     expect(res.status).toBe(200)
     const body = (await res.json()) as Array<Record<string, unknown>>
     expect(body).toHaveLength(1)
@@ -125,20 +144,35 @@ describe('GET /api/notebooks', () => {
   })
 
   it('filters by search query (q)', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-get-search@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
 
     // nb-1 has title "Alpha Project"
-    const res1 = await app.fetch(new Request('http://localhost/api/notebooks?q=Alpha'), env)
+    const res1 = await app.fetch(
+      authedRequest('http://localhost/api/notebooks?q=Alpha', cookie),
+      env,
+    )
     const body1 = (await res1.json()) as unknown[]
     expect(body1).toHaveLength(1)
 
     // nb-1 description contains "First"
-    const res2 = await app.fetch(new Request('http://localhost/api/notebooks?q=First'), env)
+    const res2 = await app.fetch(
+      authedRequest('http://localhost/api/notebooks?q=First', cookie),
+      env,
+    )
     const body2 = (await res2.json()) as unknown[]
     expect(body2).toHaveLength(1)
 
     // No match
-    const res3 = await app.fetch(new Request('http://localhost/api/notebooks?q=Zebra'), env)
+    const res3 = await app.fetch(
+      authedRequest('http://localhost/api/notebooks?q=Zebra', cookie),
+      env,
+    )
     const body3 = (await res3.json()) as unknown[]
     expect(body3).toHaveLength(0)
   })
@@ -150,9 +184,16 @@ describe('GET /api/notebooks', () => {
 
 describe('PATCH /api/notebooks/:id', () => {
   it('updates AI provider and model settings', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-ai@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
+
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -172,9 +213,16 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('rejects openai provider because the Vectorize index is 1024-dim (M21)', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-openai@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
+
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ai_provider: 'openai' }),
@@ -187,9 +235,16 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('returns 400 when ai_provider is an empty string', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-empty@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
+
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ai_provider: '' }),
@@ -200,9 +255,16 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('updates title and description alongside AI settings', async () => {
-    const env = (await seedBasicNotebooks()).env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-patch-title@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
+
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,12 +287,18 @@ describe('PATCH /api/notebooks/:id', () => {
 
 describe('POST /api/notebooks/:id/sources/reorder', () => {
   it('reorders sources within a notebook', async () => {
-    const testEnv = await seedBasicNotebooks()
-    await seedBasicSources(testEnv)
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-reorder-ok@example.com',
+      adminCookie: cookie,
+    })
+    const testEnv = { env, db, sqlite }
+    await seedBasicNotebooks(userId, otherUserId, testEnv)
+    await seedBasicSources(userId, otherUserId, testEnv)
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/sources/reorder', {
+      authedRequest('http://localhost/api/notebooks/nb-1/sources/reorder', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceIds: ['src-2', 'src-1'] }),
@@ -243,12 +311,18 @@ describe('POST /api/notebooks/:id/sources/reorder', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const testEnv = await seedBasicNotebooks()
-    await seedBasicSources(testEnv)
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-reorder-nonexist@example.com',
+      adminCookie: cookie,
+    })
+    const testEnv = { env, db, sqlite }
+    await seedBasicNotebooks(userId, otherUserId, testEnv)
+    await seedBasicSources(userId, otherUserId, testEnv)
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent/sources/reorder', {
+      authedRequest('http://localhost/api/notebooks/nonexistent/sources/reorder', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceIds: ['src-1'] }),
@@ -259,12 +333,18 @@ describe('POST /api/notebooks/:id/sources/reorder', () => {
   })
 
   it('returns 400 when sourceIds contains invalid IDs', async () => {
-    const testEnv = await seedBasicNotebooks()
-    await seedBasicSources(testEnv)
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-reorder-invalid@example.com',
+      adminCookie: cookie,
+    })
+    const testEnv = { env, db, sqlite }
+    await seedBasicNotebooks(userId, otherUserId, testEnv)
+    await seedBasicSources(userId, otherUserId, testEnv)
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1/sources/reorder', {
+      authedRequest('http://localhost/api/notebooks/nb-1/sources/reorder', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceIds: ['src-1', 'invalid-id'] }),
@@ -275,12 +355,19 @@ describe('POST /api/notebooks/:id/sources/reorder', () => {
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const testEnv = await seedBasicNotebooks()
-    await seedBasicSources(testEnv)
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-reorder-other@example.com',
+      adminCookie: cookie,
+    })
+    const testEnv = { env, db, sqlite }
+    await seedBasicNotebooks(userId, otherUserId, testEnv)
+    await seedBasicSources(userId, otherUserId, testEnv)
 
+    // userA tries to reorder sources in nb-2 (owned by otherUserId)
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-2/sources/reorder', {
+      authedRequest('http://localhost/api/notebooks/nb-2/sources/reorder', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceIds: ['src-3'] }),
@@ -297,8 +384,13 @@ describe('POST /api/notebooks/:id/sources/reorder', () => {
 
 describe('GET /api/notebooks/:id/stats', () => {
   it('returns notebook and global vector count statistics', async () => {
-    const testEnv = await seedBasicNotebooks()
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-stats-ok@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
 
     // Mock VECTORIZE.describe
     const mockDescribe = vi.fn().mockResolvedValue({
@@ -311,7 +403,10 @@ describe('GET /api/notebooks/:id/stats', () => {
       describe: mockDescribe,
     } as any
 
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-1/stats'), env)
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/stats', cookie),
+      env,
+    )
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, number>
     expect(body.notebookVectorCount).toBe(0)
@@ -320,21 +415,35 @@ describe('GET /api/notebooks/:id/stats', () => {
   })
 
   it('returns 404 for nonexistent notebook', async () => {
-    const testEnv = await seedBasicNotebooks()
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-stats-nonexist@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent/stats'),
+      authedRequest('http://localhost/api/notebooks/nonexistent/stats', cookie),
       env,
     )
     expect(res.status).toBe(404)
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const testEnv = await seedBasicNotebooks()
-    const env = testEnv.env
+    const { env, db, sqlite } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    const { userId: otherUserId } = await createAuthedRequest(env, {
+      email: 'other-stats-other@example.com',
+      adminCookie: cookie,
+    })
+    await seedBasicNotebooks(userId, otherUserId, { env, db, sqlite })
 
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-2/stats'), env)
+    // userA tries to access nb-2 (owned by otherUserId)
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-2/stats', cookie),
+      env,
+    )
     expect(res.status).toBe(404)
   })
 })

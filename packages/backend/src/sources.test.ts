@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { notebooks, sourceChunks, sourceImages, sources } from './db/schema'
 import app from './index'
 import type { ObjectStorage } from './storage/interface'
+import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
 /** Build a default no-op storage adapter. Tests override individual methods. */
@@ -23,29 +24,30 @@ function noopStorage(): ObjectStorage {
   }
 }
 
-const DEV_USER = 'dev-user'
-
-async function seedEnv() {
-  const testEnv = createTestEnv()
-  await testEnv.db.insert(notebooks).values([
+async function seedEnv(
+  db: ReturnType<typeof createTestEnv>['db'],
+  userId: string,
+  otherUserId: string,
+) {
+  await db.insert(notebooks).values([
     {
       id: 'nb-1',
-      userId: DEV_USER,
+      userId,
       title: 'Test Notebook',
       description: 'A test notebook',
     },
     {
       id: 'nb-2',
-      userId: 'other-user',
+      userId: otherUserId,
       title: 'Another User Notebook',
       description: '',
     },
   ])
-  await testEnv.db.insert(sources).values([
+  await db.insert(sources).values([
     {
       id: 'src-1',
       notebookId: 'nb-1',
-      userId: DEV_USER,
+      userId,
       name: 'intro.pdf',
       type: 'pdf',
       status: 'completed',
@@ -55,7 +57,7 @@ async function seedEnv() {
     {
       id: 'src-2',
       notebookId: 'nb-1',
-      userId: DEV_USER,
+      userId,
       name: 'notes.txt',
       type: 'text',
       status: 'completed',
@@ -63,7 +65,6 @@ async function seedEnv() {
       hash: 'hash-notes',
     },
   ])
-  return testEnv
 }
 
 function mockEmbeddingVector(): number[] {
@@ -76,12 +77,14 @@ function mockEmbeddingVector(): number[] {
 
 describe('GET /api/notebooks/:id', () => {
   it('returns a notebook when it exists and userId matches', async () => {
-    const env = (await seedEnv()).env
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-1'), env)
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    const res = await app.fetch(authedRequest('http://localhost/api/notebooks/nb-1', cookie), env)
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.id).toBe('nb-1')
-    expect(body.user_id).toBe(DEV_USER)
+    expect(body.user_id).toBe(userId)
     expect(body.title).toBe('Test Notebook')
     expect(body.description).toBe('A test notebook')
     expect(body.ai_provider).toBeNull()
@@ -97,17 +100,24 @@ describe('GET /api/notebooks/:id', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const env = (await seedEnv()).env
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/non-existent'), env)
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/non-existent', cookie),
+      env,
+    )
     expect(res.status).toBe(404)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toBe('Notebook not found')
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const env = (await seedEnv()).env
-    // nb-2 belongs to 'other-user', but auth user is 'dev-user'
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-2'), env)
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    // nb-2 belongs to 'other-user-id', but auth user is userId
+    const res = await app.fetch(authedRequest('http://localhost/api/notebooks/nb-2', cookie), env)
     expect(res.status).toBe(404)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toBe('Notebook not found')
@@ -116,26 +126,34 @@ describe('GET /api/notebooks/:id', () => {
 
 describe('GET /api/notebooks/:id/sources', () => {
   it('returns an empty array when no sources exist', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
     // notebooks only, no sources
-    const testEnv = createTestEnv()
-    await testEnv.db.insert(notebooks).values([
+    await db.insert(notebooks).values([
       {
         id: 'nb-1',
-        userId: DEV_USER,
+        userId,
         title: 'Test Notebook',
         description: 'A test notebook',
       },
     ])
-    const env = testEnv.env
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-1/sources'), env)
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie),
+      env,
+    )
     expect(res.status).toBe(200)
     const body = (await res.json()) as unknown[]
     expect(body).toEqual([])
   })
 
   it('returns multiple sources for the notebook', async () => {
-    const env = (await seedEnv()).env
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-1/sources'), env)
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie),
+      env,
+    )
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, unknown>[]
     expect(body).toHaveLength(2)
@@ -154,8 +172,13 @@ describe('GET /api/notebooks/:id/sources', () => {
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const env = (await seedEnv()).env
-    const res = await app.fetch(new Request('http://localhost/api/notebooks/nb-2/sources'), env)
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-2/sources', cookie),
+      env,
+    )
     expect(res.status).toBe(404)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.error).toBe('Notebook not found')
@@ -177,13 +200,15 @@ describe('POST /api/sources/finalize', () => {
     })
     const mockUpsert = vi.fn().mockResolvedValue({ count: 2, ids: ['id-1', 'id-2'] })
 
-    const testEnv = await seedEnv()
-    const env = testEnv.env as any
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     env.VECTORIZE = { upsert: mockUpsert } as any
     env.AI = { run: mockAiRun } as any
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/finalize', {
+      authedRequest('http://localhost/api/sources/finalize', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,13 +260,15 @@ describe('POST /api/sources/finalize', () => {
     const mockAiRun = vi.fn().mockRejectedValue(new Error('AI API error'))
     const mockUpsert = vi.fn()
 
-    const testEnv = await seedEnv()
-    const env = testEnv.env as any
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     env.VECTORIZE = { upsert: mockUpsert } as any
     env.AI = { run: mockAiRun } as any
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/finalize', {
+      authedRequest('http://localhost/api/sources/finalize', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,9 +293,11 @@ describe('POST /api/sources/finalize', () => {
   })
 
   it('returns 400 when required fields are missing', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/finalize', {
+      authedRequest('http://localhost/api/sources/finalize', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -284,13 +313,15 @@ describe('POST /api/sources/finalize', () => {
     const mockAiRun = vi.fn()
     const mockUpsert = vi.fn()
 
-    const testEnv = await seedEnv()
-    const env = testEnv.env as any
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     env.VECTORIZE = { upsert: mockUpsert } as any
     env.AI = { run: mockAiRun } as any
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/finalize', {
+      authedRequest('http://localhost/api/sources/finalize', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,10 +352,11 @@ describe('POST /api/sources/finalize', () => {
 
 describe('POST /api/uploads/presign', () => {
   it('returns 200 and presigned URL when hash is not duplicated', async () => {
-    const testEnv = await seedEnv()
-    const env = testEnv.env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/uploads/presign', {
+      authedRequest('http://localhost/api/uploads/presign', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -345,10 +377,11 @@ describe('POST /api/uploads/presign', () => {
   })
 
   it('returns 409 Conflict when hash is duplicated within the notebook', async () => {
-    const testEnv = await seedEnv()
-    const env = testEnv.env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/uploads/presign', {
+      authedRequest('http://localhost/api/uploads/presign', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -368,12 +401,14 @@ describe('POST /api/uploads/presign', () => {
   })
 
   it('returns 200 when hash matches a failed source', async () => {
-    const testEnv = await seedEnv()
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     // Insert a failed source with a specific hash
-    await testEnv.db.insert(sources).values({
+    await db.insert(sources).values({
       id: 'failed-src',
       notebookId: 'nb-1',
-      userId: DEV_USER,
+      userId,
       name: 'failed.pdf',
       type: 'pdf',
       status: 'failed',
@@ -381,9 +416,8 @@ describe('POST /api/uploads/presign', () => {
       hash: 'hash-failed',
     })
 
-    const env = testEnv.env
     const res = await app.fetch(
-      new Request('http://localhost/api/uploads/presign', {
+      authedRequest('http://localhost/api/uploads/presign', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -401,10 +435,11 @@ describe('POST /api/uploads/presign', () => {
   })
 
   it('returns 400 when parameters are missing', async () => {
-    const testEnv = await seedEnv()
-    const env = testEnv.env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/uploads/presign', {
+      authedRequest('http://localhost/api/uploads/presign', cookie, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -426,17 +461,21 @@ describe('POST /api/uploads/presign', () => {
 
 describe('POST /api/uploads/direct', () => {
   it('writes the body to R2 and returns the key/etag/size', async () => {
-    const testEnv = await seedEnv()
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const mockPut = vi.fn().mockResolvedValue({ etag: 'mock-etag', size: 12 })
-    testEnv.env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.__storage = { ...noopStorage(), put: mockPut } as any
 
     const body = new TextEncoder().encode('hello world!')
     const res = await app.fetch(
-      new Request(
+      authedRequest(
         'http://localhost/api/uploads/direct?key=notebooks/nb-1/sources/direct-1/test.txt&contentType=text/plain',
+        cookie,
         { method: 'POST', body, headers: { 'Content-Type': 'text/plain' } },
       ),
-      testEnv.env,
+      env,
     )
 
     expect(res.status).toBe(200)
@@ -448,18 +487,22 @@ describe('POST /api/uploads/direct', () => {
   })
 
   it('returns 404 when the notebook is not owned by the user', async () => {
-    const testEnv = await seedEnv()
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const mockPut = vi.fn()
-    testEnv.env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.__storage = { ...noopStorage(), put: mockPut } as any
 
-    // nb-2 is owned by `other-user`, not the dev user
+    // nb-2 is owned by `other-user-id`, not the current user
     const body = new TextEncoder().encode('x')
     const res = await app.fetch(
-      new Request(
+      authedRequest(
         'http://localhost/api/uploads/direct?key=notebooks/nb-2/sources/x/x.txt&contentType=text/plain',
+        cookie,
         { method: 'POST', body, headers: { 'Content-Type': 'text/plain' } },
       ),
-      testEnv.env,
+      env,
     )
 
     expect(res.status).toBe(404)
@@ -467,16 +510,20 @@ describe('POST /api/uploads/direct', () => {
   })
 
   it('returns 400 when the body is empty', async () => {
-    const testEnv = await seedEnv()
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const mockPut = vi.fn()
-    testEnv.env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.__storage = { ...noopStorage(), put: mockPut } as any
 
     const res = await app.fetch(
-      new Request(
+      authedRequest(
         'http://localhost/api/uploads/direct?key=notebooks/nb-1/sources/x/x.txt&contentType=text/plain',
+        cookie,
         { method: 'POST', body: new Uint8Array(0) },
       ),
-      testEnv.env,
+      env,
     )
 
     expect(res.status).toBe(400)
@@ -484,17 +531,21 @@ describe('POST /api/uploads/direct', () => {
   })
 
   it('returns 400 when the key is malformed', async () => {
-    const testEnv = await seedEnv()
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const mockPut = vi.fn()
-    testEnv.env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.__storage = { ...noopStorage(), put: mockPut } as any
 
     const body = new TextEncoder().encode('x')
     const res = await app.fetch(
-      new Request('http://localhost/api/uploads/direct?key=bogus/key.txt&contentType=text/plain', {
-        method: 'POST',
-        body,
-      }),
-      testEnv.env,
+      authedRequest(
+        'http://localhost/api/uploads/direct?key=bogus/key.txt&contentType=text/plain',
+        cookie,
+        { method: 'POST', body },
+      ),
+      env,
     )
 
     expect(res.status).toBe(400)
@@ -511,9 +562,12 @@ describe('DELETE /api/sources/:id', () => {
     const mockDeleteR2 = vi.fn().mockResolvedValue(undefined)
     const mockDeleteVec = vi.fn().mockResolvedValue({ count: 2, ids: ['chunk-1', 'chunk-2'] })
 
-    const testEnv = await seedEnv()
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     // Seed chunks + images
-    await testEnv.db.insert(sourceChunks).values([
+    await db.insert(sourceChunks).values([
       {
         id: 'chunk-1',
         sourceId: 'src-1',
@@ -527,7 +581,7 @@ describe('DELETE /api/sources/:id', () => {
         content: 'second',
       },
     ])
-    await testEnv.db.insert(sourceImages).values([
+    await db.insert(sourceImages).values([
       {
         id: 'img-1',
         sourceId: 'src-1',
@@ -536,12 +590,11 @@ describe('DELETE /api/sources/:id', () => {
       },
     ])
 
-    const env = testEnv.env as any
     env.__storage = { ...noopStorage(), delete: mockDeleteR2 } as any
     env.VECTORIZE = { deleteByIds: mockDeleteVec } as any
 
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/src-1', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/sources/src-1', cookie, { method: 'DELETE' }),
       env,
     )
 
@@ -561,9 +614,11 @@ describe('DELETE /api/sources/:id', () => {
   })
 
   it('returns 404 when source does not exist', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/nonexistent', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/sources/nonexistent', cookie, { method: 'DELETE' }),
       env,
     )
     expect(res.status).toBe(404)
@@ -576,9 +631,11 @@ describe('DELETE /api/sources/:id', () => {
 
 describe('PATCH /api/sources/:id', () => {
   it('renames a source', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/src-1', {
+      authedRequest('http://localhost/api/sources/src-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'renamed.pdf' }),
@@ -593,9 +650,11 @@ describe('PATCH /api/sources/:id', () => {
   })
 
   it('returns 400 when name is empty', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/src-1', {
+      authedRequest('http://localhost/api/sources/src-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: '' }),
@@ -607,9 +666,11 @@ describe('PATCH /api/sources/:id', () => {
   })
 
   it('returns 404 when source does not exist', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/sources/nonexistent', {
+      authedRequest('http://localhost/api/sources/nonexistent', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'new.pdf' }),
@@ -627,9 +688,11 @@ describe('PATCH /api/sources/:id', () => {
 
 describe('PATCH /api/notebooks/:id', () => {
   it('updates notebook title and description', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Updated Title', description: 'Updated desc' }),
@@ -647,9 +710,11 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent', {
+      authedRequest('http://localhost/api/notebooks/nonexistent', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Title' }),
@@ -660,9 +725,11 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('returns 400 when title is empty', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', {
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: '' }),
@@ -673,10 +740,12 @@ describe('PATCH /api/notebooks/:id', () => {
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const env = (await seedEnv()).env
-    // nb-2 belongs to 'other-user'
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    // nb-2 belongs to 'other-user-id'
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-2', {
+      authedRequest('http://localhost/api/notebooks/nb-2', cookie, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Hacked' }),
@@ -696,8 +765,11 @@ describe('DELETE /api/notebooks/:id', () => {
     const mockDeleteR2 = vi.fn().mockResolvedValue(undefined)
     const mockDeleteVec = vi.fn().mockResolvedValue({ count: 2 })
 
-    const testEnv = await seedEnv()
-    await testEnv.db.insert(sourceChunks).values([
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    await db.insert(sourceChunks).values([
       {
         id: 'chunk-1',
         sourceId: 'src-1',
@@ -711,7 +783,7 @@ describe('DELETE /api/notebooks/:id', () => {
         content: 'second',
       },
     ])
-    await testEnv.db.insert(sourceImages).values([
+    await db.insert(sourceImages).values([
       {
         id: 'img-1',
         sourceId: 'src-1',
@@ -720,12 +792,11 @@ describe('DELETE /api/notebooks/:id', () => {
       },
     ])
 
-    const env = testEnv.env as any
     env.__storage = { ...noopStorage(), delete: mockDeleteR2 } as any
     env.VECTORIZE = { deleteByIds: mockDeleteVec } as any
 
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-1', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/notebooks/nb-1', cookie, { method: 'DELETE' }),
       env,
     )
 
@@ -744,18 +815,22 @@ describe('DELETE /api/notebooks/:id', () => {
   })
 
   it('returns 404 when notebook does not exist', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nonexistent', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/notebooks/nonexistent', cookie, { method: 'DELETE' }),
       env,
     )
     expect(res.status).toBe(404)
   })
 
   it('returns 404 when notebook belongs to another user', async () => {
-    const env = (await seedEnv()).env
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
     const res = await app.fetch(
-      new Request('http://localhost/api/notebooks/nb-2', { method: 'DELETE' }),
+      authedRequest('http://localhost/api/notebooks/nb-2', cookie, { method: 'DELETE' }),
       env,
     )
     expect(res.status).toBe(404)

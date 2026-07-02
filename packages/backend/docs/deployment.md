@@ -83,18 +83,7 @@ echo "$(openssl rand -base64 32)" | wrangler secret put API_KEY_ENCRYPTION_MASTE
 
 ---
 
-## 2. Local dev auth bypass
 
-`authMiddleware` returns a dummy `dev-user` when any of these env vars is set
-in `.dev.vars`:
-
-- `NODE_ENV=development`
-- `CF_ENV=development`
-- `CF_DEV_BYPASS_AUTH=1`
-
-Production should leave all three unset and rely on the session cookie.
-
----
 
 ## 3. Automated local setup (one-shot)
 

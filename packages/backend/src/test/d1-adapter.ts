@@ -1,3 +1,4 @@
+import type { Ai, R2Bucket, VectorizeIndex } from '@cloudflare/workers-types'
 import Database from 'better-sqlite3'
 import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -131,8 +132,10 @@ function createD1Adapter(sqlite: Database.Database): D1Database {
  *   // Call the app:
  *   const res = await app.fetch(new Request('http://localhost/api/notebooks'), env)
  */
+import type { AuthedEnv } from './auth-helper'
+
 export function createTestEnv(): {
-  env: Record<string, unknown>
+  env: AuthedEnv
   db: TestDB
   sqlite: Database.Database
 } {
@@ -144,12 +147,12 @@ export function createTestEnv(): {
 
   const d1 = createD1Adapter(sqlite)
 
-  const env = {
+  const env: AuthedEnv = {
     DB: d1,
-    BUCKET: {} as unknown,
-    VECTORIZE: {} as unknown,
-    AI: {} as unknown,
-    NODE_ENV: 'development' as const,
+    BUCKET: {} as R2Bucket,
+    VECTORIZE: {} as VectorizeIndex,
+    AI: {} as Ai,
+    SESSION_SECRET: 'test-secret-please-do-not-use-in-prod-32+chars-long',
     API_KEY_ENCRYPTION_MASTER: 'MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=',
     // Default storage mock — every test gets a no-op ObjectStorage
     // out of the box, so tests don't have to set up the storage

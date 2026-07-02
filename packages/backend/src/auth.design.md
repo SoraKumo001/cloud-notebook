@@ -16,7 +16,7 @@
 | 有効期限 (`exp`) / 未来発行 (`iat`) チェック | ✅ 実装済み | 同上 |
 | `alg` ヘッダー固定 (RS256 以外拒否) | ✅ 実装済み | 同上 |
 | JWKS 公開鍵フェッチ + キャッシュ | ✅ 実装済み | `fetchPublicKey()` |
-| dev モードバイパス | ✅ 実装済み | `getAuthContext()` |
+
 | Hono ミドルウェア | ✅ 実装済み | `authMiddleware()` |
 | **aud (audience) 検証** | ❌ 未実装 | **追加推奨** |
 | **iss (issuer) 検証** | ❌ 未実装 | **追加推奨** |
@@ -181,8 +181,7 @@ async function fetchPublicKey(kid: string, teamDomain: string): Promise<CryptoKe
 - 本番モード: `CF-Access-Jwt-Assertion` あり + 有効 JWT → ユーザー返却
 - 本番モード: ヘッダーなし → エラー
 - 本番モード: `CF_TEAM_DOMAIN` 未設定 → エラー
-- Dev モード (`NODE_ENV=development`) → ダミーユーザー返却
-- Dev モード (`CF_ENV=development`) → ダミーユーザー返却
+
 
 ### 5.3 `authMiddleware`
 
@@ -258,4 +257,4 @@ app.use('/api/mcp/*', mcpAuthMiddleware)  // M6 で実装
 
 - [Cloudflare Access: Validate JWTs (公式)](https://developers.cloudflare.com/cloudflare-one/identity/authorization-cookie/validating-json/)
 - [Cloudflare Access: Application paths (公式)](https://developers.cloudflare.com/cloudflare-one/policies/access/app-paths/)
-- [プロジェクト内: Access 設定手順書](../docs/access-setup.md)
+

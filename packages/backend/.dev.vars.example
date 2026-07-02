@@ -5,19 +5,18 @@
 # For production deployment, set these as Wrangler Secrets instead.
 # See docs/development.md for the local setup workflow.
 
-# ---- Development mode (required) ----
-# When set to "development", the auth middleware returns a dummy user
-# (dev-user@example.com) instead of validating the session cookie.
+# ---- Development mode ----
+# When set to "development", the onError handler exposes stack traces in 500
+# responses and the /local-uploads dev proxy is enabled. This no longer
+# bypasses authentication — you must register a user via /api/auth/register
+# before protected routes will work.
 NODE_ENV=development
-# Optional: explicitly bypass auth (works regardless of NODE_ENV).
-# Accepted truthy values: "1" or "true".
-# CF_DEV_BYPASS_AUTH=1
 
 # ---- Session secret (required in production) ----
 # 32-byte base64 string used to HMAC-sign session cookies.
 # Generate with: openssl rand -base64 32
-# When NODE_ENV is not "development", login (and any protected route)
-# will fail if this is unset.
+# Always required: login and any protected route will fail if this is unset.
+# Generate with: openssl rand -base64 32
 SESSION_SECRET=eAD9hTPUIwPYsMXHchOxjKvzbHKqWyaOCfJfAZKOkQc=
 
 # ---- API key encryption master key (required for L5 features) ----

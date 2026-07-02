@@ -2,7 +2,7 @@ import { expect, type Page, test } from '@playwright/test'
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
-const DEV_USER = {
+const MOCK_USER = {
   id: 'dev-user',
   email: 'dev@example.com',
   name: 'Dev User',
@@ -16,7 +16,7 @@ async function mockAuth(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(DEV_USER),
+      body: JSON.stringify(MOCK_USER),
     })
   })
 }
@@ -128,6 +128,6 @@ test.describe('Smoke tests', () => {
     await page.goto('/notebooks')
 
     // Should display the user name in the header
-    await expect(page.locator(`text=${DEV_USER.name}`)).toBeVisible()
+    await expect(page.locator(`text=${MOCK_USER.name}`)).toBeVisible()
   })
 })

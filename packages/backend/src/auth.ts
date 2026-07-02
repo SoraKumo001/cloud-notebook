@@ -4,8 +4,7 @@
 // Replaces the previous Cloudflare Access JWT verification.
 //
 // Design:
-//   getAuthContext  — extracts user from the signed session cookie, or returns
-//                     a dummy user in dev mode (bypass).
+//   getAuthContext  — extracts user from the signed session cookie.
 //   authMiddleware   — Hono middleware that sets c.get('user') on /api/* routes.
 
 import type { Context, Next } from 'hono'
@@ -25,30 +24,7 @@ export interface AuthUser {
 }
 
 interface AuthEnv {
-  NODE_ENV?: string
-  CF_ENV?: string
-  CF_DEV_BYPASS_AUTH?: string
   SESSION_SECRET?: string
-}
-
-// ---------------------------------------------------------------------------
-// Dev bypass
-// ---------------------------------------------------------------------------
-
-const DEV_USER: AuthUser = {
-  id: 'dev-user',
-  email: 'dev@example.com',
-  name: 'Dev User',
-  isAdmin: true,
-}
-
-function isDevBypass(env: AuthEnv): boolean {
-  return (
-    env.CF_DEV_BYPASS_AUTH === '1' ||
-    env.CF_DEV_BYPASS_AUTH === 'true' ||
-    env.NODE_ENV === 'development' ||
-    env.CF_ENV === 'development'
-  )
 }
 
 // ---------------------------------------------------------------------------
@@ -58,20 +34,14 @@ function isDevBypass(env: AuthEnv): boolean {
 /**
  * Extract the authenticated user from the request context.
  *
- * - Dev bypass: returns a dummy user without checking any header.
- * - Production: reads the `session` cookie, verifies the HMAC signature,
- *   looks the session up in D1, and returns the decoded user identity.
+ * Reads the `session` cookie, verifies the HMAC signature, looks the session
+ * up in D1, and returns the decoded user identity.
  *
  * @throws  If the cookie is missing/invalid, the secret is not configured, or
  *          the session has expired.
  */
 export async function getAuthContext(c: Context): Promise<AuthUser> {
   const env = c.env as AuthEnv
-
-  if (isDevBypass(env)) {
-    return DEV_USER
-  }
-
   const secret = env.SESSION_SECRET
   if (!secret) {
     throw new Error('SESSION_SECRET not configured')

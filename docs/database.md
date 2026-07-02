@@ -108,7 +108,7 @@ CREATE TABLE notes (
 - **認証保護**: 通常のブラウザ経由のアクセス（フロントエンドおよび内部API）は Cloudflare Access の認証ポリシーを適用し、ログイン必須とします。ログイン成功時に発行される JWT（クッキーまたはヘッダー）を Workers 側で JWKS 公開鍵（CloudflareのAccess用エンドポイント）を用いて署名検証します。
 - **マルチユーザー分離**: JWT の `sub`（被認証者ID）または `email` を Workers 側で抽出し、D1 へのクエリ実行時に `WHERE user_id = ?` による行レベルのアクセス制限を行い、他人のノートブックが閲覧されることを確実に防ぎます。
 
-### 2.2 MCP API のバイパスと独自認可
+### 2.2 MCP API の Bearer トークン認証
 - **懸念**: Cloudflare Accessでアプリケーション全体を保護すると、Webログインが必要になるため、ブラウザを使用しない外部のAIエージェント（Claude DesktopやCursor等）がMCP API（`/api/mcp`）に接続できなくなります。
 - **対策**: Cloudflare Access 側のポリシー設定で、`/api/mcp/*` に対するアクセスルールを「**Bypass（バイパス）**」に設定し、認証の壁をパスさせます。その代わり、Workers内部のアプリケーションレイヤーにおいて、リクエストヘッダーの `Authorization: Bearer <mcp_token>` を検出し、D1データベースの `notebooks.mcp_token` と比較して独自に認可を行います。
 

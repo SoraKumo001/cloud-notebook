@@ -2,7 +2,7 @@ import { expect, type Page, test } from '@playwright/test'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const DEV_USER = {
+const MOCK_USER = {
   id: 'dev-user',
   email: 'dev@example.com',
   name: 'Dev User',
@@ -21,7 +21,7 @@ async function mockAuth(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(DEV_USER),
+      body: JSON.stringify(MOCK_USER),
     })
   })
 }
