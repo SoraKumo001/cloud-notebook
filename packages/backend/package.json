@@ -31,7 +31,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.20",
+    "@cloudflare/vitest-pool-workers": "^0.17.0",
     "@cloudflare/workers-types": "^4.20260629.1",
     "@types/better-sqlite3": "7.6.13",
     "better-sqlite3": "12.11.1",
