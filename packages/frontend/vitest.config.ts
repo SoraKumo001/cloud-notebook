@@ -10,5 +10,6 @@ export default defineConfig({
     isolate: true,
     // Force sequential file execution (vitest 4 syntax)
     fileParallelism: false,
+    setupFiles: ['./src/test-setup.ts'],
   },
 })

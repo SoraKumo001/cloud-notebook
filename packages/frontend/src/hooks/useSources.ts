@@ -1,6 +1,40 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Source } from '../components/SourceList'
 
+// ── Shared fetch helper ──────────────────────────────────────────────────────
+
+interface ApiError {
+  code: string
+  fallbackMessage: string
+  status: number
+}
+
+function mapStatusToCode(status: number): string {
+  if (status === 401) return 'auth.unauthorized'
+  if (status === 403) return 'auth.forbidden'
+  if (status === 404) return 'errors.generic'
+  if (status === 409) return 'resource.conflict'
+  if (status === 413) return 'request.tooLarge'
+  if (status === 500) return 'server.internalError'
+  return 'errors.generic'
+}
+
+async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init)
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string; code?: string })
+    const code = typeof body.code === 'string' ? body.code : undefined
+    throw {
+      code: code ?? mapStatusToCode(res.status),
+      fallbackMessage: body.error ?? res.statusText ?? res.status.toString(),
+      status: res.status,
+    } satisfies ApiError
+  }
+  return res.json() as Promise<T>
+}
+
+// ── Source status mapping ─────────────────────────────────────────────────────
+
 /** Map API status string to Source.status union. */
 function mapSourceStatus(apiStatus: string): Source['status'] {
   switch (apiStatus) {
@@ -42,20 +76,16 @@ export function useSources(notebookId: string): UseSourcesReturn {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch(`/api/notebooks/${encodeURIComponent(notebookId)}/sources`)
-
-      if (!res.ok) {
-        throw new Error(`Failed to load sources: ${res.status}`)
-      }
-
-      const data = (await res.json()) as Array<{
-        id: string
-        name: string
-        type: string
-        status: string
-        created_at: string
-        size?: number | null
-      }>
+      const data = await fetchJson<
+        Array<{
+          id: string
+          name: string
+          type: string
+          status: string
+          created_at: string
+          size?: number | null
+        }>
+      >(`/api/notebooks/${encodeURIComponent(notebookId)}/sources`)
 
       setSources(
         data.map((s) => ({
@@ -68,8 +98,12 @@ export function useSources(notebookId: string): UseSourcesReturn {
         })),
       )
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      setError(message)
+      const apiErr = err as ApiError
+      if (apiErr.code && apiErr.status !== undefined) {
+        setError(`${apiErr.code}:${apiErr.status}`)
+      } else {
+        setError('generic')
+      }
     } finally {
       setLoading(false)
     }
@@ -82,22 +116,21 @@ export function useSources(notebookId: string): UseSourcesReturn {
         // Optimistic UI Update: immediately remove from local state
         setSources((prev) => prev.filter((s) => s.id !== id))
 
-        const res = await fetch(`/api/sources/${encodeURIComponent(id)}`, {
+        await fetchJson<unknown>(`/api/sources/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         })
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Delete failed: ${res.status}`)
-        }
 
         // Run refresh in background to align state
         refresh()
       } catch (err) {
         // Rollback state by refreshing from server on failure
         await refresh()
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
@@ -108,21 +141,20 @@ export function useSources(notebookId: string): UseSourcesReturn {
     async (id: string, name: string) => {
       try {
         setError(null)
-        const res = await fetch(`/api/sources/${encodeURIComponent(id)}`, {
+        await fetchJson<unknown>(`/api/sources/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name }),
         })
 
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Rename failed: ${res.status}`)
-        }
-
         await refresh()
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
@@ -145,7 +177,7 @@ export function useSources(notebookId: string): UseSourcesReturn {
       try {
         setError(null)
         setSources(optimistic)
-        const res = await fetch(
+        await fetchJson<unknown>(
           `/api/notebooks/${encodeURIComponent(notebookId)}/sources/reorder`,
           {
             method: 'POST',
@@ -154,15 +186,14 @@ export function useSources(notebookId: string): UseSourcesReturn {
           },
         )
 
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Reorder failed: ${res.status}`)
-        }
-
         await refresh()
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
@@ -172,19 +203,18 @@ export function useSources(notebookId: string): UseSourcesReturn {
   const updateNotebook = useCallback(async (id: string, update: NotebookUpdate) => {
     try {
       setError(null)
-      const res = await fetch(`/api/notebooks/${encodeURIComponent(id)}`, {
+      await fetchJson<unknown>(`/api/notebooks/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(update),
       })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error((body as { error?: string }).error || `Update failed: ${res.status}`)
-      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      setError(message)
+      const apiErr = err as ApiError
+      if (apiErr.code && apiErr.status !== undefined) {
+        setError(`${apiErr.code}:${apiErr.status}`)
+      } else {
+        setError('generic')
+      }
       throw err
     }
   }, [])
@@ -192,17 +222,16 @@ export function useSources(notebookId: string): UseSourcesReturn {
   const deleteNotebook = useCallback(async (id: string) => {
     try {
       setError(null)
-      const res = await fetch(`/api/notebooks/${encodeURIComponent(id)}`, {
+      await fetchJson<unknown>(`/api/notebooks/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error((body as { error?: string }).error || `Delete failed: ${res.status}`)
-      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      setError(message)
+      const apiErr = err as ApiError
+      if (apiErr.code && apiErr.status !== undefined) {
+        setError(`${apiErr.code}:${apiErr.status}`)
+      } else {
+        setError('generic')
+      }
       throw err
     }
   }, [])

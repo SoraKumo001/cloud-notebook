@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 
 export interface Note {
@@ -18,6 +19,7 @@ interface NoteEditorProps {
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
+  const { t } = useTranslation('common')
   const isNew = note === null
   const [title, setTitle] = React.useState(note?.title ?? '')
   const [content, setContent] = React.useState(note?.content ?? '')
@@ -73,11 +75,11 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
   function statusText() {
     switch (autoSaveStatus) {
       case 'saving':
-        return 'Saving…'
+        return t('common.saving')
       case 'saved':
-        return 'Saved'
+        return t('common.saved')
       case 'error':
-        return 'Auto-save failed'
+        return t('common.saveFailedGeneric')
       default:
         return ''
     }
@@ -87,7 +89,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
     <div className='card card-border bg-base-100 overflow-hidden'>
       <div className='px-5 py-4 border-b border-base-300 bg-base-200 flex items-center justify-between gap-4'>
         <h3 className='text-sm font-semibold text-base-content/90'>
-          {isNew ? 'New note' : 'Edit note'}
+          {isNew ? t('note.editor.newNote') : t('note.editor.editNote')}
         </h3>
         <div role='tablist' className='tabs tabs-box bg-base-200 border border-base-300'>
           <button
@@ -96,7 +98,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
             onClick={() => setMode('edit')}
             className={`tab tab-sm ${mode === 'edit' ? 'tab-active' : ''}`}
           >
-            Edit
+            {t('note.editor.tabEdit')}
           </button>
           <button
             type='button'
@@ -104,7 +106,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
             onClick={() => setMode('preview')}
             className={`tab tab-sm ${mode === 'preview' ? 'tab-active' : ''}`}
           >
-            Preview
+            {t('note.editor.tabPreview')}
           </button>
         </div>
       </div>
@@ -112,28 +114,28 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
       <div className='p-5 space-y-4'>
         <div className='space-y-2'>
           <label htmlFor='note-title' className='block text-sm font-medium text-base-content/70'>
-            Title
+            {t('note.editor.titleLabel')}
           </label>
           <input
             id='note-title'
             type='text'
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder='Note title'
+            placeholder={t('note.editor.titlePlaceholder')}
             className='w-full input input-bordered'
           />
         </div>
 
         <div className='space-y-2'>
           <label htmlFor='note-content' className='block text-sm font-medium text-base-content/70'>
-            Content
+            {t('note.editor.contentLabel')}
           </label>
           {mode === 'edit' ? (
             <textarea
               id='note-content'
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder='Write in Markdown…'
+              placeholder={t('note.editor.contentPlaceholder')}
               rows={12}
               className='w-full textarea textarea-bordered resize-y font-mono text-sm leading-relaxed'
             />
@@ -187,7 +189,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
                   ),
                 }}
               >
-                {content || '*Nothing to preview*'}
+                {content || t('note.editor.previewEmpty')}
               </ReactMarkdown>
             </div>
           )}
@@ -202,7 +204,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
               disabled={isSaving}
               className='btn btn-neutral'
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type='button'
@@ -213,10 +215,10 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
               {isSaving ? (
                 <>
                   <span className='loading loading-spinner loading-sm text-white' />
-                  Saving…
+                  {t('common.saving')}
                 </>
               ) : (
-                'Save'
+                t('note.editor.save')
               )}
             </button>
           </div>

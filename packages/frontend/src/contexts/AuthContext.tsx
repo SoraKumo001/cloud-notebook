@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ const AuthContext = React.createContext<AuthContextValue | undefined>(undefined)
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('common')
   const [user, setUser] = React.useState<AuthUser | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -40,18 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!res.ok) {
-        throw new Error(`Failed to fetch user: ${res.status}`)
+        throw new Error(t('errors.fetchUserFailed', { status: res.status }))
       }
 
       const data = (await res.json()) as AuthUser
       setUser(data)
     } catch (err) {
       setUser(null)
-      setError(err instanceof Error ? err.message : 'Failed to authenticate')
+      setError(err instanceof Error ? err.message : t('errors.authenticateFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   React.useEffect(() => {
     fetchUser()

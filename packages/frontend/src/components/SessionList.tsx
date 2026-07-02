@@ -1,5 +1,8 @@
 import { MoreVertical } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatShortDate } from '../i18n/formatters'
+import { useLocale } from '../i18n/useLocale'
 
 export interface ChatSession {
   id: string
@@ -15,14 +18,6 @@ interface SessionListProps {
   onRename?: (id: string, title: string) => void
 }
 
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 function KebabIcon() {
   return <MoreVertical size={16} strokeWidth={2} aria-hidden='true' />
 }
@@ -33,12 +28,16 @@ function SessionItem({
   onSelect,
   onDelete,
   onRename,
+  t,
+  locale,
 }: {
   session: ChatSession
   isActive: boolean
   onSelect: (id: string) => void
   onDelete?: (id: string) => void
   onRename?: (id: string, title: string) => void
+  t: (key: string) => string
+  locale: string
 }) {
   const [isEditing, setIsEditing] = React.useState(false)
   const [editTitle, setEditTitle] = React.useState(session.title)
@@ -107,17 +106,17 @@ function SessionItem({
   if (isConfirmingDelete) {
     return (
       <div className={`px-4 py-3 border-l-2 ${activeClass}`}>
-        <p className='text-xs text-base-content/60 mb-2'>Delete this conversation?</p>
+        <p className='text-xs text-base-content/60 mb-2'>{t('sessionList.deleteDialog.title')}</p>
         <div className='flex items-center gap-2'>
           <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
-            Delete
+            {t('common.delete')}
           </button>
           <button
             type='button'
             onClick={() => setIsConfirmingDelete(false)}
             className='btn btn-ghost btn-xs'
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       </div>
@@ -140,7 +139,9 @@ function SessionItem({
         >
           {session.title}
         </p>
-        <p className='text-xs text-base-content/50'>{formatDate(session.created_at)}</p>
+        <p className='text-xs text-base-content/50'>
+          {formatShortDate(locale, session.created_at)}
+        </p>
       </button>
 
       {(onDelete || onRename) && (
@@ -148,7 +149,7 @@ function SessionItem({
           <button
             type='button'
             tabIndex={0}
-            aria-label='Session actions'
+            aria-label={t('sessionList.actionsAria')}
             className='btn btn-ghost btn-sm btn-circle'
             onClick={(e) => e.stopPropagation()}
           >
@@ -165,7 +166,7 @@ function SessionItem({
                   }}
                   className='rounded-md text-base-content/80'
                 >
-                  Rename
+                  {t('common.rename')}
                 </button>
               </li>
             )}
@@ -179,7 +180,7 @@ function SessionItem({
                   }}
                   className='rounded-md text-error font-medium'
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </li>
             )}
@@ -197,10 +198,13 @@ export function SessionList({
   onDelete,
   onRename,
 }: SessionListProps) {
+  const { t } = useTranslation('common')
+  const { locale } = useLocale()
+
   if (sessions.length === 0) {
     return (
       <div className='card card-border bg-base-100 p-4 text-center'>
-        <p className='text-sm text-base-content/50'>No conversations yet</p>
+        <p className='text-sm text-base-content/50'>{t('sessionList.empty')}</p>
       </div>
     )
   }
@@ -215,6 +219,8 @@ export function SessionList({
           onSelect={onSelect}
           onDelete={onDelete}
           onRename={onRename}
+          t={t}
+          locale={locale}
         />
       ))}
     </div>

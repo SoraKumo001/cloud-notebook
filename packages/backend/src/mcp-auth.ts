@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
 import { createDb } from './db/client'
 import { notebooks } from './db/schema'
+import { ErrorCode } from './errors'
 
 export interface McpNotebook {
   id: string
@@ -23,7 +24,10 @@ export async function mcpAuthMiddleware(c: Context, next: Next) {
 
   if (!authHeader?.startsWith('Bearer ')) {
     return c.json(
-      { error: 'Missing or invalid Authorization header. Use: Authorization: Bearer <token>' },
+      {
+        error: 'Missing or invalid Authorization header. Use: Authorization: Bearer <token>',
+        code: ErrorCode.AuthTokenMissing,
+      },
       401,
       { 'WWW-Authenticate': 'Bearer' } as Record<string, string>,
     )
@@ -31,7 +35,7 @@ export async function mcpAuthMiddleware(c: Context, next: Next) {
 
   const token = authHeader.slice(7).trim()
   if (!token) {
-    return c.json({ error: 'Token is empty' }, 401, {
+    return c.json({ error: 'Token is empty', code: ErrorCode.AuthTokenMissing }, 401, {
       'WWW-Authenticate': 'Bearer',
     } as Record<string, string>)
   }
@@ -48,7 +52,7 @@ export async function mcpAuthMiddleware(c: Context, next: Next) {
     .limit(1)
 
   if (!notebook) {
-    return c.json({ error: 'Invalid token' }, 401, {
+    return c.json({ error: 'Invalid token', code: ErrorCode.AuthTokenInvalid }, 401, {
       'WWW-Authenticate': 'Bearer',
     } as Record<string, string>)
   }

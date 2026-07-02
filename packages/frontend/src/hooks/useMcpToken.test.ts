@@ -157,7 +157,7 @@ describe('useMcpToken', () => {
     await flushMicrotasks()
 
     expect(result.current.hasToken).toBe(false)
-    expect(result.current.error).toBe('Forbidden')
+    expect(result.current.error).toBe('auth.forbidden:403')
     expect(result.current.loading).toBe(false)
 
     unmount()
@@ -204,7 +204,7 @@ describe('useMcpToken', () => {
     await flushMicrotasks()
 
     expect(result.current.hasToken).toBe(true) // unchanged on error
-    expect(result.current.error).toBe('Not found')
+    expect(result.current.error).toBe('errors.generic:404')
     expect(result.current.loading).toBe(false)
 
     unmount()

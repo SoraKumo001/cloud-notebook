@@ -1,5 +1,6 @@
 import { AlertTriangle, CircleCheck, X } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { McpTokenPanel } from './McpTokenPanel'
 
 export interface NotebookSettingsNotebook {
@@ -39,6 +40,7 @@ export function NotebookSettingsModal({
   onClose,
   onSaved,
 }: NotebookSettingsModalProps) {
+  const { t } = useTranslation('common')
   const [title, setTitle] = React.useState(notebook.title)
   const [description, setDescription] = React.useState(notebook.description ?? '')
 
@@ -78,12 +80,12 @@ export function NotebookSettingsModal({
     setModelsLoading(true)
     try {
       const connRes = await fetch('/api/connections')
-      if (!connRes.ok) throw new Error('Failed to load connections')
+      if (!connRes.ok) throw new Error(t('errors.loadConnectionsFailed'))
       const connections: Array<{ id: string; name: string; provider: string }> =
         await connRes.json()
 
       const allConns = [
-        { id: 'workers-ai', name: 'Workers AI (Built-in)' },
+        { id: 'workers-ai', name: t('notebookSettings.providerGroup') },
         ...connections.map((c) => ({ id: c.id, name: c.name })),
       ]
 
@@ -157,11 +159,11 @@ export function NotebookSettingsModal({
         if (!hasEmbed) setCustomEmbedding(true)
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch models')
+      setError(err.message || t('errors.fetchModelsFailed'))
     } finally {
       setModelsLoading(false)
     }
-  }, [notebook])
+  }, [notebook, t])
 
   React.useEffect(() => {
     if (isOpen) {
@@ -225,7 +227,9 @@ export function NotebookSettingsModal({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error((data as { error?: string }).error || `Save failed: ${res.status}`)
+        throw new Error(
+          (data as { error?: string }).error || t('common.saveFailed', { status: res.status }),
+        )
       }
 
       const updated = (await res.json()) as NotebookSettingsNotebook
@@ -241,7 +245,7 @@ export function NotebookSettingsModal({
         onClose()
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : t('common.saveFailedGeneric'))
     } finally {
       setIsSaving(false)
     }
@@ -256,7 +260,7 @@ export function NotebookSettingsModal({
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error((data as { error?: string }).error || 'Reindex failed')
+        throw new Error((data as { error?: string }).error || t('errors.reindexFailed'))
       }
       setReindexDone(true)
       setNeedsReindex(false)
@@ -264,7 +268,7 @@ export function NotebookSettingsModal({
         onClose()
       }, 1200)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reindexing failed')
+      setError(err instanceof Error ? err.message : t('errors.reindexFailed'))
     } finally {
       setIsReindexing(false)
     }
@@ -290,14 +294,14 @@ export function NotebookSettingsModal({
       <div className='modal-box max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl'>
         <div className='px-6 py-5 border-b border-base-300 bg-base-200 flex items-center justify-between sticky top-0 z-10'>
           <h2 id='notebook-settings-title' className='text-lg font-semibold text-base-content'>
-            Notebook settings
+            {t('notebookSettings.title')}
           </h2>
           <button
             type='button'
             onClick={onClose}
             disabled={isSaving}
             className='btn btn-ghost btn-circle'
-            aria-label='Close'
+            aria-label={t('common.close')}
           >
             <X size={20} strokeWidth={2} aria-hidden='true' />
           </button>
@@ -308,13 +312,13 @@ export function NotebookSettingsModal({
 
           {/* Basic info */}
           <div className='space-y-4'>
-            {sectionTitle('Basic information')}
+            {sectionTitle(t('notebookSettings.sectionBasic'))}
             <div className='space-y-2'>
               <label
                 htmlFor='settings-title'
                 className='block text-sm font-medium text-base-content/70'
               >
-                Title <span className='text-secondary'>*</span>
+                {t('createNotebook.titleLabel')}
               </label>
               <input
                 id='settings-title'
@@ -330,7 +334,7 @@ export function NotebookSettingsModal({
                 htmlFor='settings-description'
                 className='block text-sm font-medium text-base-content/70'
               >
-                Description
+                {t('createNotebook.descriptionLabel')}
               </label>
               <textarea
                 id='settings-description'
@@ -345,7 +349,7 @@ export function NotebookSettingsModal({
 
           {/* AI settings */}
           <div className='border-t border-base-300 pt-6 space-y-4'>
-            {sectionTitle('AI settings')}
+            {sectionTitle(t('notebookSettings.sectionAi'))}
 
             <div className='space-y-4'>
               {/* Embedding Model */}
@@ -355,14 +359,16 @@ export function NotebookSettingsModal({
                     htmlFor='settings-embedding'
                     className='block text-sm font-medium text-base-content/70'
                   >
-                    Embedding model
+                    {t('notebookSettings.embeddingModel')}
                   </label>
                   <button
                     type='button'
                     className='text-[10px] text-primary hover:underline font-semibold'
                     onClick={() => setCustomEmbedding(!customEmbedding)}
                   >
-                    {customEmbedding ? 'Select from list' : 'Direct input'}
+                    {customEmbedding
+                      ? t('notebookSettings.selectFromList')
+                      : t('notebookSettings.directInput')}
                   </button>
                 </div>
                 {customEmbedding || embeddingGroupCandidates.length === 0 ? (
@@ -382,7 +388,7 @@ export function NotebookSettingsModal({
                     onChange={(e) => setEmbeddingModel(e.target.value)}
                     disabled={isSaving || modelsLoading}
                   >
-                    <option value='inherit'>Use global settings (inherit)</option>
+                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
                     {embeddingGroupCandidates.map((group) => (
                       <optgroup key={group.connectionId} label={group.connectionName}>
                         {group.models.map((m) => (
@@ -406,14 +412,16 @@ export function NotebookSettingsModal({
                     htmlFor='settings-chat'
                     className='block text-sm font-medium text-base-content/70'
                   >
-                    Chat model
+                    {t('notebookSettings.chatModel')}
                   </label>
                   <button
                     type='button'
                     className='text-[10px] text-primary hover:underline font-semibold'
                     onClick={() => setCustomChat(!customChat)}
                   >
-                    {customChat ? 'Select from list' : 'Direct input'}
+                    {customChat
+                      ? t('notebookSettings.selectFromList')
+                      : t('notebookSettings.directInput')}
                   </button>
                 </div>
                 {customChat || chatGroupCandidates.length === 0 ? (
@@ -433,7 +441,7 @@ export function NotebookSettingsModal({
                     onChange={(e) => setChatModel(e.target.value)}
                     disabled={isSaving || modelsLoading}
                   >
-                    <option value='inherit'>Use global settings (inherit)</option>
+                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
                     {chatGroupCandidates.map((group) => (
                       <optgroup key={group.connectionId} label={group.connectionName}>
                         {group.models.map((m) => (
@@ -457,14 +465,16 @@ export function NotebookSettingsModal({
                     htmlFor='settings-summarization'
                     className='block text-sm font-medium text-base-content/70'
                   >
-                    Summarization model
+                    {t('notebookSettings.summarizationModel')}
                   </label>
                   <button
                     type='button'
                     className='text-[10px] text-primary hover:underline font-semibold'
                     onClick={() => setCustomSummarization(!customSummarization)}
                   >
-                    {customSummarization ? 'Select from list' : 'Direct input'}
+                    {customSummarization
+                      ? t('notebookSettings.selectFromList')
+                      : t('notebookSettings.directInput')}
                   </button>
                 </div>
                 {customSummarization || chatGroupCandidates.length === 0 ? (
@@ -484,7 +494,7 @@ export function NotebookSettingsModal({
                     onChange={(e) => setSummarizationModel(e.target.value)}
                     disabled={isSaving || modelsLoading}
                   >
-                    <option value='inherit'>Use global settings (inherit)</option>
+                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
                     {chatGroupCandidates.map((group) => (
                       <optgroup key={group.connectionId} label={group.connectionName}>
                         {group.models.map((m) => (
@@ -505,7 +515,7 @@ export function NotebookSettingsModal({
 
           {/* MCP integration */}
           <div className='border-t border-base-300 pt-6 space-y-4'>
-            {sectionTitle('MCP integration')}
+            {sectionTitle(t('notebookSettings.sectionMcp'))}
             <McpTokenPanel notebookId={notebookId} />
           </div>
 
@@ -520,9 +530,11 @@ export function NotebookSettingsModal({
                   className='h-5 w-5 text-warning shrink-0 mt-0.5'
                 />
                 <div>
-                  <p className='text-sm font-semibold text-warning'>インデックスの更新が必要です</p>
+                  <p className='text-sm font-semibold text-warning'>
+                    {t('notebookSettings.reindex.warningTitle')}
+                  </p>
                   <p className='text-xs text-base-content/70 mt-0.5'>
-                    埋め込みモデルが変更されました。このノートブックのドキュメントを新しいモデルで再インデックスしないと検索精度が低下します。
+                    {t('notebookSettings.reindex.warningBody')}
                   </p>
                 </div>
               </div>
@@ -533,7 +545,7 @@ export function NotebookSettingsModal({
                   className='btn btn-ghost btn-sm rounded-xl text-xs'
                   disabled={isReindexing}
                 >
-                  後で更新する
+                  {t('notebookSettings.reindex.later')}
                 </button>
                 <button
                   type='button'
@@ -544,10 +556,10 @@ export function NotebookSettingsModal({
                   {isReindexing ? (
                     <>
                       <span className='loading loading-spinner loading-xs' />
-                      更新中...
+                      {t('notebookSettings.reindex.running')}
                     </>
                   ) : (
-                    'インデックスを更新'
+                    t('notebookSettings.reindex.run')
                   )}
                 </button>
               </div>
@@ -562,7 +574,7 @@ export function NotebookSettingsModal({
                 strokeWidth={2}
                 className='stroke-current shrink-0 h-4 w-4'
               />
-              <span>インデックスの更新が完了しました！</span>
+              <span>{t('notebookSettings.reindex.done')}</span>
             </div>
           )}
 
@@ -574,14 +586,14 @@ export function NotebookSettingsModal({
                 disabled={isSaving}
                 className='btn btn-neutral rounded-xl px-5 text-sm font-medium'
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type='submit'
                 disabled={isSaving || isTitleEmpty || modelsLoading}
                 className='btn btn-primary rounded-xl px-5 text-sm font-medium'
               >
-                {isSaving ? 'Saving…' : 'Save changes'}
+                {isSaving ? t('common.saving') : t('common.saveChanges')}
               </button>
             </div>
           )}

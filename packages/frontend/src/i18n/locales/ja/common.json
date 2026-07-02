@@ -1,0 +1,440 @@
+{
+  "app": {
+    "name": "Cloud open-notebook",
+    "tagline": "プライベートなAIリサーチアシスタント",
+    "footer": "© {year} Cloud open-notebook. All rights reserved."
+  },
+  "language": {
+    "switchLabel": "言語",
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "common": {
+    "loading": "読み込み中…",
+    "saving": "保存中…",
+    "saved": "保存しました",
+    "save": "保存",
+    "saveChanges": "変更を保存",
+    "saveSettings": "設定を保存",
+    "saveFailed": "保存に失敗しました: {status}",
+    "saveFailedGeneric": "問題が発生しました",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "create": "作成",
+    "creating": "作成中…",
+    "close": "閉じる",
+    "back": "戻る",
+    "backToHome": "← ホームに戻る",
+    "signIn": "サインイン",
+    "signOut": "サインアウト",
+    "signInShort": "サインイン",
+    "register": "登録",
+    "createAccount": "アカウントを作成",
+    "haveAccount": "アカウントをお持ちですか?",
+    "noAccount": "アカウントをお持ちでない方は?",
+    "pleaseWait": "お待ちください…",
+    "rename": "名前を変更",
+    "retry": "再試行",
+    "copied": "コピーしました",
+    "copy": "コピー",
+    "dismiss": "閉じる",
+    "ok": "OK",
+    "yes": "はい",
+    "no": "いいえ",
+    "show": "表示",
+    "hide": "非表示",
+    "or": "または"
+  },
+  "errors": {
+    "generic": "問題が発生しました",
+    "network": "ネットワークエラー",
+    "notFound": "{resource} が見つかりません",
+    "forbidden": "アクセスが禁止されています",
+    "unauthorized": "認証が必要です",
+    "timeout": "リクエストがタイムアウトしました",
+    "loadFailed": "読み込みに失敗しました: {status}",
+    "createFailed": "作成に失敗しました: {status}",
+    "updateFailed": "更新に失敗しました: {status}",
+    "deleteFailed": "削除に失敗しました: {status}",
+    "renameFailed": "名前の変更に失敗しました: {status}",
+    "reorderFailed": "並び替えに失敗しました: {status}",
+    "revokeFailed": "取り消しに失敗しました: {status}",
+    "issueInviteFailed": "招待の発行に失敗しました: {status}",
+    "loadInvitationsFailed": "招待の読み込みに失敗しました: {status}",
+    "loadNotebooksFailed": "ノートブックの読み込みに失敗しました: {status}",
+    "loadGlobalSettingsFailed": "グローバル設定の読み込みに失敗しました",
+    "loadConnectionsFailed": "接続の読み込みに失敗しました",
+    "loadStorageFailed": "読み込みに失敗しました ({status})",
+    "loadStorageFailedGeneric": "読み込みに失敗しました",
+    "saveStorageFailed": "保存に失敗しました ({status})",
+    "saveStorageFailedGeneric": "保存に失敗しました",
+    "generateTokenFailed": "トークンの生成に失敗しました: {status}",
+    "revokeTokenFailed": "トークンの取り消しに失敗しました: {status}",
+    "signInFailed": "サインインに失敗しました: {status}",
+    "signInFailedGeneric": "サインインに失敗しました",
+    "authenticateFailed": "認証に失敗しました",
+    "fetchUserFailed": "ユーザー情報の取得に失敗しました: {status}",
+    "addConnectionFailed": "接続の追加に失敗しました",
+    "deleteConnectionFailed": "接続の削除に失敗しました",
+    "fetchModelsFailed": "モデル一覧の取得に失敗しました",
+    "fetchNotebooksFailed": "ノートブックの取得に失敗しました",
+    "reindexFailed": "再インデックスに失敗しました",
+    "saveOccurred": "保存中にエラーが発生しました",
+    "deleteConnectionConfirm": "この接続を削除してもよろしいですか?",
+    "notebook": {
+      "notFound": "ノートブックが見つかりません"
+    },
+    "source": {
+      "notFound": "ソースが見つかりません"
+    },
+    "session": {
+      "notFound": "セッションが見つかりません"
+    },
+    "note": {
+      "notFound": "メモが見つかりません"
+    },
+    "connection": {
+      "notFound": "接続が見つかりません"
+    },
+    "invitation": {
+      "notFound": "招待が見つからないか、すでに使用されています"
+    },
+    "auth": {
+      "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+      "unauthorized": "認証が必要です",
+      "forbidden": "この操作を実行する権限がありません",
+      "tokenMissing": "Authorizationヘッダが見つからないか、無効です",
+      "tokenInvalid": "トークンが無効です",
+      "emailRegistered": "このメールアドレスは既に登録されています",
+      "inviteRequired": "招待トークンが必要です。管理者に招待を依頼してください。",
+      "inviteInvalid": "招待トークンが無効または期限切れです"
+    },
+    "validation": {
+      "failed": "バリデーションに失敗しました",
+      "email": "メールアドレスの形式が正しくありません",
+      "url": "http:// または https:// の正しいURLを入力してください",
+      "titleRequired": "タイトルを入力してください。",
+      "fileNameInvalid": "ファイル名が不正です",
+      "keyInvalid": "キーが不正です",
+      "importFailed": "ウェブページのインポートに失敗しました"
+    },
+    "request": {
+      "invalidKey": "キーが無効です",
+      "emptyBody": "ボディが空です",
+      "tooLarge": "ファイルが大きすぎます",
+      "invalidUrl": "無効または許可されていないURLです",
+      "invalidSourceIds": "無効なソースIDです",
+      "deprecated": "このエンドポイントは非推奨です"
+    },
+    "resource": {
+      "conflict": "リソースの競合が発生しました"
+    },
+    "server": {
+      "configError": "サーバー設定エラー",
+      "internalError": "内部サーバーエラー",
+      "upstreamError": "アップストリームサービスエラー"
+    },
+    "proxy": {
+      "upstreamError": "アップストリームがエラーを返しました"
+    },
+    "storage": {
+      "providerMismatch": "ストレージプロバイダーが一致しません",
+      "healthCheckFailed": "ストレージのヘルスチェックに失敗しました",
+      "forbiddenInProduction": "本番環境では禁止されています"
+    }
+  },
+  "landing": {
+    "featureMultimodalTitle": "マルチモーダルソース",
+    "featureMultimodalBody": "PDFをアップロードし、ブラウザでテキストと画像を抽出。Cloudflare Vectorizeで即座にインデックス化されます。",
+    "featureSmartTitle": "スマートRAGチャット",
+    "featureSmartBody": "質問すると、ドキュメントから出典付きで即座に回答。Workers AIとOpenAI互換エンドポイントから選択可能。",
+    "cfBadge": "✨ Cloudflare Native Architecture",
+    "cta": "新しいノートブックを作成",
+    "heroBody": "ノートブックを作成し、PDFやウェブページをアップロードして、あなたの個人的なナレッジベースと対話しましょう。Cloudflare Workers、D1、R2、Vectorizeで動作します。"
+  },
+  "login": {
+    "invitationDetected": "招待リンクを検出しました",
+    "displayNameLabel": "表示名(任意)",
+    "emailLabel": "メールアドレス",
+    "passwordLabel": "パスワード",
+    "passwordHint": "8文字以上。",
+    "submitRegister": "アカウントを作成",
+    "bodyRegister": "アカウントを登録して、ソースのアップロードとチャットを始めましょう。",
+    "bodyLogin": "メールアドレスとパスワードでノートブックにアクセスします。",
+    "bodyInvited": "招待されました。パスワードを設定してアカウント作成を完了してください。"
+  },
+  "notebookList": {
+    "title": "ノートブック",
+    "subtitle": "リサーチとソースを整理しましょう。",
+    "newNotebook": "新しいノートブック",
+    "searchPlaceholder": "ノートブックを検索...",
+    "emptySearch": "検索条件に一致するノートブックがありません",
+    "empty": "ノートブックがまだありません",
+    "emptySearchHint": "「{query}」に一致する結果はありません。別のキーワードを試してください。",
+    "emptyHint": "最初のノートブックを作成して、ソース、メモ、リサーチの収集を始めましょう。",
+    "clearSearch": "検索をクリア",
+    "inviteAria": "ユーザーを招待",
+    "storageAria": "ストレージ設定(管理者)",
+    "globalSettingsAria": "グローバル設定",
+    "closeInvite": "招待ダイアログを閉じる",
+    "inviteTitle": "ユーザーを招待",
+    "sort": {
+      "label": "並び替え",
+      "updated": "最終更新",
+      "newest": "新しい順",
+      "titleAsc": "タイトル A-Z",
+      "titleDesc": "タイトル Z-A"
+    },
+    "updated": "{date}に更新"
+  },
+  "notebookDetail": {
+    "loading": "読み込み中…",
+    "backToList": "ノートブック一覧に戻る",
+    "editTitleAria": "クリックしてタイトルを編集",
+    "actionsAria": "ノートブックの操作",
+    "settingsMenu": "ノートブック設定",
+    "globalSettingsMenu": "グローバル設定",
+    "deleteMenu": "ノートブックを削除",
+    "deleteDialog": {
+      "title": "ノートブックを削除しますか?",
+      "body": "「{title}」とすべてのソースが完全に削除されます。この操作は取り消せません。"
+    },
+    "studio": {
+      "title": "メモ & スタジオ",
+      "subtitle": "メモを書いたり、スタディガイドを生成したりできます。"
+    }
+  },
+  "createNotebook": {
+    "title": "新しいノートブックを作成",
+    "titleLabel": "タイトル *",
+    "titlePlaceholder": "例: リサーチノート",
+    "descriptionLabel": "説明",
+    "descriptionPlaceholder": "ノートブックの任意の説明",
+    "submit": "ノートブックを作成"
+  },
+  "notebookCard": {
+    "noDescription": "説明なし",
+    "sourceCount": "{count, plural, other {ソース #件}}"
+  },
+  "sourceList": {
+    "sectionTitle": "ソース",
+    "bytes": {
+      "zero": "0 バイト",
+      "bytes": "バイト",
+      "kb": "KB",
+      "mb": "MB",
+      "gb": "GB"
+    },
+    "date": "{year}/{month}/{day}",
+    "status": {
+      "processing": "処理中",
+      "error": "エラー",
+      "pending": "保留中",
+      "uploading": "アップロード中...",
+      "done": "完了"
+    },
+    "addMore": "ファイルを追加",
+    "addFiles": "ファイルを追加",
+    "clickToAdd": "クリックしてファイルを追加",
+    "clearErrors": "アップロードエラーをクリア",
+    "empty": "まだソースがありません",
+    "emptyWithDrop": "+ をクリックするか、ここにファイルをドロップして最初のソースを追加しましょう。",
+    "emptyWithWeb": "上の「ウェブページを追加」または「ファイルをアップロード」から始めましょう。",
+    "stats": "合計 {count} · {vectors} ベクトル(全体: {globalVectors})",
+    "dragAria": "ドラッグして並び替え",
+    "renameAria": "ソース名を変更",
+    "deleteAria": "ソースを削除",
+    "renameLabel": "名前を変更",
+    "deleteConfirm": "削除"
+  },
+  "chat": {
+    "title": "チャット",
+    "newChat": "新規チャット",
+    "conversations": "会話 ({count})",
+    "emptyTitle": "ソースについて何でも質問",
+    "emptyBody": "質問を入力すると、このノートブックのドキュメントを使ってアシスタントが回答します。",
+    "inputPlaceholder": "質問を入力...",
+    "sendAria": "送信",
+    "sendHint": "Enterで送信 · Shift+Enterで改行",
+    "highRiskBadge": "高リスク回答",
+    "potentialUnreliable": "信頼性が低い可能性"
+  },
+  "sessionList": {
+    "deleteDialog": {
+      "title": "この会話を削除しますか?",
+      "body": "この会話とすべてのメッセージが完全に削除されます。"
+    },
+    "actionsAria": "セッションの操作",
+    "empty": "まだ会話がありません"
+  },
+  "note": {
+    "listTitle": "メモ",
+    "listCount": "合計 {count}",
+    "newNote": "新しいメモ",
+    "empty": "まだメモがありません",
+    "emptyHint": "メモを作成して始めましょう。",
+    "deleteDialog": {
+      "title": "このメモを削除しますか?",
+      "body": "このメモは完全に削除されます。"
+    },
+    "actionsAria": "メモの操作",
+    "editor": {
+      "newNote": "新しいメモ",
+      "editNote": "メモを編集",
+      "tabEdit": "編集",
+      "tabPreview": "プレビュー",
+      "titleLabel": "タイトル",
+      "titlePlaceholder": "メモのタイトル",
+      "contentLabel": "内容",
+      "contentPlaceholder": "Markdownで書く…",
+      "save": "保存",
+      "previewEmpty": "*プレビューする内容がありません*"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
+      "daysAgo": "{count}日前"
+    }
+  },
+  "webpageImporter": {
+    "title": "ウェブページを追加",
+    "urlLabel": "ウェブページURL",
+    "urlPlaceholder": "https://example.com/article",
+    "submit": "追加",
+    "submitting": "取得中…"
+  },
+  "citation": {
+    "page": "{n}ページ",
+    "score": "スコア: {percent}%"
+  },
+  "invite": {
+    "revokeDialog": {
+      "title": "招待を取り消しますか?",
+      "body": "{email} への招待が削除されます。受信者がまだ使用していない場合でも、リンクは無効になります。",
+      "submit": "取り消す"
+    },
+    "formTitle": "チームメートを招待",
+    "emailPlaceholder": "alice@example.com",
+    "submit": "招待を送信",
+    "issuedTitle": "発行済みの招待",
+    "loading": "読み込み中…",
+    "empty": "まだ招待がありません。上のフォームから最初のチームメートを招待しましょう。",
+    "used": "使用済み {date}",
+    "expires": "有効期限 {date}",
+    "expired": "期限切れ {date}",
+    "revokeAria": "{email} への招待を取り消す",
+    "sentToast": "{email} に招待を送信しました。下のリンクを送信してください — 1回のみ使用可能、7日後に期限切れ。"
+  },
+  "mcp": {
+    "generateToken": "トークンを生成",
+    "generated": "トークンが生成されました。",
+    "savedPrompt": "このトークンを今すぐコピーしてください — このビューを閉じると再表示できません。",
+    "savedAck": "トークンを保存しました",
+    "regenerate": "再生成",
+    "discard": "破棄",
+    "setup": "セットアップ手順",
+    "setupBody": "Streamable HTTP トランスポート対応のMCPクライアントを接続できます。下記のURLと、このノートブックのベアラートークンをAuthorizationヘッダの値として使用してください。トークンを紛失した場合は再生成してください(以前のトークンは無効になります)。",
+    "serverUrl": "サーバーURL",
+    "authHeader": "Authorizationヘッダ",
+    "regenerateDialog": {
+      "title": "トークンを再生成しますか?",
+      "regenerateBody": "新しいトークンが生成され、古いトークンは直ちに無効になります。古いトークンを使用中のクライアントはアクセスできなくなります。"
+    },
+    "discardDialog": {
+      "title": "トークンを破棄しますか?",
+      "discardBody": "サーバーからトークンが削除され、パネルは「トークンを生成」状態に戻ります。現在のトークンを使用中のクライアントはアクセスできなくなります。"
+    }
+  },
+  "notebookSettings": {
+    "title": "ノートブック設定",
+    "sectionBasic": "基本情報",
+    "sectionAi": "AI設定",
+    "sectionMcp": "MCP連携",
+    "providerGroup": "Workers AI(組み込み)",
+    "embeddingModel": "埋め込みモデル",
+    "chatModel": "チャットモデル",
+    "summarizationModel": "要約モデル",
+    "selectFromList": "リストから選択",
+    "directInput": "直接入力",
+    "useGlobal": "グローバル設定を使用(継承)",
+    "reindex": {
+      "warningTitle": "再インデックスが必要です",
+      "warningBody": "埋め込みモデルが変更されました。このノートブックのドキュメントを新しいモデルで再インデックスしないと検索精度が低下します。",
+      "later": "後で更新する",
+      "running": "再インデックス中...",
+      "run": "インデックスを更新",
+      "done": "インデックスの更新が完了しました!"
+    }
+  },
+  "globalSettings": {
+    "title": "グローバル設定",
+    "subtitle": "API接続とデフォルトAIモデルを設定",
+    "closeAria": "設定を閉じる",
+    "tabModels": "モデル設定",
+    "tabConnections": "API接続 ({count})",
+    "savedToast": "設定を保存しました。閉じています...",
+    "loading": "設定データを読み込み中...",
+    "defaultModels": "デフォルトモデル設定",
+    "configured": "設定済みの接続",
+    "empty": "まだカスタム接続がありません。下のフォームからOpenAIまたはAnthropicキーを追加してください!",
+    "deleteAria": "接続を削除",
+    "addNew": "新しい接続を追加",
+    "connectionName": "接続名",
+    "provider": "プロバイダー",
+    "apiKey": "APIキー",
+    "baseUrlOptional": "ベースURL(任意)",
+    "connectionNamePlaceholder": "My OpenAI API",
+    "apiKeyPlaceholder": "sk-...",
+    "baseUrlPlaceholder": "https://api.openai.com/v1",
+    "addConnection": "接続を追加",
+    "adding": "追加中...",
+    "providers": {
+      "workersAi": "Workers AI",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic",
+      "google": "Google",
+      "custom": "カスタム"
+    }
+  },
+  "storage": {
+    "title": "ストレージ設定",
+    "adminRequired": "管理者権限が必要です。",
+    "lastUpdated": "{user} が {time} に最終更新",
+    "notConfigured": "ストレージ設定は未保存です。R2ネイティブバインディングがデフォルトです。",
+    "providerLegend": "プロバイダー",
+    "r2Native": "R2(ネイティブバインディング)",
+    "s3Compatible": "S3互換",
+    "r2Body": "wranglerにバインドされたR2バケットを使用します。資格情報不要。",
+    "s3Body": "AWS S3、MinIO、Backblaze B2、S3 API経由のR2に対応。",
+    "r2Details": "R2ネイティブバインディングが直接使用されます。ランタイムでの資格情報は不要で、wrangler.jsoncで設定します。このWorkerにR2バケットがバインドされていることを確認してください。",
+    "endpoint": "エンドポイント",
+    "bucket": "バケット",
+    "region": "リージョン",
+    "accessKey": "アクセスキーID",
+    "secretKey": "シークレットアクセスキー",
+    "endpointPlaceholder": "https://account.r2.cloudflarestorage.com",
+    "bucketPlaceholder": "my-bucket",
+    "regionPlaceholder": "auto",
+    "accessKeyPlaceholder": "AKID...",
+    "secretKeyPlaceholder": "••••••••",
+    "unchangedHint": "(変更なし)",
+    "pathStyle": "パススタイルURLを使用(R2、MinIOでは推奨、B2では必須)",
+    "credentialsNote": "資格情報はサーバーサイドで暗号化され、APIからは返されません。",
+    "leaveBlankHint": "既存の値を維持する場合は空のままにしてください。",
+    "corsNote": "注意: エンドポイントが *.r2.cloudflarestorage.com の場合、ブラウザアップロードはWorkerプロキシ経由になります(R2のS3エンドポイントのCORSプリフライト制限のため)。その他のエンドポイントでは直接アップロード用の署名付きPUT URLが発行されます。",
+    "validation": {
+      "bucketRequired": "バケットは必須です",
+      "endpointRequired": "エンドポイントは必須です",
+      "accessKeyRequiredNew": "アクセスキーIDは必須です(既存の値はありません)",
+      "secretKeyRequiredNew": "シークレットアクセスキーは必須です(既存の値はありません)",
+      "accessKeyRequired": "アクセスキーIDは必須です",
+      "secretKeyRequired": "シークレットアクセスキーは必須です"
+    }
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "body": "お探しのページは存在しないか、移動した可能性があります。",
+    "goHome": "ホームへ"
+  }
+}

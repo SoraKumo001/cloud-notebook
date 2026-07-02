@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface CitationChunk {
   id: string
@@ -14,6 +15,7 @@ interface CitationChipProps {
 }
 
 export function CitationChip({ index, chunk, invalid }: CitationChipProps) {
+  const { t } = useTranslation('common')
   const [open, setOpen] = React.useState(false)
   const popoverRef = React.useRef<HTMLDivElement>(null)
 
@@ -50,9 +52,13 @@ export function CitationChip({ index, chunk, invalid }: CitationChipProps) {
           <div className='space-y-1.5'>
             <p className='text-xs font-medium text-base-content truncate'>{chunk.sourceName}</p>
             {typeof chunk.pageNumber === 'number' && (
-              <p className='text-xs text-base-content/70'>Page {chunk.pageNumber}</p>
+              <p className='text-xs text-base-content/70'>
+                {t('citation.page', { n: chunk.pageNumber })}
+              </p>
             )}
-            <p className='text-xs text-base-content/50'>Score: {(chunk.score * 100).toFixed(1)}%</p>
+            <p className='text-xs text-base-content/50'>
+              {t('citation.score', { percent: (chunk.score * 100).toFixed(1) })}
+            </p>
           </div>
           <div className='absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-base-100 border-r border-b border-base-300 rotate-45' />
         </div>

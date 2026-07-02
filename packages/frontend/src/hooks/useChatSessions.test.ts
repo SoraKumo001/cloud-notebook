@@ -76,7 +76,7 @@ describe('useChatSessions', () => {
 
     expect(result.current.loading).toBe(false)
     expect(result.current.sessions[0].title).toBe('First chat')
-    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/sessions')
+    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/sessions', undefined)
 
     unmount()
   })
@@ -160,7 +160,7 @@ describe('useChatSessions', () => {
 
     const { result, unmount } = renderHook(() => useChatSessions('nb-1'))
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Failed to load sessions: 500')
+      expect(result.current.error).toBe('server.internalError:500')
     })
 
     unmount()
@@ -175,9 +175,13 @@ describe('useChatSessions', () => {
     const { result, unmount } = renderHook(() => useChatSessions('nb-1'))
     await waitForSessions(result, 0)
 
-    await expect(result.current.deleteSession('session-1')).rejects.toThrow('Forbidden')
+    await expect(result.current.deleteSession('session-1')).rejects.toMatchObject({
+      code: 'auth.forbidden',
+      fallbackMessage: 'Forbidden',
+      status: 403,
+    })
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Forbidden')
+      expect(result.current.error).toBe('auth.forbidden:403')
     })
 
     unmount()

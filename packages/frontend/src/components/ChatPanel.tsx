@@ -1,5 +1,6 @@
 import { AlertTriangle, ChevronDown, MessageSquare, Send } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useChatSessions } from '../hooks/useChatSessions'
 import { type ChatMessage, useChatStream } from '../hooks/useChatStream'
 import { CitationChip, type CitationChunk } from './CitationChip'
@@ -37,14 +38,22 @@ function renderMessageContent(
   })
 }
 
-function RiskBanner({ risk, reasons }: { risk: 'medium' | 'high'; reasons?: string[] }) {
+function RiskBanner({
+  risk,
+  reasons,
+  t,
+}: {
+  risk: 'medium' | 'high'
+  reasons?: string[]
+  t: (key: string) => string
+}) {
   const isHigh = risk === 'high'
 
   return (
     <div className={`alert text-xs ${isHigh ? 'alert-error' : 'alert-warning'}`}>
       <div className='flex items-center gap-2 font-semibold'>
         <AlertTriangle size={14} strokeWidth={2} aria-hidden='true' />
-        {isHigh ? 'High risk response' : 'Potentially unreliable'}
+        {isHigh ? t('chat.highRiskBadge') : t('chat.potentialUnreliable')}
       </div>
       {reasons && reasons.length > 0 && (
         <ul
@@ -63,7 +72,15 @@ function TypingIndicator() {
   return <span className='loading loading-dots loading-sm text-base-content/50' />
 }
 
-function ChatMessageItem({ message, isStreaming }: { message: ChatMessage; isStreaming: boolean }) {
+function ChatMessageItem({
+  message,
+  isStreaming,
+  t,
+}: {
+  message: ChatMessage
+  isStreaming: boolean
+  t: (key: string) => string
+}) {
   const isUser = message.role === 'user'
   const isEmptyAssistant = !isUser && message.content === ''
 
@@ -75,7 +92,7 @@ function ChatMessageItem({ message, isStreaming }: { message: ChatMessage; isStr
         }`}
       >
         {!isUser && message.risk && (message.risk === 'medium' || message.risk === 'high') && (
-          <RiskBanner risk={message.risk} reasons={message.reasons} />
+          <RiskBanner risk={message.risk} reasons={message.reasons} t={t} />
         )}
 
         <div className='text-sm leading-relaxed whitespace-pre-wrap'>
@@ -96,6 +113,7 @@ function ChatMessageItem({ message, isStreaming }: { message: ChatMessage; isStr
 }
 
 export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
+  const { t } = useTranslation('common')
   const { messages, isStreaming, error, activeSessionId, sendQuery, reset, loadSession } =
     useChatStream(notebookId, userId)
   const {
@@ -179,7 +197,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
           <div className='w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center text-teal-400'>
             <MessageSquare size={16} strokeWidth={2} aria-hidden='true' />
           </div>
-          <h2 className='text-base font-semibold text-base-content'>Chat</h2>
+          <h2 className='text-base font-semibold text-base-content'>{t('chat.title')}</h2>
         </div>
         <button
           type='button'
@@ -187,7 +205,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
           disabled={messages.length === 0 && !error}
           className='btn btn-primary btn-sm'
         >
-          New Chat
+          {t('chat.newChat')}
         </button>
       </div>
 
@@ -198,7 +216,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
           onClick={() => setSessionsExpanded((prev) => !prev)}
           className='btn btn-ghost w-full justify-between px-5 py-2.5'
         >
-          <span>Conversations ({sessions.length})</span>
+          <span>{t('chat.conversations', { count: sessions.length })}</span>
           <ChevronDown
             size={16}
             strokeWidth={2}
@@ -228,14 +246,12 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
             <div className='w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 mb-4'>
               <MessageSquare size={24} strokeWidth={2} aria-hidden='true' />
             </div>
-            <p className='text-base-content/90 font-medium mb-1'>Ask anything about your sources</p>
-            <p className='text-sm text-base-content/50 max-w-xs'>
-              Type a question and the assistant will answer using the documents in this notebook.
-            </p>
+            <p className='text-base-content/90 font-medium mb-1'>{t('chat.emptyTitle')}</p>
+            <p className='text-sm text-base-content/50 max-w-xs'>{t('chat.emptyBody')}</p>
           </div>
         ) : (
           messages.map((message) => (
-            <ChatMessageItem key={message.id} message={message} isStreaming={isStreaming} />
+            <ChatMessageItem key={message.id} message={message} isStreaming={isStreaming} t={t} />
           ))
         )}
       </div>
@@ -250,7 +266,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder='Ask a question...'
+            placeholder={t('chat.inputPlaceholder')}
             disabled={isStreaming}
             rows={1}
             className='flex-1 min-h-[44px] max-h-40 textarea textarea-bordered resize-none overflow-hidden'
@@ -260,7 +276,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
             onClick={() => void handleSubmit()}
             disabled={isStreaming || input.trim() === ''}
             className='btn btn-primary btn-circle hover:scale-[1.02] active:scale-[0.98]'
-            aria-label='Send'
+            aria-label={t('chat.sendAria')}
           >
             {isStreaming ? (
               <span className='loading loading-spinner loading-sm text-white' />
@@ -269,9 +285,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
             )}
           </button>
         </div>
-        <p className='mt-2 text-[11px] text-base-content/40'>
-          Enter to send · Shift+Enter for new line
-        </p>
+        <p className='mt-2 text-[11px] text-base-content/40'>{t('chat.sendHint')}</p>
       </div>
     </div>
   )

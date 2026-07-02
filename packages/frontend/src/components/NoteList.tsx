@@ -1,5 +1,8 @@
 import { FileText, MoreVertical } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatShortDate } from '../i18n/formatters'
+import { useLocale } from '../i18n/useLocale'
 
 export interface Note {
   id: string
@@ -18,19 +21,23 @@ interface NoteListProps {
   onRename?: (id: string, title: string) => void | Promise<void>
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(
+  iso: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  locale: string,
+): string {
   const date = new Date(iso)
   const now = new Date()
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-  if (seconds < 60) return 'just now'
+  if (seconds < 60) return t('note.time.justNow')
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return t('note.time.minutesAgo', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return t('note.time.hoursAgo', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (days < 30) return t('note.time.daysAgo', { count: days })
+  return formatShortDate(locale, date)
 }
 
 function preview(text: string): string {
@@ -43,12 +50,16 @@ function NoteItem({
   onSelect,
   onDelete,
   onRename,
+  t,
+  locale,
 }: {
   note: Note
   isActive: boolean
   onSelect: (id: string) => void
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, title: string) => void | Promise<void>
+  t: (key: string, options?: Record<string, unknown>) => string
+  locale: string
 }) {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [isEditing, setIsEditing] = React.useState(false)
@@ -133,17 +144,17 @@ function NoteItem({
   if (isConfirmingDelete) {
     return (
       <div className={`px-4 py-3 border-l-2 ${activeClass}`}>
-        <p className='text-xs text-base-content/60 mb-2'>Delete this note?</p>
+        <p className='text-xs text-base-content/60 mb-2'>{t('note.deleteDialog.title')}</p>
         <div className='flex items-center gap-2'>
           <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
-            Delete
+            {t('common.delete')}
           </button>
           <button
             type='button'
             onClick={() => setIsConfirmingDelete(false)}
             className='btn btn-ghost btn-xs'
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       </div>
@@ -164,7 +175,9 @@ function NoteItem({
         >
           {note.title}
         </p>
-        <p className='text-xs text-base-content/50 mb-1'>{relativeTime(note.updatedAt)}</p>
+        <p className='text-xs text-base-content/50 mb-1'>
+          {relativeTime(note.updatedAt, t, locale)}
+        </p>
         <p className='text-xs text-base-content/60 line-clamp-2'>{preview(note.content)}</p>
       </button>
 
@@ -177,7 +190,7 @@ function NoteItem({
               setMenuOpen((prev) => !prev)
             }}
             className='btn btn-ghost btn-sm btn-circle opacity-0 group-hover:opacity-100 focus:opacity-100'
-            aria-label='Note actions'
+            aria-label={t('note.actionsAria')}
           >
             <MoreVertical size={16} strokeWidth={2} aria-hidden='true' />
           </button>
@@ -195,7 +208,7 @@ function NoteItem({
                     }}
                     className='w-full text-left px-3 py-1.5 hover:bg-base-200 transition-colors text-base-content/80'
                   >
-                    Rename
+                    {t('common.rename')}
                   </button>
                 </li>
               )}
@@ -210,7 +223,7 @@ function NoteItem({
                     }}
                     className='w-full text-left px-3 py-1.5 hover:bg-error/10 text-error transition-colors font-medium'
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 </li>
               )}
@@ -230,15 +243,20 @@ export function NoteList({
   onDelete,
   onRename,
 }: NoteListProps) {
+  const { t } = useTranslation('common')
+  const { locale } = useLocale()
+
   return (
     <div className='card card-border bg-base-100 overflow-hidden'>
       <div className='px-5 py-4 border-b border-base-300 bg-base-200 flex items-center justify-between'>
         <div>
-          <h3 className='text-sm font-semibold text-base-content/90'>Notes</h3>
-          <p className='text-xs text-base-content/50'>{notes.length} total</p>
+          <h3 className='text-sm font-semibold text-base-content/90'>{t('note.listTitle')}</h3>
+          <p className='text-xs text-base-content/50'>
+            {t('note.listCount', { count: notes.length })}
+          </p>
         </div>
         <button type='button' onClick={onCreate} className='btn btn-primary btn-sm'>
-          New Note
+          {t('note.newNote')}
         </button>
       </div>
 
@@ -247,8 +265,8 @@ export function NoteList({
           <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-base-300 text-base-content/50'>
             <FileText size={24} strokeWidth={2} aria-hidden='true' />
           </div>
-          <h4 className='text-base font-medium text-base-content/70'>No notes yet</h4>
-          <p className='mt-1 text-sm text-base-content/50'>Create one to start taking notes.</p>
+          <h4 className='text-base font-medium text-base-content/70'>{t('note.empty')}</h4>
+          <p className='mt-1 text-sm text-base-content/50'>{t('note.emptyHint')}</p>
         </div>
       ) : (
         <div>
@@ -260,6 +278,8 @@ export function NoteList({
               onSelect={onSelect}
               onDelete={onDelete}
               onRename={onRename}
+              t={t}
+              locale={locale}
             />
           ))}
         </div>

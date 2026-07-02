@@ -8,7 +8,7 @@ import { z } from 'zod'
 const vHook = (result: any, c: any) => {
   if (!result.success) {
     const message = result.error.issues[0]?.message ?? 'Invalid request'
-    return c.json({ error: `Validation failed: ${message}` }, 400)
+    return errorResponse(c, ErrorCode.ValidationFailed, `Validation failed: ${message}`, 400)
   }
 }
 
@@ -32,6 +32,7 @@ import {
 import type { StorageConfigJson } from './db/schema/globalSettings'
 import { getEffectiveAiConfig } from './db/settings'
 import { embedChunks, getEmbeddingProvider } from './embeddings'
+import { ErrorCode, errorResponse } from './errors'
 import {
   consumeInvitation,
   createInvitation,
@@ -108,12 +109,12 @@ app.use('/api/*', storageMiddleware() as any)
 app.onError((err, c) => {
   console.error('[SERVER ERROR]:', err)
   const isDev = c.env.NODE_ENV === 'development'
-  return c.json(
-    {
-      error: isDev ? err.message || 'Internal Server Error' : 'Internal Server Error',
-      ...(isDev ? { stack: err.stack } : {}),
-    },
+  return errorResponse(
+    c,
+    ErrorCode.ServerInternalError,
+    isDev ? err.message || 'Internal Server Error' : 'Internal Server Error',
     500,
+    isDev ? { stack: err.stack } : undefined,
   )
 })
 
@@ -295,7 +296,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     return c.json(notebook)
@@ -318,7 +319,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const rows = await db
@@ -377,7 +378,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     // 1. Notebook vector count (count from sourceChunks table)
@@ -415,11 +416,10 @@ app.get(
 // @deprecated Replaced by POST /api/uploads/presign + POST /api/sources/finalize
 app.post('/api/sources/upload', (c) => {
   c.header('Deprecation', 'true')
-  return c.json(
-    {
-      error:
-        'This endpoint is deprecated. Use /api/uploads/presign + /api/sources/finalize instead.',
-    },
+  return errorResponse(
+    c,
+    ErrorCode.RequestDeprecated,
+    'This endpoint is deprecated. Use /api/uploads/presign + /api/sources/finalize instead.',
     410,
   )
 })
@@ -444,11 +444,12 @@ app.options('/local-uploads', (c) => {
 
 app.put('/local-uploads', async (c) => {
   if (c.env.NODE_ENV !== 'development') {
-    return c.text('Forbidden in production', 403)
+    return errorResponse(c, ErrorCode.StorageForbiddenInProduction, 'Forbidden in production', 403)
   }
 
   const key = c.req.query('key')
-  if (!key) return c.json({ error: 'key query parameter is required' }, 400)
+  if (!key)
+    return errorResponse(c, ErrorCode.ValidationFailed, 'key query parameter is required', 400)
 
   const contentType = c.req.header('content-type')
   const body = await c.req.arrayBuffer()
@@ -499,7 +500,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     if (fileHash) {
@@ -516,8 +517,10 @@ app.post(
         .limit(1)
 
       if (existingSource) {
-        return c.json(
-          { error: 'A source with the same content already exists in this notebook' },
+        return errorResponse(
+          c,
+          ErrorCode.ResourceConflict,
+          'A source with the same content already exists in this notebook',
           409,
         )
       }
@@ -582,7 +585,7 @@ app.post(
     // parts: ["notebooks", notebookId, "sources", sourceId, fileName]
     const notebookId = parts[1]
     if (!notebookId) {
-      return c.json({ error: 'Invalid key' }, 400)
+      return errorResponse(c, ErrorCode.RequestInvalidKey, 'Invalid key', 400)
     }
 
     const [notebook] = await db
@@ -592,18 +595,23 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const body = await c.req.arrayBuffer()
     if (body.byteLength === 0) {
-      return c.json({ error: 'Empty body' }, 400)
+      return errorResponse(c, ErrorCode.RequestEmptyBody, 'Empty body', 400)
     }
     // 100 MB hard cap; matches R2's single-shot PUT limit and protects the
     // Worker from memory pressure.
     const MAX_BYTES = 100 * 1024 * 1024
     if (body.byteLength > MAX_BYTES) {
-      return c.json({ error: `File too large (max ${MAX_BYTES} bytes)` }, 413)
+      return errorResponse(
+        c,
+        ErrorCode.RequestTooLarge,
+        `File too large (max ${MAX_BYTES} bytes)`,
+        413,
+      )
     }
 
     // Prefer the request's Content-Type when the body carries a real file
@@ -667,7 +675,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
@@ -812,7 +820,7 @@ app.post(
       .limit(1)
 
     if (!notebookRaw || notebookRaw.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
@@ -951,7 +959,7 @@ app.delete(
       .limit(1)
 
     if (!existing || existing.user_id !== userId) {
-      return c.json({ error: 'Connection not found' }, 404)
+      return errorResponse(c, ErrorCode.ConnectionNotFound, 'Connection not found', 404)
     }
 
     await db.delete(aiConnections).where(eq(aiConnections.id, id))
@@ -982,7 +990,7 @@ app.get(
     const [conn] = await db.select().from(aiConnections).where(eq(aiConnections.id, id)).limit(1)
 
     if (!conn || conn.userId !== userId) {
-      return c.json({ error: 'Connection not found' }, 404)
+      return errorResponse(c, ErrorCode.ConnectionNotFound, 'Connection not found', 404)
     }
 
     const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
@@ -992,7 +1000,12 @@ app.get(
       const models = await fetchConnectionModels(conn.provider, apiKey, conn.baseUrl, type)
       return c.json({ models })
     } catch (err: unknown) {
-      return c.json({ error: err instanceof Error ? err.message : 'Failed to fetch models' }, 500)
+      return errorResponse(
+        c,
+        ErrorCode.ServerUpstreamError,
+        err instanceof Error ? err.message : 'Failed to fetch models',
+        500,
+      )
     }
   },
 )
@@ -1087,7 +1100,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     // Resolve effective embedding config
@@ -1154,7 +1167,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const rows = await db
@@ -1187,7 +1200,7 @@ app.get(
       .limit(1)
 
     if (!session) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     const [notebook] = await db
@@ -1197,7 +1210,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     const rows = await db
@@ -1272,7 +1285,7 @@ app.post(
       .where(eq(users.email, normalizedEmail))
       .limit(1)
     if (existing) {
-      return c.json({ error: 'Email already registered' }, 409)
+      return errorResponse(c, ErrorCode.AuthEmailRegistered, 'Email already registered', 409)
     }
 
     // Count existing users to decide if this is the bootstrap admin.
@@ -1283,11 +1296,16 @@ app.post(
 
     if (!isFirstUser) {
       if (!inviteToken) {
-        return c.json({ error: 'Invite token required. Ask an admin to invite you.' }, 403)
+        return errorResponse(
+          c,
+          ErrorCode.AuthInviteRequired,
+          'Invite token required. Ask an admin to invite you.',
+          403,
+        )
       }
       const invitation = await findValidInvitation(db, inviteToken, normalizedEmail)
       if (!invitation) {
-        return c.json({ error: 'Invalid or expired invite token' }, 403)
+        return errorResponse(c, ErrorCode.AuthInviteInvalid, 'Invalid or expired invite token', 403)
       }
 
       const passwordHash = await hashPassword(password)
@@ -1305,7 +1323,7 @@ app.post(
       if (isProdRequest(c)) {
         const secret = c.env.SESSION_SECRET
         if (!secret) {
-          return c.json({ error: 'SESSION_SECRET not configured' }, 500)
+          return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
         }
         const { id: sessionId } = await createSession(db, userId)
         cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
@@ -1334,7 +1352,7 @@ app.post(
     if (isProdRequest(c)) {
       const secret = c.env.SESSION_SECRET
       if (!secret) {
-        return c.json({ error: 'SESSION_SECRET not configured' }, 500)
+        return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
       }
       const { id: sessionId } = await createSession(db, userId)
       cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
@@ -1366,19 +1384,19 @@ app.post(
 
     const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1)
     if (!user) {
-      return c.json({ error: 'Invalid email or password' }, 401)
+      return errorResponse(c, ErrorCode.AuthInvalidCredentials, 'Invalid email or password', 401)
     }
 
     const valid = await verifyPassword(password, user.passwordHash)
     if (!valid) {
-      return c.json({ error: 'Invalid email or password' }, 401)
+      return errorResponse(c, ErrorCode.AuthInvalidCredentials, 'Invalid email or password', 401)
     }
 
     let cookie: string | null = null
     if (isProdRequest(c)) {
       const secret = c.env.SESSION_SECRET
       if (!secret) {
-        return c.json({ error: 'SESSION_SECRET not configured' }, 500)
+        return errorResponse(c, ErrorCode.ServerConfigError, 'SESSION_SECRET not configured', 500)
       }
       const { id: sessionId } = await createSession(db, user.id)
       cookie = await buildSessionCookie(sessionId, secret, cookieSecure(c))
@@ -1474,7 +1492,12 @@ app.put(
     if (body.provider === 's3-compatible') {
       const masterKey = c.env.API_KEY_ENCRYPTION_MASTER
       if (!masterKey) {
-        return c.json({ error: 'API_KEY_ENCRYPTION_MASTER is not configured' }, 500)
+        return errorResponse(
+          c,
+          ErrorCode.ServerConfigError,
+          'API_KEY_ENCRYPTION_MASTER is not configured',
+          500,
+        )
       }
 
       const [accessKeyIdCipher, secretAccessKeyCipher] = await Promise.all([
@@ -1496,11 +1519,10 @@ app.put(
     // Validate r2-binding at save time so misconfiguration is
     // caught immediately, not on the first upload.
     if (body.provider === 'r2-binding' && !c.env.BUCKET) {
-      return c.json(
-        {
-          error:
-            "Cannot save provider 'r2-binding': this Worker has no R2_BUCKET binding configured. Choose 's3-compatible' instead.",
-        },
+      return errorResponse(
+        c,
+        ErrorCode.StorageProviderMismatch,
+        "Cannot save provider 'r2-binding': this Worker has no R2_BUCKET binding configured. Choose 's3-compatible' instead.",
         400,
       )
     }
@@ -1526,7 +1548,7 @@ app.put(
         warnings.push(
           `Storage health check failed: ${err instanceof Error ? err.message : String(err)}. Settings NOT saved — please verify credentials.`,
         )
-        return c.json({ error: warnings[0] }, 400)
+        return errorResponse(c, ErrorCode.StorageHealthCheckFailed, warnings[0], 400)
       }
     }
 
@@ -1594,7 +1616,7 @@ app.post(
       .where(eq(users.email, normalizedEmail))
       .limit(1)
     if (existing) {
-      return c.json({ error: 'Email is already registered' }, 409)
+      return errorResponse(c, ErrorCode.AuthEmailRegistered, 'Email is already registered', 409)
     }
 
     const invitation = await createInvitation(db, user.id, normalizedEmail)
@@ -1605,12 +1627,17 @@ app.post(
 app.delete('/api/auth/invitations/:id', requireAdmin, async (c) => {
   const id = c.req.param('id')
   if (!id) {
-    return c.json({ error: 'Invitation id required' }, 400)
+    return errorResponse(c, ErrorCode.ValidationFailed, 'Invitation id required', 400)
   }
   const db = c.get('db')
   const removed = await revokeInvitation(db, id)
   if (!removed) {
-    return c.json({ error: 'Invitation not found or already used' }, 404)
+    return errorResponse(
+      c,
+      ErrorCode.InvitationNotFound,
+      'Invitation not found or already used',
+      404,
+    )
   }
   return new Response(null, { status: 204 })
 })
@@ -1633,7 +1660,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const bytes = new Uint8Array(32)
@@ -1669,7 +1696,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     return c.json({ has_token: notebook.mcpToken !== null })
@@ -1692,7 +1719,7 @@ app.delete(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     await db.update(notebooks).set({ mcpToken: null }).where(eq(notebooks.id, id))
@@ -1718,7 +1745,7 @@ app.delete(
       .limit(1)
 
     if (!session) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     const [notebook] = await db
@@ -1728,7 +1755,7 @@ app.delete(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     await db.delete(chatSessions).where(eq(chatSessions.id, sessionId))
@@ -1760,7 +1787,7 @@ app.patch(
       .limit(1)
 
     if (!session) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     const [notebook] = await db
@@ -1770,7 +1797,7 @@ app.patch(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Session not found' }, 404)
+      return errorResponse(c, ErrorCode.SessionNotFound, 'Session not found', 404)
     }
 
     await db.update(chatSessions).set({ title: title.trim() }).where(eq(chatSessions.id, sessionId))
@@ -1803,7 +1830,7 @@ app.get(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const rows = await db
@@ -1844,7 +1871,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const noteId = crypto.randomUUID()
@@ -1877,7 +1904,7 @@ app.get(
       .where(eq(notes.id, noteId))
       .limit(1)
 
-    if (!note) return c.json({ error: 'Note not found' }, 404)
+    if (!note) return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
 
     const [nb] = await db
       .select({ user_id: notebooks.userId })
@@ -1886,7 +1913,7 @@ app.get(
       .limit(1)
 
     if (!nb || nb.user_id !== userId) {
-      return c.json({ error: 'Note not found' }, 404)
+      return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
     }
 
     return c.json(note)
@@ -1917,7 +1944,7 @@ app.patch(
       .where(eq(notes.id, noteId))
       .limit(1)
 
-    if (!note) return c.json({ error: 'Note not found' }, 404)
+    if (!note) return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
 
     const [nb] = await db
       .select({ user_id: notebooks.userId })
@@ -1926,7 +1953,7 @@ app.patch(
       .limit(1)
 
     if (!nb || nb.user_id !== userId) {
-      return c.json({ error: 'Note not found' }, 404)
+      return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
     }
 
     const updates: Record<string, unknown> = { updatedAt: sql`(current_timestamp)` }
@@ -1969,7 +1996,7 @@ app.delete(
       .where(eq(notes.id, noteId))
       .limit(1)
 
-    if (!note) return c.json({ error: 'Note not found' }, 404)
+    if (!note) return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
 
     const [nb] = await db
       .select({ user_id: notebooks.userId })
@@ -1978,7 +2005,7 @@ app.delete(
       .limit(1)
 
     if (!nb || nb.user_id !== userId) {
-      return c.json({ error: 'Note not found' }, 404)
+      return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
     }
 
     await db.delete(notes).where(eq(notes.id, noteId))
@@ -2003,7 +2030,7 @@ app.delete(
       .where(eq(sources.id, sourceId))
       .limit(1)
 
-    if (!source) return c.json({ error: 'Source not found' }, 404)
+    if (!source) return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
 
     const [notebook] = await db
       .select({ user_id: notebooks.userId })
@@ -2012,7 +2039,7 @@ app.delete(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Source not found' }, 404)
+      return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
     }
 
     const [srcRow] = await db
@@ -2081,7 +2108,7 @@ app.patch(
       .where(eq(sources.id, sourceId))
       .limit(1)
 
-    if (!source) return c.json({ error: 'Source not found' }, 404)
+    if (!source) return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
 
     const [notebook] = await db
       .select({ user_id: notebooks.userId })
@@ -2090,7 +2117,7 @@ app.patch(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Source not found' }, 404)
+      return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
     }
 
     await db.update(sources).set({ name: name.trim() }).where(eq(sources.id, sourceId))
@@ -2149,7 +2176,7 @@ app.patch(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const updates: Record<string, unknown> = { updatedAt: sql`(current_timestamp)` }
@@ -2160,13 +2187,12 @@ app.patch(
       if (body.ai_provider !== null) {
         const supportedForEmbedding = ['workers-ai']
         if (!supportedForEmbedding.includes(body.ai_provider)) {
-          return c.json(
-            {
-              error:
-                `ai_provider "${body.ai_provider}" is not supported for embedding. ` +
-                `The Vectorize index is 1024-dim and only Workers AI (bge-large-en-v1.5) produces matching vectors. ` +
-                `Use ai_provider=workers-ai for embedding, and configure model_chat / model_summarization separately if you need a different chat model.`,
-            },
+          return errorResponse(
+            c,
+            ErrorCode.ValidationFailed,
+            `ai_provider "${body.ai_provider}" is not supported for embedding. ` +
+              `The Vectorize index is 1024-dim and only Workers AI (bge-large-en-v1.5) produces matching vectors. ` +
+              `Use ai_provider=workers-ai for embedding, and configure model_chat / model_summarization separately if you need a different chat model.`,
             400,
           )
         }
@@ -2240,7 +2266,7 @@ app.delete(
     })
 
     if (!notebook || notebook.userId !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     const r2Keys: string[] = []
@@ -2295,7 +2321,7 @@ app.post(
       .limit(1)
 
     if (!notebook || notebook.user_id !== userId) {
-      return c.json({ error: 'Notebook not found' }, 404)
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
     // Verify all source IDs belong to this notebook
@@ -2307,7 +2333,12 @@ app.post(
     const matchingSet = new Set(matching.map((r) => r.id))
     const invalidIds = sourceIds.filter((sid) => !matchingSet.has(sid))
     if (invalidIds.length > 0) {
-      return c.json({ error: `Invalid source IDs: ${invalidIds.join(', ')}` }, 400)
+      return errorResponse(
+        c,
+        ErrorCode.RequestInvalidSourceIds,
+        `Invalid source IDs: ${invalidIds.join(', ')}`,
+        400,
+      )
     }
 
     // Update display_order in source order using batch
@@ -2360,19 +2391,24 @@ app.get(
 
     const safeUrl = isValidFetchUrl(rawUrl)
     if (!safeUrl) {
-      return c.json({ error: 'Invalid or disallowed URL' }, 400)
+      return errorResponse(c, ErrorCode.RequestInvalidUrl, 'Invalid or disallowed URL', 400)
     }
 
     try {
       const response = await fetch(safeUrl)
       if (!response.ok) {
-        return c.json({ error: `Upstream returned ${response.status} ${response.statusText}` }, 502)
+        return errorResponse(
+          c,
+          ErrorCode.ProxyUpstreamError,
+          `Upstream returned ${response.status} ${response.statusText}`,
+          502,
+        )
       }
       const html = await response.text()
       return c.newResponse(html, 200, { 'Content-Type': 'text/html; charset=utf-8' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      return c.json({ error: `Failed to fetch URL: ${message}` }, 502)
+      return errorResponse(c, ErrorCode.ProxyUpstreamError, `Failed to fetch URL: ${message}`, 502)
     }
   },
 )

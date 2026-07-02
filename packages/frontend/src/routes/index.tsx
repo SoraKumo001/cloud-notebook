@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
 function Home() {
+  const { t } = useTranslation('common')
   return (
     <div className='min-h-screen bg-base-200 text-base-content flex flex-col font-sans'>
       {/* Header */}
@@ -15,12 +17,12 @@ function Home() {
               N
             </div>
             <span className='font-semibold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-base-content to-base-content/60'>
-              Cloud open-notebook
+              {t('app.name')}
             </span>
           </div>
           <div className='flex items-center space-x-4'>
             <Link to='/notebooks' className='btn btn-neutral'>
-              Sign In
+              {t('common.signIn')}
             </Link>
           </div>
         </div>
@@ -30,21 +32,20 @@ function Home() {
       <main className='flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col items-center justify-center text-center'>
         <div className='max-w-3xl space-y-8'>
           <div className='inline-flex items-center space-x-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold tracking-wide uppercase'>
-            <span>✨ Cloudflare Native Architecture</span>
+            <span>{t('landing.cfBadge')}</span>
           </div>
 
           <h1 className='text-5xl md:text-6xl font-extrabold tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-r from-base-content via-base-content/90 to-secondary'>
-            Your Private AI-Powered Research Assistant
+            {t('app.tagline')}
           </h1>
 
           <p className='text-lg md:text-xl text-base-content/60 max-w-2xl mx-auto font-normal leading-relaxed'>
-            Create notebooks, upload PDFs or web pages, and interact with your personal knowledge
-            base. Powered by Cloudflare Workers, D1, R2, and Vectorize.
+            {t('landing.heroBody')}
           </p>
 
           <div className='flex flex-col sm:flex-row items-center justify-center gap-4 pt-4'>
             <Link to='/notebooks' className='btn btn-primary'>
-              Create New Notebook
+              {t('landing.cta')}
             </Link>
           </div>
         </div>
@@ -55,20 +56,22 @@ function Home() {
             <div className='w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xl font-bold'>
               📚
             </div>
-            <h3 className='text-xl font-semibold text-base-content/90'>Multimodal Sources</h3>
+            <h3 className='text-xl font-semibold text-base-content/90'>
+              {t('landing.featureMultimodalTitle')}
+            </h3>
             <p className='text-base-content/60 text-sm leading-relaxed'>
-              Upload PDF documents, extract text and images in the browser, and index them instantly
-              with Cloudflare Vectorize.
+              {t('landing.featureMultimodalBody')}
             </p>
           </div>
           <div className='card card-border bg-base-100/30 border-base-200 p-8 text-left space-y-4 transition-all'>
             <div className='w-12 h-12 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center text-xl font-bold'>
               💬
             </div>
-            <h3 className='text-xl font-semibold text-base-content/90'>Smart RAG Chat</h3>
+            <h3 className='text-xl font-semibold text-base-content/90'>
+              {t('landing.featureSmartTitle')}
+            </h3>
             <p className='text-base-content/60 text-sm leading-relaxed'>
-              Ask questions and get instant, referenced answers from your documents. Choose between
-              Workers AI or OpenAI compatible endpoints.
+              {t('landing.featureSmartBody')}
             </p>
           </div>
         </section>
@@ -76,7 +79,7 @@ function Home() {
 
       {/* Footer */}
       <footer className='border-t border-base-300 py-8 text-center text-sm text-base-content/40'>
-        <p>&copy; {new Date().getFullYear()} Cloud open-notebook. All rights reserved.</p>
+        <p>{t('app.footer', { year: new Date().getFullYear() })}</p>
       </footer>
     </div>
   )

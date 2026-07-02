@@ -85,7 +85,7 @@ describe('useNotes', () => {
 
     expect(result.current.loading).toBe(false)
     expect(result.current.notes[0].title).toBe('First note')
-    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/notes')
+    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/notes', undefined)
 
     unmount()
   })
@@ -223,7 +223,7 @@ describe('useNotes', () => {
 
     const { result, unmount } = renderHook(() => useNotes('nb-1'))
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Failed to load notes: 500')
+      expect(result.current.error).toBe('server.internalError:500')
     })
 
     unmount()
@@ -238,9 +238,13 @@ describe('useNotes', () => {
     const { result, unmount } = renderHook(() => useNotes('nb-1'))
     await waitForNotes(result, 0)
 
-    await expect(result.current.createNote('', '')).rejects.toThrow('Bad request')
+    await expect(result.current.createNote('', '')).rejects.toMatchObject({
+      code: 'errors.generic',
+      fallbackMessage: 'Bad request',
+      status: 400,
+    })
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Bad request')
+      expect(result.current.error).toBe('errors.generic:400')
     })
 
     unmount()

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { LogIn, Mail, UserPlus } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 
 export const Route = createFileRoute('/login')({
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/login')({
 type Mode = 'login' | 'register'
 
 function LoginPage() {
+  const { t } = useTranslation('common')
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const { invite } = useSearch({ from: '/login' })
@@ -47,12 +49,12 @@ function LoginPage() {
       })
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(data.error || `Sign-in failed: ${res.status}`)
+        throw new Error(data.error || t('errors.signInFailedGeneric'))
       }
       await refresh()
       await navigate({ to: '/notebooks' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed')
+      setError(err instanceof Error ? err.message : t('errors.signInFailedGeneric'))
     } finally {
       setSubmitting(false)
     }
@@ -67,7 +69,7 @@ function LoginPage() {
               N
             </div>
             <span className='font-semibold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-base-content to-base-content/60'>
-              Cloud open-notebook
+              {t('app.name')}
             </span>
           </Link>
         </div>
@@ -77,19 +79,19 @@ function LoginPage() {
         <div className='w-full max-w-md space-y-6'>
           <div className='text-center space-y-2'>
             <h1 className='text-2xl font-bold tracking-tight'>
-              {mode === 'login' ? 'Sign in' : 'Create your account'}
+              {mode === 'login' ? t('common.signInShort') : t('common.createAccount')}
             </h1>
             <p className='text-sm text-base-content/60'>
               {isInviteFlow
-                ? 'You have been invited. Set a password to finish creating your account.'
+                ? t('login.bodyInvited')
                 : mode === 'login'
-                  ? 'Use your email and password to access your notebooks.'
-                  : 'Register an account to start uploading and chatting with your sources.'}
+                  ? t('login.bodyLogin')
+                  : t('login.bodyRegister')}
             </p>
             {isInviteFlow && mode === 'register' && (
               <div className='inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300'>
                 <Mail size={14} aria-hidden='true' />
-                Invitation link detected
+                {t('login.invitationDetected')}
               </div>
             )}
           </div>
@@ -100,7 +102,7 @@ function LoginPage() {
           >
             {mode === 'register' && (
               <label className='form-control w-full'>
-                <span className='label-text mb-1 block'>Display name (optional)</span>
+                <span className='label-text mb-1 block'>{t('login.displayNameLabel')}</span>
                 <input
                   type='text'
                   autoComplete='name'
@@ -113,7 +115,7 @@ function LoginPage() {
             )}
 
             <label className='form-control w-full'>
-              <span className='label-text mb-1 block'>Email</span>
+              <span className='label-text mb-1 block'>{t('login.emailLabel')}</span>
               <input
                 type='email'
                 required
@@ -126,7 +128,7 @@ function LoginPage() {
             </label>
 
             <label className='form-control w-full'>
-              <span className='label-text mb-1 block'>Password</span>
+              <span className='label-text mb-1 block'>{t('login.passwordLabel')}</span>
               <input
                 type='password'
                 required
@@ -139,7 +141,7 @@ function LoginPage() {
               />
               {mode === 'register' && (
                 <span className='text-xs text-base-content/50 mt-1 mb-2 block'>
-                  At least 8 characters.
+                  {t('login.passwordHint')}
                 </span>
               )}
             </label>
@@ -156,7 +158,11 @@ function LoginPage() {
               ) : (
                 <UserPlus size={20} strokeWidth={2} aria-hidden='true' />
               )}
-              {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+              {submitting
+                ? t('common.pleaseWait')
+                : mode === 'login'
+                  ? t('common.signInShort')
+                  : t('common.createAccount')}
             </button>
           </form>
 
@@ -164,7 +170,7 @@ function LoginPage() {
             <div className='text-center text-sm text-base-content/60'>
               {mode === 'login' ? (
                 <>
-                  Don&apos;t have an account?{' '}
+                  {t('common.noAccount')}{' '}
                   <button
                     type='button'
                     className='link link-primary'
@@ -173,12 +179,12 @@ function LoginPage() {
                       setMode('register')
                     }}
                   >
-                    Register
+                    {t('common.register')}
                   </button>
                 </>
               ) : (
                 <>
-                  Already have an account?{' '}
+                  {t('common.haveAccount')}{' '}
                   <button
                     type='button'
                     className='link link-primary'
@@ -187,7 +193,7 @@ function LoginPage() {
                       setMode('login')
                     }}
                   >
-                    Sign in
+                    {t('common.signInShort')}
                   </button>
                 </>
               )}
@@ -199,7 +205,7 @@ function LoginPage() {
               to='/'
               className='text-sm text-base-content/50 hover:text-base-content/70 transition-colors'
             >
-              &larr; Back to home
+              {t('common.backToHome')}
             </Link>
           </div>
         </div>

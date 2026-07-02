@@ -17,8 +17,11 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Check, File, FileText, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { IngestProgressItem } from '../hooks/useIngestPipeline'
 import { useNotebookStats } from '../hooks/useNotebookStats'
+import { formatBytes, formatNumber, formatShortDate } from '../i18n/formatters'
+import { useLocale } from '../i18n/useLocale'
 
 export interface Source {
   id: string
@@ -27,15 +30,6 @@ export interface Source {
   status: 'pending' | 'processing' | 'ready' | 'error'
   updatedAt: string
   size?: number
-}
-
-function formatBytes(bytes?: number): string {
-  if (bytes === undefined || bytes === null) return ''
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 
 interface SourceListProps {
@@ -49,15 +43,20 @@ interface SourceListProps {
   onClearErrors?: () => void
 }
 
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `${yyyy}/${mm}/${dd}`
+function FormatBytes({ bytes, locale }: { bytes: number; locale: string }) {
+  const { value, unit } = formatBytes(locale as 'en' | 'ja', bytes)
+  return (
+    <span>
+      {formatNumber(locale as 'en' | 'ja', value, 1)} {unit}
+    </span>
+  )
 }
 
-function statusBadge(status: Source['status']) {
+function FormatDate({ iso, locale }: { iso: string; locale: string }) {
+  return <span>{formatShortDate(locale as 'en' | 'ja', iso)}</span>
+}
+
+function statusBadge(status: Source['status'], t: (key: string) => string) {
   switch (status) {
     case 'ready':
       return null // Hide Ready badge to save space
@@ -65,13 +64,13 @@ function statusBadge(status: Source['status']) {
       return (
         <span className='badge badge-info badge-xs'>
           <span className='loading loading-spinner loading-xs -ml-0.5 mr-1 text-secondary' />
-          Processing
+          {t('sourceList.status.processing')}
         </span>
       )
     case 'error':
-      return <span className='badge badge-error badge-xs'>Error</span>
+      return <span className='badge badge-error badge-xs'>{t('sourceList.status.error')}</span>
     default:
-      return <span className='badge badge-ghost badge-xs'>Pending</span>
+      return <span className='badge badge-ghost badge-xs'>{t('sourceList.status.pending')}</span>
   }
 }
 
@@ -92,6 +91,7 @@ function SourceActions({
   isConfirmingDelete,
   setIsConfirmingDelete,
   onRenameStart,
+  t,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
@@ -99,6 +99,7 @@ function SourceActions({
   isConfirmingDelete: boolean
   setIsConfirmingDelete: (val: boolean) => void
   onRenameStart: () => void
+  t: (key: string) => string
 }) {
   async function confirmDelete() {
     await onDelete?.(source.id)
@@ -109,14 +110,14 @@ function SourceActions({
     return (
       <div className='flex items-center gap-2'>
         <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
-          Delete
+          {t('sourceList.deleteConfirm')}
         </button>
         <button
           type='button'
           onClick={() => setIsConfirmingDelete(false)}
           className='btn btn-ghost btn-xs'
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     )
@@ -131,8 +132,8 @@ function SourceActions({
           type='button'
           onClick={onRenameStart}
           className='btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-primary'
-          aria-label='Rename source'
-          title='Rename'
+          aria-label={t('sourceList.renameAria')}
+          title={t('sourceList.renameLabel')}
         >
           <Pencil size={14} strokeWidth={2} aria-hidden='true' />
         </button>
@@ -142,8 +143,8 @@ function SourceActions({
           type='button'
           onClick={() => setIsConfirmingDelete(true)}
           className='btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-error'
-          aria-label='Delete source'
-          title='Delete'
+          aria-label={t('sourceList.deleteAria')}
+          title={t('common.delete')}
         >
           <Trash2 size={14} strokeWidth={2} aria-hidden='true' />
         </button>
@@ -156,10 +157,14 @@ function SortableSourceItem({
   source,
   onDelete,
   onRename,
+  t,
+  locale,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  t: (key: string) => string
+  locale: string
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: source.id,
@@ -214,7 +219,7 @@ function SortableSourceItem({
           {...attributes}
           {...listeners}
           className='btn btn-ghost btn-xs btn-circle cursor-grab active:cursor-grabbing flex-shrink-0'
-          aria-label='Drag to reorder'
+          aria-label={t('sourceList.dragAria')}
         >
           <GripVertical size={16} strokeWidth={2} aria-hidden='true' />
         </button>
@@ -237,15 +242,21 @@ function SortableSourceItem({
               <p className='text-sm font-medium text-base-content/90 truncate'>{source.fileName}</p>
               <p className='text-xs text-base-content/50'>
                 {source.type.toUpperCase()}
-                {source.size !== undefined && ` · ${formatBytes(source.size)}`}
-                {` · ${formatDate(source.updatedAt)}`}
+                {source.size !== undefined && (
+                  <>
+                    {' · '}
+                    <FormatBytes bytes={source.size} locale={locale} />
+                  </>
+                )}
+                {' · '}
+                <FormatDate iso={source.updatedAt} locale={locale} />
               </p>
             </>
           )}
         </div>
       </div>
       <div className='flex items-center gap-3 flex-shrink-0'>
-        {statusBadge(source.status)}
+        {statusBadge(source.status, t)}
         {!isEditing && (
           <SourceActions
             source={source}
@@ -254,6 +265,7 @@ function SortableSourceItem({
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}
+            t={t}
           />
         )}
       </div>
@@ -265,10 +277,14 @@ function StaticSourceItem({
   source,
   onDelete,
   onRename,
+  t,
+  locale,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  t: (key: string) => string
+  locale: string
 }) {
   const [isEditing, setIsEditing] = React.useState(false)
   const [editName, setEditName] = React.useState(source.fileName)
@@ -322,15 +338,21 @@ function StaticSourceItem({
               <p className='text-sm font-medium text-base-content/90 truncate'>{source.fileName}</p>
               <p className='text-xs text-base-content/50'>
                 {source.type.toUpperCase()}
-                {source.size !== undefined && ` · ${formatBytes(source.size)}`}
-                {` · ${formatDate(source.updatedAt)}`}
+                {source.size !== undefined && (
+                  <>
+                    {' · '}
+                    <FormatBytes bytes={source.size} locale={locale} />
+                  </>
+                )}
+                {' · '}
+                <FormatDate iso={source.updatedAt} locale={locale} />
               </p>
             </>
           )}
         </div>
       </div>
       <div className='flex items-center gap-3 flex-shrink-0'>
-        {statusBadge(source.status)}
+        {statusBadge(source.status, t)}
         {!isEditing && (
           <SourceActions
             source={source}
@@ -339,6 +361,7 @@ function StaticSourceItem({
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}
+            t={t}
           />
         )}
       </div>
@@ -356,6 +379,8 @@ export function SourceList({
   uploadProgress,
   onClearErrors,
 }: SourceListProps) {
+  const { t } = useTranslation('common')
+  const { locale } = useLocale()
   const { stats } = useNotebookStats(notebookId ?? '', sources.length)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -440,10 +465,10 @@ export function SourceList({
               ) : (
                 <p className='text-xs text-base-content/50 mt-0.5'>
                   {item.status === 'uploading'
-                    ? 'Uploading...'
+                    ? t('sourceList.status.uploading')
                     : item.status === 'done'
-                      ? 'Done'
-                      : 'Pending'}
+                      ? t('sourceList.status.done')
+                      : t('sourceList.status.pending')}
                 </p>
               )}
             </div>
@@ -493,10 +518,10 @@ export function SourceList({
                 type='button'
                 onClick={() => inputRef.current?.click()}
                 className='btn btn-neutral btn-sm'
-                aria-label='Add more files'
+                aria-label={t('sourceList.addMore')}
               >
                 <Plus size={16} strokeWidth={2} aria-hidden='true' />
-                Add more files
+                {t('sourceList.addMore')}
               </button>
             </div>
           )}
@@ -527,21 +552,19 @@ export function SourceList({
         <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-base-300 text-base-content/50'>
           <File size={24} strokeWidth={2} aria-hidden='true' />
         </div>
-        <h3 className='text-base font-medium text-base-content/70'>No sources yet</h3>
+        <h3 className='text-base font-medium text-base-content/70'>{t('sourceList.empty')}</h3>
         <p className='mt-1 text-sm text-base-content/50'>
-          {onFilesSelected
-            ? 'Click + above or drop files here to add your first source.'
-            : 'Add a webpage above or upload files to get started.'}
+          {onFilesSelected ? t('sourceList.emptyWithDrop') : t('sourceList.emptyWithWeb')}
         </p>
         {onFilesSelected && (
           <button
             type='button'
             onClick={() => inputRef.current?.click()}
             className='mt-4 btn btn-neutral'
-            aria-label='Add files'
+            aria-label={t('sourceList.addFiles')}
           >
             <Plus size={16} strokeWidth={2} aria-hidden='true' />
-            Click to add files
+            {t('sourceList.clickToAdd')}
           </button>
         )}
       </section>
@@ -561,13 +584,15 @@ export function SourceList({
     >
       <div className='px-5 py-4 border-b border-base-300 bg-base-200 flex items-center justify-between'>
         <div className='flex items-center gap-3'>
-          <h3 className='text-sm font-semibold text-base-content/90'>Sources</h3>
+          <h3 className='text-sm font-semibold text-base-content/90'>
+            {t('sourceList.sectionTitle')}
+          </h3>
           {onFilesSelected && (
             <button
               type='button'
               onClick={() => inputRef.current?.click()}
               className='btn btn-ghost btn-sm btn-circle'
-              aria-label='Add files'
+              aria-label={t('sourceList.addFiles')}
             >
               <Plus size={16} strokeWidth={2} aria-hidden='true' />
             </button>
@@ -579,15 +604,17 @@ export function SourceList({
               type='button'
               onClick={onClearErrors}
               className='btn btn-ghost btn-xs'
-              aria-label='Clear upload errors'
+              aria-label={t('sourceList.clearErrors')}
             >
-              クリア
+              {t('sourceList.clearErrors')}
             </button>
           )}
           <span className='text-xs text-base-content/50'>
-            {sources.length} total
-            {stats &&
-              ` · ${stats.notebookVectorCount ?? 0} vectors (Global: ${stats.globalVectorCount ?? 0})`}
+            {t('sourceList.stats', {
+              count: sources.length,
+              vectors: stats?.notebookVectorCount ?? 0,
+              globalVectors: stats?.globalVectorCount ?? 0,
+            })}
           </span>
         </div>
       </div>
@@ -608,6 +635,8 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              t={t}
+              locale={locale}
             />
           ) : (
             <StaticSourceItem
@@ -615,6 +644,8 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              t={t}
+              locale={locale}
             />
           ),
         )}

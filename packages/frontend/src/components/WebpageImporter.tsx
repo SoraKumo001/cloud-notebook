@@ -1,5 +1,6 @@
 import { Check, Globe } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { parseWebpage } from '../lib/sourceParser'
 
 interface WebpageImporterProps {
@@ -28,6 +29,7 @@ function deriveFileName(url: string): string {
 }
 
 export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporterProps) {
+  const { t } = useTranslation('common')
   const [url, setUrl] = React.useState('')
   const [preview, setPreview] = React.useState<{
     title: string
@@ -43,7 +45,7 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
     if (!trimmed || isProcessing || parsing) return
 
     if (!isValidUrl(trimmed)) {
-      setError('Please enter a valid http:// or https:// URL')
+      setError(t('errors.validation.url'))
       return
     }
 
@@ -62,7 +64,7 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
       await uploadWebpage(trimmed)
       setUrl('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import webpage')
+      setError(err instanceof Error ? err.message : t('errors.validation.importFailed'))
     } finally {
       setParsing(false)
     }
@@ -75,7 +77,9 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
           <div className='w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center text-teal-400'>
             <Globe size={16} strokeWidth={2} aria-hidden='true' />
           </div>
-          <h2 className='text-base font-semibold text-base-content'>Add webpage</h2>
+          <h2 className='text-base font-semibold text-base-content'>
+            {t('webpageImporter.title')}
+          </h2>
         </div>
       </div>
 
@@ -83,14 +87,14 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
         <form onSubmit={handleSubmit} className='flex items-end gap-3'>
           <div className='flex-1 min-w-0'>
             <label htmlFor='webpage-url' className='sr-only'>
-              Webpage URL
+              {t('webpageImporter.urlLabel')}
             </label>
             <input
               id='webpage-url'
               type='url'
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder='https://example.com/article'
+              placeholder={t('webpageImporter.urlPlaceholder')}
               disabled={isProcessing || parsing}
               className='w-full input input-bordered'
             />
@@ -103,10 +107,10 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
             {parsing ? (
               <span className='flex items-center gap-2'>
                 <span className='loading loading-spinner loading-sm text-white' />
-                Fetching…
+                {t('webpageImporter.submitting')}
               </span>
             ) : (
-              'Add'
+              t('webpageImporter.submit')
             )}
           </button>
         </form>

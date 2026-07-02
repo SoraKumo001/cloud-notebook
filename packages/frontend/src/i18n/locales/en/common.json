@@ -1,0 +1,440 @@
+{
+  "app": {
+    "name": "Cloud open-notebook",
+    "tagline": "Your Private AI-Powered Research Assistant",
+    "footer": "© {year} Cloud open-notebook. All rights reserved."
+  },
+  "language": {
+    "switchLabel": "Language",
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "common": {
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "saveSettings": "Save settings",
+    "saveFailed": "Save failed: {status}",
+    "saveFailedGeneric": "Something went wrong",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "create": "Create",
+    "creating": "Creating…",
+    "close": "Close",
+    "back": "Back",
+    "backToHome": "← Back to home",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signInShort": "Sign in",
+    "register": "Register",
+    "createAccount": "Create your account",
+    "haveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?",
+    "pleaseWait": "Please wait…",
+    "rename": "Rename",
+    "retry": "Retry",
+    "copied": "Copied",
+    "copy": "Copy",
+    "dismiss": "Dismiss",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "show": "Show",
+    "hide": "Hide",
+    "or": "or"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "network": "Network error",
+    "notFound": "{resource} not found",
+    "forbidden": "Forbidden",
+    "unauthorized": "Unauthorized",
+    "timeout": "Request timed out",
+    "loadFailed": "Failed to load: {status}",
+    "createFailed": "Failed to create: {status}",
+    "updateFailed": "Failed to update: {status}",
+    "deleteFailed": "Failed to delete: {status}",
+    "renameFailed": "Failed to rename: {status}",
+    "reorderFailed": "Failed to reorder: {status}",
+    "revokeFailed": "Failed to revoke: {status}",
+    "issueInviteFailed": "Failed to issue invitation: {status}",
+    "loadInvitationsFailed": "Failed to load invitations: {status}",
+    "loadNotebooksFailed": "Failed to load notebooks: {status}",
+    "loadGlobalSettingsFailed": "Failed to load global settings",
+    "loadConnectionsFailed": "Failed to load connections",
+    "loadStorageFailed": "Failed to load ({status})",
+    "loadStorageFailedGeneric": "Failed to load",
+    "saveStorageFailed": "Save failed ({status})",
+    "saveStorageFailedGeneric": "Failed to save",
+    "generateTokenFailed": "Generate failed: {status}",
+    "revokeTokenFailed": "Revoke failed: {status}",
+    "signInFailed": "Sign-in failed: {status}",
+    "signInFailedGeneric": "Sign-in failed",
+    "authenticateFailed": "Failed to authenticate",
+    "fetchUserFailed": "Failed to fetch user: {status}",
+    "addConnectionFailed": "Failed to add connection",
+    "deleteConnectionFailed": "Failed to delete connection",
+    "fetchModelsFailed": "Failed to fetch models",
+    "fetchNotebooksFailed": "Failed to fetch notebooks",
+    "reindexFailed": "Reindexing failed",
+    "saveOccurred": "An error occurred while saving",
+    "deleteConnectionConfirm": "Are you sure you want to delete this connection?",
+    "notebook": {
+      "notFound": "Notebook not found"
+    },
+    "source": {
+      "notFound": "Source not found"
+    },
+    "session": {
+      "notFound": "Session not found"
+    },
+    "note": {
+      "notFound": "Note not found"
+    },
+    "connection": {
+      "notFound": "Connection not found"
+    },
+    "invitation": {
+      "notFound": "Invitation not found or already used"
+    },
+    "auth": {
+      "invalidCredentials": "Invalid email or password",
+      "unauthorized": "Authentication required",
+      "forbidden": "You do not have permission to perform this action",
+      "tokenMissing": "Missing or invalid Authorization header",
+      "tokenInvalid": "Invalid token",
+      "emailRegistered": "Email already registered",
+      "inviteRequired": "Invite token required. Ask an admin to invite you.",
+      "inviteInvalid": "Invalid or expired invite token"
+    },
+    "validation": {
+      "failed": "Validation failed",
+      "email": "Invalid email",
+      "url": "Please enter a valid http:// or https:// URL",
+      "titleRequired": "Please enter a title.",
+      "fileNameInvalid": "Invalid file name",
+      "keyInvalid": "Invalid key",
+      "importFailed": "Failed to import webpage"
+    },
+    "request": {
+      "invalidKey": "Invalid key",
+      "emptyBody": "Empty body",
+      "tooLarge": "File too large",
+      "invalidUrl": "Invalid or disallowed URL",
+      "invalidSourceIds": "Invalid source IDs",
+      "deprecated": "This endpoint is deprecated"
+    },
+    "resource": {
+      "conflict": "Resource conflict"
+    },
+    "server": {
+      "configError": "Server configuration error",
+      "internalError": "Internal server error",
+      "upstreamError": "Upstream service error"
+    },
+    "proxy": {
+      "upstreamError": "Upstream returned an error"
+    },
+    "storage": {
+      "providerMismatch": "Storage provider mismatch",
+      "healthCheckFailed": "Storage health check failed",
+      "forbiddenInProduction": "Forbidden in production"
+    }
+  },
+  "landing": {
+    "featureMultimodalTitle": "Multimodal Sources",
+    "featureMultimodalBody": "Upload PDF documents, extract text and images in the browser, and index them instantly with Cloudflare Vectorize.",
+    "featureSmartTitle": "Smart RAG Chat",
+    "featureSmartBody": "Ask questions and get instant, referenced answers from your documents. Choose between Workers AI or OpenAI compatible endpoints.",
+    "cfBadge": "✨ Cloudflare Native Architecture",
+    "cta": "Create New Notebook",
+    "heroBody": "Create notebooks, upload PDFs or web pages, and interact with your personal knowledge base. Powered by Cloudflare Workers, D1, R2, and Vectorize."
+  },
+  "login": {
+    "invitationDetected": "Invitation link detected",
+    "displayNameLabel": "Display name (optional)",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "passwordHint": "At least 8 characters.",
+    "submitRegister": "Create account",
+    "bodyRegister": "Register an account to start uploading and chatting with your sources.",
+    "bodyLogin": "Use your email and password to access your notebooks.",
+    "bodyInvited": "You have been invited. Set a password to finish creating your account."
+  },
+  "notebookList": {
+    "title": "Notebooks",
+    "subtitle": "Organize your research and sources.",
+    "newNotebook": "New Notebook",
+    "searchPlaceholder": "Search notebooks...",
+    "emptySearch": "No notebooks match your search",
+    "empty": "No notebooks yet",
+    "emptySearchHint": "No results for \"{query}\". Try a different keyword.",
+    "emptyHint": "Create your first notebook to start collecting sources, notes, and research.",
+    "clearSearch": "Clear search",
+    "inviteAria": "Invite users",
+    "storageAria": "Storage settings (admin)",
+    "globalSettingsAria": "Global settings",
+    "closeInvite": "Close invite dialog",
+    "inviteTitle": "Invite users",
+    "sort": {
+      "label": "Sort",
+      "updated": "Last updated",
+      "newest": "Newest first",
+      "titleAsc": "Title A-Z",
+      "titleDesc": "Title Z-A"
+    },
+    "updated": "Updated {date}"
+  },
+  "notebookDetail": {
+    "loading": "Loading…",
+    "backToList": "Back to notebooks",
+    "editTitleAria": "Click to edit title",
+    "actionsAria": "Notebook actions",
+    "settingsMenu": "Notebook settings",
+    "globalSettingsMenu": "Global settings",
+    "deleteMenu": "Delete notebook",
+    "deleteDialog": {
+      "title": "Delete notebook?",
+      "body": "This will permanently delete \"{title}\" and all its sources. This cannot be undone."
+    },
+    "studio": {
+      "title": "Notes & Studio",
+      "subtitle": "Write notes or generate study guides."
+    }
+  },
+  "createNotebook": {
+    "title": "Create New Notebook",
+    "titleLabel": "Title *",
+    "titlePlaceholder": "e.g. Research Notes",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional context for your notebook",
+    "submit": "Create Notebook"
+  },
+  "notebookCard": {
+    "noDescription": "No description",
+    "sourceCount": "{count, plural, one {# source} other {# sources}}"
+  },
+  "sourceList": {
+    "sectionTitle": "Sources",
+    "bytes": {
+      "zero": "0 Bytes",
+      "bytes": "Bytes",
+      "kb": "KB",
+      "mb": "MB",
+      "gb": "GB"
+    },
+    "date": "{year}/{month}/{day}",
+    "status": {
+      "processing": "Processing",
+      "error": "Error",
+      "pending": "Pending",
+      "uploading": "Uploading...",
+      "done": "Done"
+    },
+    "addMore": "Add more files",
+    "addFiles": "Add files",
+    "clickToAdd": "Click to add files",
+    "clearErrors": "Clear upload errors",
+    "empty": "No sources yet",
+    "emptyWithDrop": "Click + above or drop files here to add your first source.",
+    "emptyWithWeb": "Add a webpage above or upload files to get started.",
+    "stats": "{count} total · {vectors} vectors (Global: {globalVectors})",
+    "dragAria": "Drag to reorder",
+    "renameAria": "Rename source",
+    "deleteAria": "Delete source",
+    "renameLabel": "Rename",
+    "deleteConfirm": "Delete"
+  },
+  "chat": {
+    "title": "Chat",
+    "newChat": "New Chat",
+    "conversations": "Conversations ({count})",
+    "emptyTitle": "Ask anything about your sources",
+    "emptyBody": "Type a question and the assistant will answer using the documents in this notebook.",
+    "inputPlaceholder": "Ask a question...",
+    "sendAria": "Send",
+    "sendHint": "Enter to send · Shift+Enter for new line",
+    "highRiskBadge": "High risk response",
+    "potentialUnreliable": "Potentially unreliable"
+  },
+  "sessionList": {
+    "deleteDialog": {
+      "title": "Delete this conversation?",
+      "body": "This will permanently delete the conversation and all of its messages."
+    },
+    "actionsAria": "Session actions",
+    "empty": "No conversations yet"
+  },
+  "note": {
+    "listTitle": "Notes",
+    "listCount": "{count} total",
+    "newNote": "New Note",
+    "empty": "No notes yet",
+    "emptyHint": "Create one to start taking notes.",
+    "deleteDialog": {
+      "title": "Delete this note?",
+      "body": "This will permanently delete the note."
+    },
+    "actionsAria": "Note actions",
+    "editor": {
+      "newNote": "New note",
+      "editNote": "Edit note",
+      "tabEdit": "Edit",
+      "tabPreview": "Preview",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Note title",
+      "contentLabel": "Content",
+      "contentPlaceholder": "Write in Markdown…",
+      "save": "Save",
+      "previewEmpty": "*Nothing to preview*"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{count} min ago",
+      "hoursAgo": "{count} hr ago",
+      "daysAgo": "{count} days ago"
+    }
+  },
+  "webpageImporter": {
+    "title": "Add webpage",
+    "urlLabel": "Webpage URL",
+    "urlPlaceholder": "https://example.com/article",
+    "submit": "Add",
+    "submitting": "Fetching…"
+  },
+  "citation": {
+    "page": "Page {n}",
+    "score": "Score: {percent}%"
+  },
+  "invite": {
+    "revokeDialog": {
+      "title": "Revoke invitation?",
+      "body": "The invitation for {email} will be deleted. The link will no longer work, even if the recipient has not yet used it.",
+      "submit": "Revoke"
+    },
+    "formTitle": "Invite a teammate",
+    "emailPlaceholder": "alice@example.com",
+    "submit": "Send invite",
+    "issuedTitle": "Issued invitations",
+    "loading": "Loading…",
+    "empty": "No invitations yet. Use the form above to invite your first teammate.",
+    "used": "Used {date}",
+    "expires": "Expires {date}",
+    "expired": "Expired {date}",
+    "revokeAria": "Revoke invitation for {email}",
+    "sentToast": "Invitation sent to {email}. Send the link below — it can be redeemed once, expires in 7 days."
+  },
+  "mcp": {
+    "generateToken": "Generate token",
+    "generated": "Token has been generated.",
+    "savedPrompt": "Copy this token now — it will not be shown again after you close this view.",
+    "savedAck": "I've saved the token",
+    "regenerate": "Regenerate",
+    "discard": "Discard",
+    "setup": "Setup instructions",
+    "setupBody": "Connect any MCP client that supports the Streamable HTTP transport. Use the URL below and the bearer token for this notebook as the Authorization header value. If you no longer have the token, regenerate a new one (the previous token will be invalidated).",
+    "serverUrl": "Server URL",
+    "authHeader": "Authorization header",
+    "regenerateDialog": {
+      "title": "Regenerate token?",
+      "regenerateBody": "A new token will be generated and the old one will be invalidated immediately. Any clients using the old token will lose access."
+    },
+    "discardDialog": {
+      "title": "Discard token?",
+      "discardBody": "This will remove the token from the server. The panel will return to the \"Generate token\" state. Any clients using the current token will lose access."
+    }
+  },
+  "notebookSettings": {
+    "title": "Notebook settings",
+    "sectionBasic": "Basic information",
+    "sectionAi": "AI settings",
+    "sectionMcp": "MCP integration",
+    "providerGroup": "Workers AI (Built-in)",
+    "embeddingModel": "Embedding model",
+    "chatModel": "Chat model",
+    "summarizationModel": "Summarization model",
+    "selectFromList": "Select from list",
+    "directInput": "Direct input",
+    "useGlobal": "Use global settings (inherit)",
+    "reindex": {
+      "warningTitle": "Reindex required",
+      "warningBody": "The embedding model has changed. Existing documents in this notebook need to be reindexed with the new model or search accuracy will degrade.",
+      "later": "Reindex later",
+      "running": "Reindexing…",
+      "run": "Reindex now",
+      "done": "Reindex complete!"
+    }
+  },
+  "globalSettings": {
+    "title": "Global Settings",
+    "subtitle": "Configure your API connections and default AI models",
+    "closeAria": "Close settings",
+    "tabModels": "Model Settings",
+    "tabConnections": "API Connections ({count})",
+    "savedToast": "Settings saved successfully! Closing...",
+    "loading": "Loading settings data...",
+    "defaultModels": "Default Model Settings",
+    "configured": "Configured Connections",
+    "empty": "No custom connections yet. Add your OpenAI or Anthropic keys below!",
+    "deleteAria": "Delete connection",
+    "addNew": "Add New Connection",
+    "connectionName": "Connection Name",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "baseUrlOptional": "Base URL (Optional)",
+    "connectionNamePlaceholder": "My OpenAI API",
+    "apiKeyPlaceholder": "sk-...",
+    "baseUrlPlaceholder": "https://api.openai.com/v1",
+    "addConnection": "Add Connection",
+    "adding": "Adding...",
+    "providers": {
+      "workersAi": "Workers AI",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic",
+      "google": "Google",
+      "custom": "Custom"
+    }
+  },
+  "storage": {
+    "title": "Storage Settings",
+    "adminRequired": "Admin privileges required.",
+    "lastUpdated": "Last updated by {user} at {time}",
+    "notConfigured": "No storage configuration saved yet. Defaults to the R2 native binding.",
+    "providerLegend": "Provider",
+    "r2Native": "R2 (Native Binding)",
+    "s3Compatible": "S3-Compatible",
+    "r2Body": "Uses the R2 bucket bound in wrangler. Zero credentials.",
+    "s3Body": "AWS S3, MinIO, Backblaze B2, R2 via S3 API.",
+    "r2Details": "The R2 native binding is used directly. No credentials are required at runtime — the binding is configured in wrangler.jsonc. Make sure an R2 bucket is bound to this Worker.",
+    "endpoint": "Endpoint",
+    "bucket": "Bucket",
+    "region": "Region",
+    "accessKey": "Access Key ID",
+    "secretKey": "Secret Access Key",
+    "endpointPlaceholder": "https://account.r2.cloudflarestorage.com",
+    "bucketPlaceholder": "my-bucket",
+    "regionPlaceholder": "auto",
+    "accessKeyPlaceholder": "AKID...",
+    "secretKeyPlaceholder": "••••••••",
+    "unchangedHint": "(unchanged)",
+    "pathStyle": "Use path-style URLs (recommended for R2, MinIO; required for B2)",
+    "credentialsNote": "Credentials are encrypted server-side and never returned by the API.",
+    "leaveBlankHint": "Leave blank to keep the existing values.",
+    "corsNote": "Note: When the endpoint is *.r2.cloudflarestorage.com, browser uploads are routed through the Worker proxy (CORS preflight limitations on R2's S3 endpoint). All other endpoints receive a presigned PUT URL for direct browser uploads.",
+    "validation": {
+      "bucketRequired": "Bucket is required",
+      "endpointRequired": "Endpoint is required",
+      "accessKeyRequiredNew": "Access key ID is required (no existing value to keep)",
+      "secretKeyRequiredNew": "Secret access key is required (no existing value to keep)",
+      "accessKeyRequired": "Access key ID is required",
+      "secretKeyRequired": "Secret access key is required"
+    }
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "body": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home"
+  }
+}

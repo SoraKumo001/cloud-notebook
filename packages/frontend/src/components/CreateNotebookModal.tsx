@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface CreateNotebookFormData {
   title: string
@@ -19,6 +20,7 @@ export function CreateNotebookModal({
   onSubmit,
   isSubmitting,
 }: CreateNotebookModalProps) {
+  const { t } = useTranslation('common')
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [touched, setTouched] = React.useState(false)
@@ -76,14 +78,14 @@ export function CreateNotebookModal({
       <div className='modal-box max-w-md overflow-hidden'>
         <div className='px-6 py-5 border-b border-base-300 bg-base-200 flex items-center justify-between'>
           <h2 id='create-notebook-title' className='text-lg font-semibold text-base-content'>
-            Create New Notebook
+            {t('createNotebook.title')}
           </h2>
           <button
             type='button'
             onClick={onClose}
             disabled={isSubmitting}
             className='btn btn-ghost btn-circle'
-            aria-label='Close'
+            aria-label={t('common.close')}
           >
             <X size={20} strokeWidth={2} aria-hidden='true' />
           </button>
@@ -95,7 +97,7 @@ export function CreateNotebookModal({
               htmlFor='notebook-title'
               className='block text-sm font-medium text-base-content/70'
             >
-              Title <span className='text-secondary'>*</span>
+              {t('createNotebook.titleLabel')} <span className='text-secondary'>*</span>
             </label>
             <input
               id='notebook-title'
@@ -103,11 +105,13 @@ export function CreateNotebookModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => setTouched(true)}
-              placeholder='e.g. Research Notes'
+              placeholder={t('createNotebook.titlePlaceholder')}
               disabled={isSubmitting}
               className={`w-full input input-bordered ${showError ? 'border-error' : ''}`}
             />
-            {showError && <p className='text-xs text-error'>Please enter a title.</p>}
+            {showError && (
+              <p className='text-xs text-error'>{t('errors.validation.titleRequired')}</p>
+            )}
           </div>
 
           <div className='space-y-2'>
@@ -115,13 +119,13 @@ export function CreateNotebookModal({
               htmlFor='notebook-description'
               className='block text-sm font-medium text-base-content/70'
             >
-              Description
+              {t('createNotebook.descriptionLabel')}
             </label>
             <textarea
               id='notebook-description'
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder='Optional context for your notebook'
+              placeholder={t('createNotebook.descriptionPlaceholder')}
               disabled={isSubmitting}
               rows={3}
               className='w-full textarea textarea-bordered resize-none'
@@ -135,7 +139,7 @@ export function CreateNotebookModal({
               disabled={isSubmitting}
               className='btn btn-ghost'
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type='submit'
@@ -145,10 +149,10 @@ export function CreateNotebookModal({
               {isSubmitting ? (
                 <>
                   <span className='loading loading-spinner loading-sm text-white' />
-                  Creating…
+                  {t('common.creating')}
                 </>
               ) : (
-                'Create Notebook'
+                t('createNotebook.submit')
               )}
             </button>
           </div>

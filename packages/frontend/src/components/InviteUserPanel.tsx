@@ -1,5 +1,8 @@
 import { Check, Clipboard, Trash2, UserPlus } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatDateTime } from '../i18n/formatters'
+import { useLocale } from '../i18n/useLocale'
 
 interface Invitation {
   id: string
@@ -25,25 +28,28 @@ function ConfirmDelete({
   email,
   onConfirm,
   onCancel,
+  t,
 }: {
   email: string
   onConfirm: () => void
   onCancel: () => void
+  t: (key: string) => string
 }) {
   return (
     <div className='modal modal-open'>
       <div className='modal-box max-w-sm p-6'>
-        <h3 className='text-lg font-semibold text-base-content mb-2'>Revoke invitation?</h3>
+        <h3 className='text-lg font-semibold text-base-content mb-2'>
+          {t('invite.revokeDialog.title')}
+        </h3>
         <p className='text-sm text-base-content/60 mb-6'>
-          The invitation for <span className='font-mono'>{email}</span> will be deleted. The link
-          will no longer work, even if the recipient has not yet used it.
+          {t('invite.revokeDialog.body', { email })}
         </p>
         <div className='flex items-center justify-end gap-3'>
           <button type='button' onClick={onCancel} className='btn btn-ghost'>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type='button' onClick={onConfirm} className='btn btn-error'>
-            Revoke
+            {t('invite.revokeDialog.submit')}
           </button>
         </div>
       </div>
@@ -51,7 +57,7 @@ function ConfirmDelete({
   )
 }
 
-function CopyableLink({ url }: { url: string }) {
+function CopyableLink({ url, t }: { url: string; t: (key: string) => string }) {
   const [copied, setCopied] = React.useState(false)
   async function handleCopy() {
     if (!navigator.clipboard || !window.isSecureContext) return
@@ -75,11 +81,11 @@ function CopyableLink({ url }: { url: string }) {
       >
         {copied ? (
           <>
-            <Check size={14} strokeWidth={2} aria-hidden='true' /> Copied
+            <Check size={14} strokeWidth={2} aria-hidden='true' /> {t('common.copied')}
           </>
         ) : (
           <>
-            <Clipboard size={14} strokeWidth={2} aria-hidden='true' /> Copy
+            <Clipboard size={14} strokeWidth={2} aria-hidden='true' /> {t('common.copy')}
           </>
         )}
       </button>
@@ -88,6 +94,8 @@ function CopyableLink({ url }: { url: string }) {
 }
 
 export function InviteUserPanel() {
+  const { t } = useTranslation('common')
+  const { locale } = useLocale()
   const [invitations, setInvitations] = React.useState<Invitation[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -102,17 +110,22 @@ export function InviteUserPanel() {
     try {
       const res = await fetch('/api/auth/invitations', { credentials: 'include' })
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(data.error || `Failed to load invitations: ${res.status}`)
+        throw new Error(`loadInvitationsFailed:${res.status}`)
       }
       const data = (await res.json()) as Invitation[]
       setInvitations(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load invitations')
+      const apiErr = e as { message?: string }
+      if (apiErr.message?.includes(':')) {
+        const [code, status] = apiErr.message.split(':')
+        setError(t(`errors.${code}` as const, { status: Number(status) }))
+      } else {
+        setError(t('errors.loadInvitationsFailed'))
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   React.useEffect(() => {
     void load()
@@ -131,15 +144,20 @@ export function InviteUserPanel() {
         body: JSON.stringify({ email: email.trim() }),
       })
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(data.error || `Failed to issue invitation: ${res.status}`)
+        throw new Error(`issueInviteFailed:${res.status}`)
       }
       const data = (await res.json()) as { email: string; token: string }
       setLastIssued({ email: data.email, token: data.token })
       setEmail('')
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to issue invitation')
+      const apiErr = e as { message?: string }
+      if (apiErr.message?.includes(':')) {
+        const [code, status] = apiErr.message.split(':')
+        setError(t(`errors.${code}` as const, { status: Number(status) }))
+      } else {
+        setError(t('errors.issueInviteFailed'))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -152,12 +170,17 @@ export function InviteUserPanel() {
         credentials: 'include',
       })
       if (!res.ok && res.status !== 404) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(data.error || `Failed to revoke: ${res.status}`)
+        throw new Error(`revokeFailed:${res.status}`)
       }
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to revoke')
+      const apiErr = e as { message?: string }
+      if (apiErr.message?.includes(':')) {
+        const [code, status] = apiErr.message.split(':')
+        setError(t(`errors.${code}` as const, { status: Number(status) }))
+      } else {
+        setError(t('errors.revokeFailed'))
+      }
     } finally {
       setConfirmDeleteId(null)
     }
@@ -171,27 +194,26 @@ export function InviteUserPanel() {
         {lastIssued && (
           <div className='rounded-md border border-warning/30 bg-warning/10 p-3 space-y-2'>
             <p className='text-xs text-warning'>
-              Invitation sent to <span className='font-mono'>{lastIssued.email}</span>. Send the
-              link below — it can be redeemed once, expires in 7 days.
+              {t('invite.sentToast', { email: lastIssued.email })}
             </p>
-            <CopyableLink url={buildInviteUrl(lastIssued.token)} />
+            <CopyableLink url={buildInviteUrl(lastIssued.token)} t={t} />
             <button
               type='button'
               onClick={() => setLastIssued(null)}
               className='btn btn-ghost btn-xs'
             >
-              Dismiss
+              {t('common.dismiss')}
             </button>
           </div>
         )}
 
         <form onSubmit={handleIssue} className='flex items-end gap-2'>
           <label className='form-control flex-1'>
-            <span className='label-text mb-1 block'>Invite a teammate</span>
+            <span className='label-text mb-1 block'>{t('invite.formTitle')}</span>
             <input
               type='email'
               required
-              placeholder='alice@example.com'
+              placeholder={t('invite.emailPlaceholder')}
               className='input input-bordered w-full'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -200,20 +222,20 @@ export function InviteUserPanel() {
           </label>
           <button type='submit' disabled={submitting} className='btn btn-primary'>
             {submitting ? <Spinner /> : <UserPlus size={16} strokeWidth={2} aria-hidden='true' />}
-            Send invite
+            {t('invite.submit')}
           </button>
         </form>
 
         <div className='border-t border-base-300 pt-4'>
-          <h3 className='text-sm font-semibold text-base-content/80 mb-2'>Issued invitations</h3>
+          <h3 className='text-sm font-semibold text-base-content/80 mb-2'>
+            {t('invite.issuedTitle')}
+          </h3>
           {loading ? (
             <div className='flex items-center justify-center gap-2 py-3 text-sm text-base-content/60'>
-              <Spinner /> Loading…
+              <Spinner /> {t('invite.loading')}
             </div>
           ) : invitations.length === 0 ? (
-            <p className='text-sm text-base-content/50 py-2'>
-              No invitations yet. Use the form above to invite your first teammate.
-            </p>
+            <p className='text-sm text-base-content/50 py-2'>{t('invite.empty')}</p>
           ) : (
             <ul className='divide-y divide-base-300'>
               {invitations.map((inv) => (
@@ -224,10 +246,10 @@ export function InviteUserPanel() {
                     </div>
                     <div className='text-xs text-base-content/50'>
                       {inv.usedAt
-                        ? `Used ${new Date(inv.usedAt).toLocaleString()}`
+                        ? t('invite.used', { date: formatDateTime(locale, inv.usedAt) })
                         : inv.active
-                          ? `Expires ${new Date(inv.expiresAt).toLocaleString()}`
-                          : `Expired ${new Date(inv.expiresAt).toLocaleString()}`}
+                          ? t('invite.expires', { date: formatDateTime(locale, inv.expiresAt) })
+                          : t('invite.expired', { date: formatDateTime(locale, inv.expiresAt) })}
                     </div>
                   </div>
                   {!inv.usedAt && (
@@ -235,7 +257,7 @@ export function InviteUserPanel() {
                       type='button'
                       onClick={() => setConfirmDeleteId(inv.id)}
                       className='btn btn-ghost btn-sm text-error'
-                      aria-label={`Revoke invitation for ${inv.email}`}
+                      aria-label={t('invite.revokeAria', { email: inv.email })}
                     >
                       <Trash2 size={16} strokeWidth={2} aria-hidden='true' />
                     </button>
@@ -252,6 +274,7 @@ export function InviteUserPanel() {
           email={invitations.find((i) => i.id === confirmDeleteId)?.email ?? ''}
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => void handleRevoke(confirmDeleteId)}
+          t={t}
         />
       )}
     </div>

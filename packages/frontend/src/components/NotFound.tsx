@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 export default function NotFound() {
+  const { t } = useTranslation('common')
   return (
     <div className='min-h-screen bg-base-200 text-base-content flex flex-col items-center justify-center font-sans px-6'>
       <div className='max-w-md text-center space-y-6'>
@@ -10,12 +12,10 @@ export default function NotFound() {
         >
           404
         </div>
-        <h1 className='text-2xl font-semibold text-base-content/90'>Page Not Found</h1>
-        <p className='text-base-content/60 leading-relaxed'>
-          The page you&apos;re looking for doesn&apos;t exist or has been moved.
-        </p>
+        <h1 className='text-2xl font-semibold text-base-content/90'>{t('notFound.title')}</h1>
+        <p className='text-base-content/60 leading-relaxed'>{t('notFound.body')}</p>
         <Link to='/' className='btn btn-primary'>
-          Go Home
+          {t('notFound.goHome')}
         </Link>
       </div>
     </div>

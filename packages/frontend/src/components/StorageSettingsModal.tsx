@@ -16,6 +16,7 @@
 
 import { AlertTriangle, Cloud, Database, X, XCircle } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface StorageSettingsModalProps {
   isOpen: boolean
@@ -37,6 +38,7 @@ interface StorageConfig {
 }
 
 export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettingsModalProps) {
+  const { t } = useTranslation('common')
   const [config, setConfig] = React.useState<StorageConfig | null>(null)
   const [provider, setProvider] = React.useState<'r2-binding' | 's3-compatible'>('r2-binding')
   const [bucket, setBucket] = React.useState('')
@@ -57,7 +59,7 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
       const res = await fetch('/api/admin/storage')
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(body.error ?? `Failed to load (${res.status})`)
+        throw new Error(body.error ?? t('errors.loadStorageFailed', { status: res.status }))
       }
       const data = (await res.json()) as StorageConfig
       setConfig(data)
@@ -69,11 +71,11 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
       // Secrets are never returned — leave fields empty. The user
       // only fills them in if they want to change them.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : t('errors.loadStorageFailedGeneric'))
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   React.useEffect(() => {
     if (isOpen) {
@@ -85,10 +87,10 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
 
   if (!isAdmin) {
     return (
-      <ModalShell onClose={onClose} title='Storage Settings'>
+      <ModalShell onClose={onClose} title={t('storage.title')}>
         <div className='rounded-md bg-red-50 p-3 text-sm text-red-800 flex items-start gap-2'>
           <XCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-          <span>Admin privileges required.</span>
+          <span>{t('storage.adminRequired')}</span>
         </div>
       </ModalShell>
     )
@@ -100,8 +102,8 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
     try {
       const body: Record<string, unknown> = { provider }
       if (provider === 's3-compatible') {
-        if (!bucket.trim()) throw new Error('Bucket is required')
-        if (!endpoint.trim()) throw new Error('Endpoint is required')
+        if (!bucket.trim()) throw new Error(t('storage.validation.bucketRequired'))
+        if (!endpoint.trim()) throw new Error(t('storage.validation.endpointRequired'))
         // Secrets are write-only: if empty, the backend keeps the
         // stored values. If the user provides new values, they
         // replace the existing ones. Our backend currently requires
@@ -109,14 +111,14 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
         // missing on an already-configured row.
         if (config?.configured && config.provider === 's3-compatible') {
           if (!accessKeyId && !config.has_access_key) {
-            throw new Error('Access key ID is required (no existing value to keep)')
+            throw new Error(t('storage.validation.accessKeyRequiredNew'))
           }
           if (!secretAccessKey && !config.has_secret_key) {
-            throw new Error('Secret access key is required (no existing value to keep)')
+            throw new Error(t('storage.validation.secretKeyRequiredNew'))
           }
         } else {
-          if (!accessKeyId) throw new Error('Access key ID is required')
-          if (!secretAccessKey) throw new Error('Secret access key is required')
+          if (!accessKeyId) throw new Error(t('storage.validation.accessKeyRequired'))
+          if (!secretAccessKey) throw new Error(t('storage.validation.secretKeyRequired'))
         }
         body.bucket = bucket.trim()
         body.region = region.trim() || 'auto'
@@ -132,32 +134,30 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
       })
       if (!res.ok) {
         const errBody = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(errBody.error ?? `Save failed (${res.status})`)
+        throw new Error(errBody.error ?? t('errors.saveStorageFailed', { status: res.status }))
       }
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : t('errors.saveStorageFailedGeneric'))
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <ModalShell onClose={onClose} title='Storage Settings'>
+    <ModalShell onClose={onClose} title={t('storage.title')}>
       {isLoading ? (
-        <div className='text-sm text-gray-500'>Loading…</div>
+        <div className='text-sm text-gray-500'>{t('common.loading')}</div>
       ) : (
         <>
           {config && (
             <div className='mb-4 text-xs text-gray-500'>
-              {config.configured ? (
-                <>
-                  Last updated by <span className='font-mono'>{config.updated_by ?? '—'}</span> at{' '}
-                  <span className='font-mono'>{config.updated_at ?? '—'}</span>
-                </>
-              ) : (
-                <>No storage configuration saved yet. Defaults to the R2 native binding.</>
-              )}
+              {config.configured
+                ? t('storage.lastUpdated', {
+                    user: config.updated_by ?? '—',
+                    time: config.updated_at ?? '—',
+                  })
+                : t('storage.notConfigured')}
             </div>
           )}
 
@@ -178,19 +178,21 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
             className='space-y-4'
           >
             <fieldset>
-              <legend className='block text-sm font-medium text-gray-700 mb-1'>Provider</legend>
+              <legend className='block text-sm font-medium text-gray-700 mb-1'>
+                {t('storage.providerLegend')}
+              </legend>
               <div className='grid grid-cols-2 gap-2'>
                 <ProviderButton
                   icon={<Database className='w-4 h-4' />}
-                  label='R2 (Native Binding)'
-                  description='Uses the R2 bucket bound in wrangler. Zero credentials.'
+                  label={t('storage.r2Native')}
+                  description={t('storage.r2Body')}
                   active={provider === 'r2-binding'}
                   onClick={() => setProvider('r2-binding')}
                 />
                 <ProviderButton
                   icon={<Cloud className='w-4 h-4' />}
-                  label='S3-Compatible'
-                  description='AWS S3, MinIO, Backblaze B2, R2 via S3 API.'
+                  label={t('storage.s3Compatible')}
+                  description={t('storage.s3Body')}
                   active={provider === 's3-compatible'}
                   onClick={() => setProvider('s3-compatible')}
                 />
@@ -199,21 +201,19 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
 
             {provider === 'r2-binding' && (
               <div className='rounded-md bg-blue-50 p-3 text-sm text-blue-900'>
-                The R2 native binding is used directly. No credentials are required at runtime — the
-                binding is configured in <code>wrangler.jsonc</code>. Make sure an R2 bucket is
-                bound to this Worker.
+                {t('storage.r2Details')}
               </div>
             )}
 
             {provider === 's3-compatible' && (
               <div className='space-y-3'>
-                <Field label='Endpoint' required>
+                <Field label={t('storage.endpoint')} required>
                   <input
                     type='url'
                     name='storage-endpoint'
                     value={endpoint}
                     onChange={(e) => setEndpoint(e.target.value)}
-                    placeholder='https://account.r2.cloudflarestorage.com'
+                    placeholder={t('storage.endpointPlaceholder')}
                     autoComplete='off'
                     autoCorrect='off'
                     autoCapitalize='off'
@@ -224,13 +224,13 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                   />
                 </Field>
                 <div className='grid grid-cols-2 gap-3'>
-                  <Field label='Bucket' required>
+                  <Field label={t('storage.bucket')} required>
                     <input
                       type='text'
                       name='storage-bucket'
                       value={bucket}
                       onChange={(e) => setBucket(e.target.value)}
-                      placeholder='my-bucket'
+                      placeholder={t('storage.bucketPlaceholder')}
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -240,13 +240,13 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                       className='w-full rounded border border-gray-300 px-2 py-1 text-sm font-mono'
                     />
                   </Field>
-                  <Field label='Region'>
+                  <Field label={t('storage.region')}>
                     <input
                       type='text'
                       name='storage-region'
                       value={region}
                       onChange={(e) => setRegion(e.target.value)}
-                      placeholder='auto'
+                      placeholder={t('storage.regionPlaceholder')}
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -263,23 +263,27 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                     checked={forcePathStyle}
                     onChange={(e) => setForcePathStyle(e.target.checked)}
                   />
-                  <span>Use path-style URLs (recommended for R2, MinIO; required for B2)</span>
+                  <span>{t('storage.pathStyle')}</span>
                 </label>
 
                 <div className='border-t border-gray-200 pt-3 space-y-3'>
                   <div className='text-xs text-gray-500'>
-                    Credentials are encrypted server-side and never returned by the API.{' '}
-                    {config?.has_access_key || config?.has_secret_key ? (
-                      <>Leave blank to keep the existing values.</>
-                    ) : null}
+                    {t('storage.credentialsNote')}{' '}
+                    {config?.has_access_key || config?.has_secret_key
+                      ? t('storage.leaveBlankHint')
+                      : null}
                   </div>
-                  <Field label='Access Key ID' required={!config?.has_access_key}>
+                  <Field label={t('storage.accessKey')} required={!config?.has_access_key}>
                     <input
                       type='text'
                       name='storage-access-key-id'
                       value={accessKeyId}
                       onChange={(e) => setAccessKeyId(e.target.value)}
-                      placeholder={config?.has_access_key ? '(unchanged)' : 'AKID...'}
+                      placeholder={
+                        config?.has_access_key
+                          ? t('storage.unchangedHint')
+                          : t('storage.accessKeyPlaceholder')
+                      }
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -289,7 +293,7 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                       className='w-full rounded border border-gray-300 px-2 py-1 text-sm font-mono'
                     />
                   </Field>
-                  <Field label='Secret Access Key' required={!config?.has_secret_key}>
+                  <Field label={t('storage.secretKey')} required={!config?.has_secret_key}>
                     <input
                       // Chrome's built-in password manager ONLY targets
                       // <input type="password"> elements. By using type="text"
@@ -307,7 +311,11 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                       name='storage-secret-access-key'
                       value={secretAccessKey}
                       onChange={(e) => setSecretAccessKey(e.target.value)}
-                      placeholder={config?.has_secret_key ? '(unchanged)' : '••••••••'}
+                      placeholder={
+                        config?.has_secret_key
+                          ? t('storage.unchangedHint')
+                          : t('storage.secretKeyPlaceholder')
+                      }
                       autoComplete='new-password'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -325,10 +333,7 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                 </div>
 
                 <div className='rounded-md bg-amber-50 p-3 text-xs text-amber-900'>
-                  <strong>Note:</strong> When the endpoint is{' '}
-                  <code>*.r2.cloudflarestorage.com</code>, browser uploads are routed through the
-                  Worker proxy (CORS preflight limitations on R2's S3 endpoint). All other endpoints
-                  receive a presigned PUT URL for direct browser uploads.
+                  {t('storage.corsNote')}
                 </div>
               </div>
             )}
@@ -339,14 +344,14 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
                 onClick={onClose}
                 className='rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50'
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type='submit'
                 disabled={isSaving}
                 className='rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50'
               >
-                {isSaving ? 'Saving…' : 'Save'}
+                {isSaving ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </form>

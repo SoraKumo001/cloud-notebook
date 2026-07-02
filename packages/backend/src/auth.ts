@@ -10,6 +10,7 @@
 
 import type { Context, Next } from 'hono'
 import { createDb } from './db/client'
+import { ErrorCode, errorResponse } from './errors'
 import { SESSION_COOKIE_NAME, validateSession } from './session'
 
 // ---------------------------------------------------------------------------
@@ -131,7 +132,7 @@ export async function authMiddleware(c: Context, next: Next) {
     await next()
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Authentication failed'
-    return c.json({ error: message }, 401)
+    return errorResponse(c, ErrorCode.AuthUnauthorized, message, 401)
   }
 }
 
@@ -142,7 +143,7 @@ export async function authMiddleware(c: Context, next: Next) {
 export async function requireAdmin(c: Context, next: Next) {
   const user = c.get('user') as AuthUser | undefined
   if (!user?.isAdmin) {
-    return c.json({ error: 'Admin only' }, 403)
+    return errorResponse(c, ErrorCode.AuthForbidden, 'Admin only', 403)
   }
   await next()
 }

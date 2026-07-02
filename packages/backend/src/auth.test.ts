@@ -140,7 +140,10 @@ describe('authMiddleware', () => {
     const next = vi.fn()
 
     const result = await authMiddleware(c, next)
-    expect(c.json).toHaveBeenCalledWith({ error: 'Missing authentication token' }, 401)
+    expect(c.json).toHaveBeenCalledWith(
+      { error: 'Missing authentication token', code: 'auth.unauthorized' },
+      401,
+    )
     expect(next).not.toHaveBeenCalled()
     expect(result).toBe('unauthorized-response')
   })

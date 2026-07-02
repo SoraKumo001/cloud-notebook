@@ -7,6 +7,7 @@ import { createDb } from './db/client'
 import { chatMessages, chatSessions, notebooks, notes, sourceChunks, sources } from './db/schema'
 import { getEffectiveAiConfig } from './db/settings'
 import { embedChunks, embedQuery, getEmbeddingProvider } from './embeddings'
+import { ErrorCode } from './errors'
 import {
   assessHallucinationRisk,
   buildGeneralPrompt,
@@ -89,7 +90,7 @@ export async function streamChat(
       await runPipeline(env, notebookId, userId, query, sessionId, writer)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
-      writeSSE(writer, 'error', { message })
+      writeSSE(writer, 'error', { message, code: ErrorCode.ServerInternalError })
     } finally {
       await writer.close().catch(() => {})
     }
@@ -235,7 +236,7 @@ async function runPipeline(
   const notebook = await getNotebookCached(env, notebookId)
 
   if (!notebook || notebook.user_id !== userId) {
-    writeSSE(writer, 'error', { message: 'Notebook not found' })
+    writeSSE(writer, 'error', { message: 'Notebook not found', code: ErrorCode.NotebookNotFound })
     return
   }
 
@@ -384,7 +385,7 @@ async function runPipeline(
       .limit(1)
 
     if (!existing) {
-      writeSSE(writer, 'error', { message: 'Session not found' })
+      writeSSE(writer, 'error', { message: 'Session not found', code: ErrorCode.SessionNotFound })
       return
     }
     activeSessionId = sessionId

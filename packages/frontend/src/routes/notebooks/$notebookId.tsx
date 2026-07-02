@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ArrowLeft, MoreVertical } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { SourceList } from '../../components/SourceList'
 import { useAuth } from '../../contexts/AuthContext'
 import type { IngestProgressItem } from '../../hooks/useIngestPipeline'
@@ -53,6 +54,7 @@ interface Notebook {
 }
 
 function NotebookDetailPage() {
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
   const { notebookId } = useParams({ from: '/notebooks/$notebookId' })
   const { user, loading: authLoading } = useAuth()
@@ -123,26 +125,26 @@ function NotebookDetailPage() {
         const response = await fetch(`/api/notebooks?userId=${encodeURIComponent(user.id)}`)
 
         if (!response.ok) {
-          throw new Error(`Failed to load notebooks: ${response.status}`)
+          throw new Error(t('errors.loadNotebooksFailed', { status: response.status }))
         }
 
         const data = await response.json()
         const found = (data as Notebook[]).find((n) => n.id === notebookId)
 
         if (!found) {
-          throw new Error('Notebook not found')
+          throw new Error(t('errors.notFound', { resource: 'Notebook' }))
         }
 
         setNotebook(found)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Something went wrong')
+        setError(err instanceof Error ? err.message : t('errors.generic'))
       } finally {
         setLoading(false)
       }
     }
 
     loadNotebook()
-  }, [notebookId, user])
+  }, [notebookId, user, t])
 
   React.useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -268,7 +270,7 @@ function NotebookDetailPage() {
             <Link
               to='/notebooks'
               className='btn btn-ghost btn-circle'
-              aria-label='Back to notebooks'
+              aria-label={t('notebookDetail.backToList')}
             >
               <ArrowLeft size={20} strokeWidth={2} aria-hidden='true' />
             </Link>
@@ -292,7 +294,7 @@ function NotebookDetailPage() {
                     type='button'
                     onClick={startTitleEdit}
                     className='text-lg font-semibold text-base-content hover:text-primary transition-colors cursor-pointer'
-                    title='Click to edit title'
+                    title={t('notebookDetail.editTitleAria')}
                   >
                     {notebook.title}
                   </button>
@@ -304,7 +306,9 @@ function NotebookDetailPage() {
                 )}
               </div>
             ) : (
-              <span className='text-lg font-semibold text-base-content'>Notebook</span>
+              <span className='text-lg font-semibold text-base-content'>
+                {t('notebookList.title')}
+              </span>
             )}
           </div>
 
@@ -317,7 +321,7 @@ function NotebookDetailPage() {
                   setMenuOpen((prev) => !prev)
                 }}
                 className='btn btn-ghost btn-circle btn-sm'
-                aria-label='Notebook actions'
+                aria-label={t('notebookDetail.actionsAria')}
               >
                 <MoreVertical size={20} strokeWidth={2} aria-hidden='true' />
               </button>
@@ -333,7 +337,7 @@ function NotebookDetailPage() {
                       }}
                       className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content'
                     >
-                      Notebook settings
+                      {t('notebookDetail.settingsMenu')}
                     </button>
                   </li>
                   <li>
@@ -345,7 +349,7 @@ function NotebookDetailPage() {
                       }}
                       className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content'
                     >
-                      Global settings
+                      {t('notebookDetail.globalSettingsMenu')}
                     </button>
                   </li>
                   <li>
@@ -357,7 +361,7 @@ function NotebookDetailPage() {
                       }}
                       className='w-full text-left px-4 py-2 hover:bg-error/10 text-error transition-colors font-medium'
                     >
-                      Delete notebook
+                      {t('notebookDetail.deleteMenu')}
                     </button>
                   </li>
                 </ul>
@@ -377,10 +381,11 @@ function NotebookDetailPage() {
         {isConfirmingDelete && (
           <div className='modal modal-open'>
             <div className='modal-box max-w-sm p-6'>
-              <h3 className='text-lg font-semibold text-slate-100 mb-2'>Delete notebook?</h3>
+              <h3 className='text-lg font-semibold text-slate-100 mb-2'>
+                {t('notebookDetail.deleteDialog.title')}
+              </h3>
               <p className='text-sm text-slate-400 mb-6'>
-                This will permanently delete "{notebook?.title}" and all its sources. This cannot be
-                undone.
+                {t('notebookDetail.deleteDialog.body', { title: notebook?.title ?? '' })}
               </p>
               <div className='flex items-center justify-end gap-3'>
                 <button
@@ -388,10 +393,10 @@ function NotebookDetailPage() {
                   onClick={() => setIsConfirmingDelete(false)}
                   className='btn btn-ghost'
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type='button' onClick={confirmDeleteNotebook} className='btn btn-error'>
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -472,10 +477,10 @@ function NotebookDetailPage() {
                 <section className='space-y-4'>
                   <div>
                     <h2 className='text-sm font-semibold text-base-content/90 uppercase tracking-wider'>
-                      Notes & Studio
+                      {t('notebookDetail.studio.title')}
                     </h2>
                     <p className='text-xs text-base-content/50'>
-                      Write notes or generate study guides.
+                      {t('notebookDetail.studio.subtitle')}
                     </p>
                   </div>
                   <React.Suspense fallback={<div className='skeleton h-48 w-full rounded-2xl' />}>

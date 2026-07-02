@@ -1,5 +1,6 @@
 import { AlertTriangle, CircleCheck, Trash2, XCircle } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface GlobalSettings {
   ai_embedding_model: string
@@ -22,11 +23,11 @@ interface GlobalSettingsModalProps {
 }
 
 const PROVIDER_OPTIONS = [
-  { value: 'workers-ai', label: 'Workers AI' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'google', label: 'Google' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'workers-ai', label: 'workersAi' },
+  { value: 'openai', label: 'openai' },
+  { value: 'anthropic', label: 'anthropic' },
+  { value: 'google', label: 'google' },
+  { value: 'custom', label: 'custom' },
 ]
 
 interface ProviderModels {
@@ -36,6 +37,7 @@ interface ProviderModels {
 }
 
 export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProps) {
+  const { t } = useTranslation('common')
   // Tabs: 'settings' | 'connections'
   const [activeTab, setActiveTab] = React.useState<'settings' | 'connections'>('settings')
 
@@ -92,7 +94,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
     try {
       // 1. Fetch Global Settings
       const settingsRes = await fetch('/api/settings')
-      if (!settingsRes.ok) throw new Error('Failed to load global settings')
+      if (!settingsRes.ok) throw new Error(t('errors.loadGlobalSettingsFailed'))
       const settingsData = (await settingsRes.json()) as GlobalSettings
       const currentEmbed =
         settingsData.ai_embedding_model || 'workers-ai:@cf/baai/bge-large-en-v1.5'
@@ -105,14 +107,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
 
       // 2. Fetch Connections
       const connRes = await fetch('/api/connections')
-      if (!connRes.ok) throw new Error('Failed to load connections')
+      if (!connRes.ok) throw new Error(t('errors.loadConnectionsFailed'))
       const connData = (await connRes.json()) as Connection[]
       setConnections(connData)
 
       // 3. Load all models for all connections
       setModelsLoading(true)
       const allConns = [
-        { id: 'workers-ai', name: 'Workers AI (Built-in)' },
+        { id: 'workers-ai', name: t('notebookSettings.providerGroup') },
         ...connData.map((c) => ({ id: c.id, name: c.name })),
       ]
 
@@ -177,12 +179,12 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
       )
       if (!hasEmbed && settingsData.ai_embedding_model) setCustomEmbedding(true)
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      setError(err.message || t('errors.generic'))
     } finally {
       setIsLoading(false)
       setModelsLoading(false)
     }
-  }, [])
+  }, [t])
 
   React.useEffect(() => {
     if (isOpen) {
@@ -223,7 +225,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to add connection')
+        throw new Error(data.error || t('errors.addConnectionFailed'))
       }
 
       // Re-fetch all data to rebuild model candidates including the new connection
@@ -241,7 +243,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
 
   // Delete Connection Handler
   async function handleDeleteConnection(id: string) {
-    if (!confirm('Are you sure you want to delete this connection?')) return
+    if (!window.confirm(t('errors.deleteConnectionConfirm'))) return
 
     setError(null)
     try {
@@ -251,7 +253,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to delete connection')
+        throw new Error(data.error || t('errors.deleteConnectionFailed'))
       }
 
       // Re-fetch all to refresh models and connections
@@ -283,7 +285,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `Save failed: ${res.status}`)
+        throw new Error(data.error || t('common.saveFailed', { status: res.status }))
       }
 
       // Detect embedding model change
@@ -297,7 +299,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
         }, 800)
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred while saving')
+      setError(err.message || t('errors.saveOccurred'))
     } finally {
       setIsSaving(false)
     }
@@ -310,7 +312,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
     setReindexProgress(null)
     try {
       const nbRes = await fetch('/api/notebooks')
-      if (!nbRes.ok) throw new Error('Failed to fetch notebooks')
+      if (!nbRes.ok) throw new Error(t('errors.fetchNotebooksFailed'))
       const nbList = (await nbRes.json()) as Array<{ id: string }>
       const total = nbList.length
       setReindexProgress({ done: 0, total })
@@ -326,7 +328,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
         onClose()
       }, 1200)
     } catch (err: any) {
-      setError(err.message || 'Reindexing failed')
+      setError(err.message || t('errors.reindexFailed'))
     } finally {
       setIsReindexing(false)
     }
@@ -342,16 +344,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
         {/* Header */}
         <div className='flex items-center justify-between border-b border-base-300 px-6 py-4'>
           <div>
-            <h2 className='text-lg font-bold text-base-content'>Global Settings</h2>
-            <p className='text-xs text-base-content/60'>
-              Configure your API connections and default AI models
-            </p>
+            <h2 className='text-lg font-bold text-base-content'>{t('globalSettings.title')}</h2>
+            <p className='text-xs text-base-content/60'>{t('globalSettings.subtitle')}</p>
           </div>
           <button
             type='button'
             onClick={onClose}
             className='btn btn-sm btn-circle btn-ghost text-base-content/70 hover:text-base-content'
-            aria-label='Close settings'
+            aria-label={t('globalSettings.closeAria')}
             disabled={isSaving || isLoading}
           >
             ✕
@@ -369,7 +369,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
             }`}
             onClick={() => setActiveTab('settings')}
           >
-            Model Settings
+            {t('globalSettings.tabModels')}
           </button>
           <button
             type='button'
@@ -380,7 +380,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
             }`}
             onClick={() => setActiveTab('connections')}
           >
-            API Connections ({connections.length})
+            {t('globalSettings.tabConnections', { count: connections.length })}
           </button>
         </div>
 
@@ -406,14 +406,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                 strokeWidth={2}
                 className='stroke-current shrink-0 h-4 w-4'
               />
-              <span>Settings saved successfully! Closing...</span>
+              <span>{t('globalSettings.savedToast')}</span>
             </div>
           )}
 
           {isLoading ? (
             <div className='flex flex-col items-center justify-center py-16 gap-3'>
               <span className='loading loading-spinner loading-md text-primary'></span>
-              <p className='text-xs text-base-content/50'>Loading settings data...</p>
+              <p className='text-xs text-base-content/50'>{t('globalSettings.loading')}</p>
             </div>
           ) : activeTab === 'settings' ? (
             /* Model Settings Tab */
@@ -421,7 +421,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
               {/* Model Selectors */}
               <div className='space-y-4'>
                 <h3 className='text-sm font-semibold text-base-content/80'>
-                  Default Model Settings
+                  {t('globalSettings.defaultModels')}
                 </h3>
 
                 {/* Embedding Model */}
@@ -429,7 +429,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div className='flex justify-between items-center mb-1'>
                     <label className='label py-0' htmlFor='settings-embedding'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Embedding Model
+                        {t('notebookSettings.embeddingModel')}
                       </span>
                     </label>
                     <button
@@ -437,7 +437,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       className='text-[10px] text-primary hover:underline font-semibold'
                       onClick={() => setCustomEmbedding(!customEmbedding)}
                     >
-                      {customEmbedding ? 'Select from list' : 'Direct input'}
+                      {customEmbedding
+                        ? t('notebookSettings.selectFromList')
+                        : t('notebookSettings.directInput')}
                     </button>
                   </div>
                   {customEmbedding || embeddingGroupCandidates.length === 0 ? (
@@ -478,7 +480,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div className='flex justify-between items-center mb-1'>
                     <label className='label py-0' htmlFor='settings-chat'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Chat Model
+                        {t('notebookSettings.chatModel')}
                       </span>
                     </label>
                     <button
@@ -486,7 +488,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       className='text-[10px] text-primary hover:underline font-semibold'
                       onClick={() => setCustomChat(!customChat)}
                     >
-                      {customChat ? 'Select from list' : 'Direct input'}
+                      {customChat
+                        ? t('notebookSettings.selectFromList')
+                        : t('notebookSettings.directInput')}
                     </button>
                   </div>
                   {customChat || chatGroupCandidates.length === 0 ? (
@@ -527,7 +531,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div className='flex justify-between items-center mb-1'>
                     <label className='label py-0' htmlFor='settings-summarization'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Summarization Model
+                        {t('notebookSettings.summarizationModel')}
                       </span>
                     </label>
                     <button
@@ -535,7 +539,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       className='text-[10px] text-primary hover:underline font-semibold'
                       onClick={() => setCustomSummarization(!customSummarization)}
                     >
-                      {customSummarization ? 'Select from list' : 'Direct input'}
+                      {customSummarization
+                        ? t('notebookSettings.selectFromList')
+                        : t('notebookSettings.directInput')}
                     </button>
                   </div>
                   {customSummarization || chatGroupCandidates.length === 0 ? (
@@ -584,17 +590,17 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     />
                     <div>
                       <p className='text-sm font-semibold text-warning'>
-                        インデックスの更新が必要です
+                        {t('notebookSettings.reindex.warningTitle')}
                       </p>
                       <p className='text-xs text-base-content/70 mt-0.5'>
-                        埋め込みモデルが変更されました。既存のドキュメントを新しいモデルで再インデックスしないと検索精度が低下します。
+                        {t('notebookSettings.reindex.warningBody')}
                       </p>
                     </div>
                   </div>
                   {reindexProgress && (
                     <div className='space-y-1'>
                       <div className='flex justify-between text-xs text-base-content/60'>
-                        <span>再インデックス中...</span>
+                        <span>{t('notebookSettings.reindex.running')}</span>
                         <span>
                           {reindexProgress.done} / {reindexProgress.total}
                         </span>
@@ -613,7 +619,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       className='btn btn-ghost btn-sm rounded-xl text-xs'
                       disabled={isReindexing}
                     >
-                      後で更新する
+                      {t('notebookSettings.reindex.later')}
                     </button>
                     <button
                       type='button'
@@ -624,10 +630,10 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       {isReindexing ? (
                         <>
                           <span className='loading loading-spinner loading-xs' />
-                          更新中...
+                          {t('notebookSettings.reindex.running')}
                         </>
                       ) : (
-                        'インデックスを更新'
+                        t('notebookSettings.reindex.run')
                       )}
                     </button>
                   </div>
@@ -642,7 +648,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     strokeWidth={2}
                     className='stroke-current shrink-0 h-4 w-4'
                   />
-                  <span>インデックスの更新が完了しました！</span>
+                  <span>{t('notebookSettings.reindex.done')}</span>
                 </div>
               )}
 
@@ -655,14 +661,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     className='btn btn-ghost rounded-xl px-5 text-sm font-medium'
                     disabled={isSaving}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type='submit'
                     className='btn btn-primary rounded-xl px-5 text-sm font-medium'
                     disabled={isSaving || modelsLoading}
                   >
-                    {isSaving ? 'Saving...' : 'Save settings'}
+                    {isSaving ? t('common.saving') : t('common.saveSettings')}
                   </button>
                 </div>
               )}
@@ -673,11 +679,11 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
               {/* Connections List */}
               <div className='space-y-3'>
                 <h3 className='text-sm font-semibold text-base-content/85'>
-                  Configured Connections
+                  {t('globalSettings.configured')}
                 </h3>
                 {connections.length === 0 ? (
                   <p className='text-xs text-base-content/50 py-4 text-center bg-base-200/30 rounded-xl border border-base-300 border-dashed'>
-                    No custom connections yet. Add your OpenAI or Anthropic keys below!
+                    {t('globalSettings.empty')}
                   </p>
                 ) : (
                   <div className='grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-1'>
@@ -703,7 +709,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                           type='button'
                           onClick={() => void handleDeleteConnection(c.id)}
                           className='btn btn-ghost btn-xs btn-square text-error hover:bg-error/10 rounded-lg'
-                          title='Delete connection'
+                          title={t('globalSettings.deleteAria')}
                         >
                           <Trash2
                             aria-hidden='true'
@@ -733,7 +739,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   }
                 }}
               >
-                <h3 className='text-sm font-semibold text-base-content/85'>Add New Connection</h3>
+                <h3 className='text-sm font-semibold text-base-content/85'>
+                  {t('globalSettings.addNew')}
+                </h3>
 
                 {/* Decoy inputs that are not visible to users but defeat
                     password-manager heuristics. The browser looks at the
@@ -751,14 +759,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div>
                     <label className='label py-0' htmlFor='conn-name'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Connection Name
+                        {t('globalSettings.connectionName')}
                       </span>
                     </label>
                     <input
                       id='conn-name'
                       type='text'
                       name='connection-name'
-                      placeholder='My OpenAI API'
+                      placeholder={t('globalSettings.connectionNamePlaceholder')}
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -774,7 +782,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div>
                     <label className='label py-0' htmlFor='conn-provider'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Provider
+                        {t('globalSettings.provider')}
                       </span>
                     </label>
                     <select
@@ -789,7 +797,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     >
                       {PROVIDER_OPTIONS.filter((p) => p.value !== 'workers-ai').map((p) => (
                         <option key={p.value} value={p.value}>
-                          {p.label}
+                          {t(`globalSettings.providers.${p.label}`)}
                         </option>
                       ))}
                     </select>
@@ -800,14 +808,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div>
                     <label className='label py-0' htmlFor='conn-key'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        API Key
+                        {t('globalSettings.apiKey')}
                       </span>
                     </label>
                     <input
                       id='conn-key'
                       type='password'
                       name='connection-api-key'
-                      placeholder='sk-...'
+                      placeholder={t('globalSettings.apiKeyPlaceholder')}
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -822,14 +830,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                   <div>
                     <label className='label py-0' htmlFor='conn-url'>
                       <span className='label-text font-semibold text-base-content/75 text-xs'>
-                        Base URL (Optional)
+                        {t('globalSettings.baseUrlOptional')}
                       </span>
                     </label>
                     <input
                       id='conn-url'
                       type='url'
                       name='connection-base-url'
-                      placeholder='https://api.openai.com/v1'
+                      placeholder={t('globalSettings.baseUrlPlaceholder')}
                       autoComplete='off'
                       autoCorrect='off'
                       autoCapitalize='off'
@@ -849,7 +857,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     className='btn btn-primary rounded-xl px-4 text-xs font-semibold'
                     disabled={isSaving}
                   >
-                    {isSaving ? 'Adding...' : 'Add Connection'}
+                    {isSaving ? t('globalSettings.adding') : t('globalSettings.addConnection')}
                   </button>
                 </div>
               </form>

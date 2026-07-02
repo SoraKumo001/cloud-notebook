@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMcpToken } from '../hooks/useMcpToken'
 
 interface McpTokenPanelProps {
@@ -22,7 +23,7 @@ function getBackendUrl(): string {
   return 'https://your-backend-url/mcp'
 }
 
-function CodeBlock({ code }: { code: string }) {
+function CodeBlock({ code, t }: { code: string; t: (key: string) => string }) {
   const [copied, setCopied] = React.useState(false)
 
   async function handleCopy() {
@@ -46,7 +47,7 @@ function CodeBlock({ code }: { code: string }) {
         onClick={() => void handleCopy()}
         className='absolute right-2 top-2 btn btn-ghost btn-xs'
       >
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? t('common.copied') : t('common.copy')}
       </button>
     </div>
   )
@@ -62,12 +63,14 @@ function ConfirmDialog({
   confirmLabel,
   onConfirm,
   onCancel,
+  t,
 }: {
   title: string
   message: string
   confirmLabel: string
   onConfirm: () => void
   onCancel: () => void
+  t: (key: string) => string
 }) {
   return (
     <div className='modal modal-open'>
@@ -76,7 +79,7 @@ function ConfirmDialog({
         <p className='text-sm text-base-content/60 mb-6'>{message}</p>
         <div className='flex items-center justify-end gap-3'>
           <button type='button' onClick={onCancel} className='btn btn-ghost'>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type='button' onClick={onConfirm} className='btn btn-error'>
             {confirmLabel}
@@ -88,6 +91,7 @@ function ConfirmDialog({
 }
 
 export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
+  const { t } = useTranslation('common')
   const {
     hasToken,
     lastGeneratedToken,
@@ -139,13 +143,13 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
         {loading && !hasToken && !lastGeneratedToken ? (
           <div className='flex items-center justify-center gap-2 py-3 text-sm text-base-content/60'>
             <Spinner />
-            Loading…
+            {t('common.loading')}
           </div>
         ) : lastGeneratedToken ? (
           // Generated this session — show the plaintext once, with a clear "you won't see it again" cue.
           <div className='space-y-3'>
             <div className='rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning'>
-              Copy this token now — it will not be shown again after you close this view.
+              {t('mcp.savedPrompt')}
             </div>
             <div className='flex items-center gap-2'>
               <div className='flex-1 min-w-0 px-3 py-2 rounded-md bg-base-200 border border-base-300 font-mono text-sm text-base-content/70 truncate'>
@@ -156,14 +160,14 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
                 onClick={() => setShowToken((prev) => !prev)}
                 className='flex-shrink-0 btn btn-neutral btn-sm'
               >
-                {showToken ? 'Hide' : 'Show'}
+                {showToken ? t('common.hide') : t('common.show')}
               </button>
               <button
                 type='button'
                 onClick={() => void handleCopy()}
                 className='flex-shrink-0 btn btn-neutral btn-sm'
               >
-                {copied ? 'Copied' : 'Copy'}
+                {copied ? t('common.copied') : t('common.copy')}
               </button>
             </div>
             <button
@@ -171,7 +175,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
               onClick={clearLastGeneratedToken}
               className='w-full btn btn-primary btn-sm'
             >
-              I&apos;ve saved the token
+              {t('mcp.savedAck')}
             </button>
           </div>
         ) : !hasToken ? (
@@ -182,7 +186,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
             className='w-full btn btn-primary'
           >
             {loading ? <Spinner /> : null}
-            Generate token
+            {t('mcp.generateToken')}
           </button>
         ) : (
           <div className='space-y-3'>
@@ -194,7 +198,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
                 className='text-success shrink-0'
                 aria-hidden='true'
               />
-              <span className='text-sm text-base-content/80'>Token has been generated.</span>
+              <span className='text-sm text-base-content/80'>{t('mcp.generated')}</span>
             </div>
 
             <div className='flex items-center gap-2'>
@@ -204,7 +208,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
                 disabled={loading}
                 className='flex-1 btn btn-neutral btn-sm'
               >
-                Regenerate
+                {t('mcp.regenerate')}
               </button>
               <button
                 type='button'
@@ -212,7 +216,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
                 disabled={loading}
                 className='flex-1 btn btn-error btn-sm'
               >
-                Discard
+                {t('mcp.discard')}
               </button>
             </div>
           </div>
@@ -226,7 +230,7 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
             className='w-full flex items-center justify-between text-sm font-medium text-base-content/80 hover:text-base-content pr-4'
             aria-expanded={instructionsOpen}
           >
-            Setup instructions
+            {t('mcp.setup')}
             <ChevronDown
               size={16}
               strokeWidth={2}
@@ -240,26 +244,20 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
             <div className='overflow-hidden'>
               <div className='space-y-4 pt-2'>
                 <section className='space-y-3'>
-                  <p className='text-xs text-base-content/60'>
-                    Connect any MCP client that supports the Streamable HTTP transport. Use the URL
-                    below and the bearer token for this notebook as the
-                    <code className='text-base-content/70 bg-base-100 px-1 py-0.5 rounded mx-1'>
-                      Authorization
-                    </code>
-                    header value. If you no longer have the token, regenerate a new one (the
-                    previous token will be invalidated).
-                  </p>
+                  <p className='text-xs text-base-content/60'>{t('mcp.setupBody')}</p>
 
                   <div>
-                    <h4 className='text-xs font-semibold text-base-content/80 mb-1'>Server URL</h4>
-                    <CodeBlock code={backendUrl} />
+                    <h4 className='text-xs font-semibold text-base-content/80 mb-1'>
+                      {t('mcp.serverUrl')}
+                    </h4>
+                    <CodeBlock code={backendUrl} t={t} />
                   </div>
 
                   <div>
                     <h4 className='text-xs font-semibold text-base-content/80 mb-1'>
-                      Authorization header
+                      {t('mcp.authHeader')}
                     </h4>
-                    <CodeBlock code='Authorization: Bearer YOUR_TOKEN' />
+                    <CodeBlock code='Authorization: Bearer YOUR_TOKEN' t={t} />
                   </div>
                 </section>
               </div>
@@ -270,15 +268,20 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
 
       {confirmAction && (
         <ConfirmDialog
-          title={confirmAction === 'regenerate' ? 'Regenerate token?' : 'Discard token?'}
+          title={
+            confirmAction === 'regenerate'
+              ? t('mcp.regenerateDialog.title')
+              : t('mcp.discardDialog.title')
+          }
           message={
             confirmAction === 'regenerate'
-              ? 'A new token will be generated and the old one will be invalidated immediately. Any clients using the old token will lose access.'
-              : 'This will remove the token from the server. The panel will return to the "Generate token" state. Any clients using the current token will lose access.'
+              ? t('mcp.regenerateDialog.regenerateBody')
+              : t('mcp.discardDialog.discardBody')
           }
-          confirmLabel={confirmAction === 'regenerate' ? 'Regenerate' : 'Discard'}
+          confirmLabel={confirmAction === 'regenerate' ? t('mcp.regenerate') : t('mcp.discard')}
           onConfirm={() => void handleConfirm()}
           onCancel={() => setConfirmAction(null)}
+          t={t}
         />
       )}
     </div>

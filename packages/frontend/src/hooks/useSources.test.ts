@@ -86,7 +86,7 @@ describe('useSources', () => {
     expect(result.current.loading).toBe(false)
     expect(result.current.sources[0].fileName).toBe('report.pdf')
     expect(result.current.sources[0].status).toBe('ready')
-    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/sources')
+    expect(fetchMock).toHaveBeenCalledWith('/api/notebooks/nb-1/sources', undefined)
 
     unmount()
   })
@@ -177,7 +177,11 @@ describe('useSources', () => {
     const { result, unmount } = renderHook(() => useSources('nb-1'))
     await waitForSources(result, 1)
 
-    await expect(result.current.deleteSource('src-1')).rejects.toThrow('Delete failed')
+    await expect(result.current.deleteSource('src-1')).rejects.toMatchObject({
+      code: 'server.internalError',
+      fallbackMessage: 'Delete failed',
+      status: 500,
+    })
     await flushMicrotasks()
 
     // Restored to initial count
@@ -308,9 +312,13 @@ describe('useSources', () => {
     const { result, unmount } = renderHook(() => useSources('nb-1'))
     await waitForSources(result, 1)
 
-    await expect(result.current.reorderSources(['src-1'])).rejects.toThrow('Forbidden')
+    await expect(result.current.reorderSources(['src-1'])).rejects.toMatchObject({
+      code: 'auth.forbidden',
+      fallbackMessage: 'Forbidden',
+      status: 403,
+    })
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Forbidden')
+      expect(result.current.error).toBe('auth.forbidden:403')
     })
 
     unmount()
@@ -367,7 +375,7 @@ describe('useSources', () => {
 
     const { result, unmount } = renderHook(() => useSources('nb-1'))
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Failed to load sources: 500')
+      expect(result.current.error).toBe('server.internalError:500')
     })
 
     unmount()
@@ -382,9 +390,13 @@ describe('useSources', () => {
     const { result, unmount } = renderHook(() => useSources('nb-1'))
     await waitForSources(result, 0)
 
-    await expect(result.current.deleteSource('src-1')).rejects.toThrow('Forbidden')
+    await expect(result.current.deleteSource('src-1')).rejects.toMatchObject({
+      code: 'auth.forbidden',
+      fallbackMessage: 'Forbidden',
+      status: 403,
+    })
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Forbidden')
+      expect(result.current.error).toBe('auth.forbidden:403')
     })
 
     unmount()

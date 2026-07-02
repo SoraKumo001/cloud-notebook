@@ -1,5 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { BookOpen, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { formatLongDate } from '../i18n/formatters'
+import { useLocale } from '../i18n/useLocale'
 
 export interface Notebook {
   id: string
@@ -15,16 +18,9 @@ interface NotebookCardProps {
   notebook: Notebook
 }
 
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 export function NotebookCard({ notebook }: NotebookCardProps) {
+  const { t } = useTranslation('common')
+  const { locale } = useLocale()
   return (
     <Link
       to='/notebooks/$notebookId'
@@ -36,7 +32,7 @@ export function NotebookCard({ notebook }: NotebookCardProps) {
           <BookOpen size={20} strokeWidth={2} aria-hidden='true' />
         </div>
         <span className='badge badge-ghost'>
-          {notebook.sourceCount ?? 0} {(notebook.sourceCount ?? 0) === 1 ? 'source' : 'sources'}
+          {t('notebookCard.sourceCount', { count: notebook.sourceCount ?? 0 })}
         </span>
       </div>
 
@@ -49,12 +45,19 @@ export function NotebookCard({ notebook }: NotebookCardProps) {
           {notebook.description}
         </p>
       ) : (
-        <p className='text-sm text-base-content/50 italic line-clamp-2 mb-4'>No description</p>
+        <p className='text-sm text-base-content/50 italic line-clamp-2 mb-4'>
+          {t('notebookCard.noDescription')}
+        </p>
       )}
 
       <div className='flex items-center text-xs text-base-content/50 group-hover:text-base-content/60 transition-colors'>
         <Clock size={14} strokeWidth={2} className='mr-1.5' aria-hidden='true' />
-        Updated {formatDate(notebook.updatedAt ?? notebook.created_at ?? new Date().toISOString())}
+        {t('notebookList.updated', {
+          date: formatLongDate(
+            locale,
+            notebook.updatedAt ?? notebook.created_at ?? new Date().toISOString(),
+          ),
+        })}
       </div>
     </Link>
   )

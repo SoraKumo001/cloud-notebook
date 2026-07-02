@@ -1,5 +1,37 @@
 import { useCallback, useEffect, useState } from 'react'
 
+// ── Shared fetch helper ──────────────────────────────────────────────────────
+
+interface ApiError {
+  code: string
+  fallbackMessage: string
+  status: number
+}
+
+function mapStatusToCode(status: number): string {
+  if (status === 401) return 'auth.unauthorized'
+  if (status === 403) return 'auth.forbidden'
+  if (status === 404) return 'errors.generic'
+  if (status === 409) return 'resource.conflict'
+  if (status === 413) return 'request.tooLarge'
+  if (status === 500) return 'server.internalError'
+  return 'errors.generic'
+}
+
+async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init)
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string; code?: string })
+    const code = typeof body.code === 'string' ? body.code : undefined
+    throw {
+      code: code ?? mapStatusToCode(res.status),
+      fallbackMessage: body.error ?? res.statusText ?? res.status.toString(),
+      status: res.status,
+    } satisfies ApiError
+  }
+  return res.json() as Promise<T>
+}
+
 export interface Note {
   id: string
   title: string
@@ -27,17 +59,15 @@ export function useNotes(notebookId: string): UseNotesReturn {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch(`/api/notebooks/${encodeURIComponent(notebookId)}/notes`)
-
-      if (!res.ok) {
-        throw new Error(`Failed to load notes: ${res.status}`)
-      }
-
-      const data = (await res.json()) as Note[]
+      const data = await fetchJson<Note[]>(`/api/notebooks/${encodeURIComponent(notebookId)}/notes`)
       setNotes(data)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      setError(message)
+      const apiErr = err as ApiError
+      if (apiErr.code && apiErr.status !== undefined) {
+        setError(`${apiErr.code}:${apiErr.status}`)
+      } else {
+        setError('generic')
+      }
     } finally {
       setLoading(false)
     }
@@ -47,23 +77,23 @@ export function useNotes(notebookId: string): UseNotesReturn {
     async (title: string, content: string) => {
       try {
         setError(null)
-        const res = await fetch(`/api/notebooks/${encodeURIComponent(notebookId)}/notes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content }),
-        })
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Create failed: ${res.status}`)
-        }
-
-        const created = (await res.json()) as Note
+        const created = await fetchJson<Note>(
+          `/api/notebooks/${encodeURIComponent(notebookId)}/notes`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content }),
+          },
+        )
         await refresh()
         return created
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
@@ -74,23 +104,20 @@ export function useNotes(notebookId: string): UseNotesReturn {
     async (id: string, update: { title?: string; content?: string }) => {
       try {
         setError(null)
-        const res = await fetch(`/api/notes/${encodeURIComponent(id)}`, {
+        const updated = await fetchJson<Note>(`/api/notes/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update),
         })
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Update failed: ${res.status}`)
-        }
-
-        const updated = (await res.json()) as Note
         await refresh()
         return updated
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
@@ -101,19 +128,17 @@ export function useNotes(notebookId: string): UseNotesReturn {
     async (id: string) => {
       try {
         setError(null)
-        const res = await fetch(`/api/notes/${encodeURIComponent(id)}`, {
+        await fetchJson<unknown>(`/api/notes/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         })
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error((body as { error?: string }).error || `Delete failed: ${res.status}`)
-        }
-
         await refresh()
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setError(message)
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
         throw err
       }
     },
