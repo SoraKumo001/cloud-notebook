@@ -18,6 +18,7 @@ function noopStorage(): ObjectStorage {
     }),
     put: vi.fn().mockResolvedValue({ etag: 'mock-etag', size: 0 }),
     head: vi.fn().mockResolvedValue({ size: 0 }),
+    get: vi.fn().mockResolvedValue(null),
     delete: vi.fn().mockResolvedValue(undefined),
     healthCheck: vi.fn().mockResolvedValue(undefined),
     supportsDirectPresign: () => true,

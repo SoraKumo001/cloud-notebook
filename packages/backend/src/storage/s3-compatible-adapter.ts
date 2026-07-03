@@ -114,6 +114,15 @@ export class S3CompatibleAdapter implements ObjectStorage {
     }
   }
 
+  async get(key: string): Promise<ArrayBuffer | null> {
+    const res = await this.client.fetch(this.objectUrl(key), { method: 'GET' })
+    if (res.status === 404) return null
+    if (!res.ok) {
+      throw new Error(`S3 GET ${key} failed: ${res.status}`)
+    }
+    return await res.arrayBuffer()
+  }
+
   async delete(keys: string | string[]): Promise<void> {
     const arr = Array.isArray(keys) ? keys : [keys]
     if (arr.length === 0) return

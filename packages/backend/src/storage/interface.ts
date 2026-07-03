@@ -57,6 +57,11 @@ export interface ObjectStorage {
   head(key: string): Promise<HeadResult | null>
 
   /**
+   * Retrieve an object's contents. Returns null if the object does not exist.
+   */
+  get(key: string): Promise<ArrayBuffer | null>
+
+  /**
    * Delete one or more objects. Best-effort: per-key errors are
    * logged but never thrown. The R2 binding natively supports
    * batch delete (up to 1000 keys); the S3 adapter issues one

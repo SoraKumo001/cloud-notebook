@@ -106,7 +106,7 @@ router.get(
   zValidator('param', z.object({ id: z.string().min(1).max(100) }), vHook),
   zValidator(
     'query',
-    z.object({ type: z.enum(['chat', 'embedding']).optional().default('chat') }),
+    z.object({ type: z.enum(['chat', 'embedding', 'ocr']).optional().default('chat') }),
     vHook,
   ),
   async (c) => {

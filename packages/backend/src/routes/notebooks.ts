@@ -126,6 +126,7 @@ router.get(
         ai_embedding_model: notebooks.aiEmbeddingModel,
         model_chat: notebooks.modelChat,
         model_summarization: notebooks.modelSummarization,
+        model_ocr: notebooks.modelOcr,
         created_at: notebooks.createdAt,
         updated_at: notebooks.updatedAt,
       })
@@ -367,6 +368,7 @@ router.patch(
       ai_embedding_model: z.string().max(100).nullable().optional(),
       model_chat: z.string().max(100).nullable().optional(),
       model_summarization: z.string().max(100).nullable().optional(),
+      model_ocr: z.string().max(100).nullable().optional(),
       ai_api_key: z.string().nullable().optional(),
     }),
     vHook,
@@ -414,6 +416,8 @@ router.patch(
       updates.modelChat = body.model_chat ? body.model_chat.trim() : null
     if (body.model_summarization !== undefined)
       updates.modelSummarization = body.model_summarization ? body.model_summarization.trim() : null
+    if (body.model_ocr !== undefined)
+      updates.modelOcr = body.model_ocr ? body.model_ocr.trim() : null
 
     // Encrypt API key if provided
     if (body.ai_api_key !== undefined) {
@@ -442,6 +446,7 @@ router.patch(
         ai_embedding_model: notebooks.aiEmbeddingModel,
         model_chat: notebooks.modelChat,
         model_summarization: notebooks.modelSummarization,
+        model_ocr: notebooks.modelOcr,
         created_at: notebooks.createdAt,
         updated_at: notebooks.updatedAt,
       })

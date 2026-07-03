@@ -68,6 +68,12 @@ export class R2BindingAdapter implements ObjectStorage {
     }
   }
 
+  async get(key: string): Promise<ArrayBuffer | null> {
+    const obj = await this.bucket.get(key)
+    if (!obj) return null
+    return await obj.arrayBuffer()
+  }
+
   async delete(keys: string | string[]): Promise<void> {
     const arr = Array.isArray(keys) ? keys : [keys]
     if (arr.length === 0) return

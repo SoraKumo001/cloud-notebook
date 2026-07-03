@@ -28,6 +28,7 @@ router.get('/settings', async (c) => {
       ai_embedding_model: '@cf/baai/bge-large-en-v1.5',
       model_chat: '@cf/meta/llama-3.1-8b-instruct-fast',
       model_summarization: '@cf/meta/llama-3.1-8b-instruct-fast',
+      model_ocr: '@cf/meta/llama-3.2-11b-vision-instruct',
     })
   }
 
@@ -35,6 +36,7 @@ router.get('/settings', async (c) => {
     ai_embedding_model: settings.aiEmbeddingModel,
     model_chat: settings.modelChat,
     model_summarization: settings.modelSummarization,
+    model_ocr: settings.modelOcr,
   })
 })
 
@@ -47,6 +49,7 @@ router.put(
       ai_embedding_model: z.string().min(1).max(200),
       model_chat: z.string().min(1).max(200),
       model_summarization: z.string().min(1).max(200),
+      model_ocr: z.string().min(1).max(200),
     }),
     vHook,
   ),
@@ -59,6 +62,7 @@ router.put(
       aiEmbeddingModel: body.ai_embedding_model,
       modelChat: body.model_chat,
       modelSummarization: body.model_summarization,
+      modelOcr: body.model_ocr,
       updatedAt: sql`(current_timestamp)`,
     }
 
@@ -76,6 +80,7 @@ router.put(
         aiEmbeddingModel: updates.aiEmbeddingModel,
         modelChat: updates.modelChat,
         modelSummarization: updates.modelSummarization,
+        modelOcr: updates.modelOcr,
       })
     }
 

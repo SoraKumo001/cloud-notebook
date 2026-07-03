@@ -11,6 +11,7 @@ export const userSettings = sqliteTable('user_settings', {
   modelSummarization: text('model_summarization')
     .notNull()
     .default('@cf/meta/llama-3.1-8b-instruct-fast'),
+  modelOcr: text('model_ocr').notNull().default('@cf/meta/llama-3.2-11b-vision-instruct'),
   createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
   updatedAt: text('updated_at').notNull().default(sql`(current_timestamp)`),
 })

@@ -391,7 +391,7 @@ export async function fetchConnectionModels(
   provider: string,
   apiKey?: string | null,
   baseUrl?: string | null,
-  type: 'chat' | 'embedding' = 'chat',
+  type: 'chat' | 'embedding' | 'ocr' = 'chat',
 ): Promise<string[]> {
   switch (provider) {
     case 'workers-ai':
@@ -404,6 +404,12 @@ export async function fetchConnectionModels(
           '@cf/pfnet/plamo-embedding-1b',
           '@cf/google/embeddinggemma-300m',
           '@cf/qwen/qwen3-embedding-0.6b',
+        ]
+      }
+      if (type === 'ocr') {
+        return [
+          '@cf/meta/llama-3.2-11b-vision-instruct',
+          '@cf/meta/llama-3.2-90b-vision-instruct',
         ]
       }
       return [

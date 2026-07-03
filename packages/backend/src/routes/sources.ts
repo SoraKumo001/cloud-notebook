@@ -205,6 +205,7 @@ router.post(
       .select({
         user_id: notebooks.userId,
         ai_embedding_model: notebooks.aiEmbeddingModel,
+        model_ocr: notebooks.modelOcr,
       })
       .from(notebooks)
       .where(eq(notebooks.id, notebookId))
@@ -217,6 +218,7 @@ router.post(
     const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
     const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
       aiEmbeddingModel: notebook.ai_embedding_model,
+      modelOcr: notebook.model_ocr,
     })
 
     const embedProvider = getEmbeddingProvider(c.env as any, {
@@ -240,9 +242,50 @@ router.post(
     })
 
     try {
+      const processedChunks = [...chunks]
       let embeddedCount = 0
-      if (chunks.length > 0) {
-        const chunkRecords = chunks.map((chunk) => ({
+
+      // Automatic OCR processing using Vision LLM if no text chunks were extracted but images exist
+      if (processedChunks.length === 0 && images.length > 0) {
+        const storage = c.get('storage')
+        const sortedImages = [...images].sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0))
+
+        for (const img of sortedImages) {
+          const buffer = await storage.get(img.r2Key)
+          if (!buffer) continue
+
+          let pageText = ''
+          if (effectiveConfig.ocr.provider === 'workers-ai') {
+            const model = effectiveConfig.ocr.model || '@cf/meta/llama-3.2-11b-vision-instruct'
+            try {
+              const aiRes = (await c.env.AI.run(model as any, {
+                image: Array.from(new Uint8Array(buffer)),
+                prompt:
+                  'Transcribe all text from this document image in Japanese. Output only the transcribed text without any conversational preamble or notes.',
+              })) as any
+              if (aiRes?.response) {
+                pageText = aiRes.response.trim()
+              } else if (aiRes?.text) {
+                pageText = aiRes.text.trim()
+              }
+            } catch (err) {
+              console.error(`Failed to OCR page ${img.pageNumber} using Workers AI:`, err)
+            }
+          } else {
+            console.warn(`OCR provider "${effectiveConfig.ocr.provider}" is not implemented yet.`)
+          }
+
+          if (pageText) {
+            processedChunks.push({
+              content: pageText,
+              pageNumber: img.pageNumber,
+            })
+          }
+        }
+      }
+
+      if (processedChunks.length > 0) {
+        const chunkRecords = processedChunks.map((chunk) => ({
           id: crypto.randomUUID(),
           content: chunk.content,
           pageNumber: chunk.pageNumber ?? null,
@@ -297,7 +340,7 @@ router.post(
       return c.json({
         id: sourceId,
         status: 'completed',
-        chunks: chunks.length,
+        chunks: processedChunks.length,
         images: images.length,
         embedded: embeddedCount,
       })

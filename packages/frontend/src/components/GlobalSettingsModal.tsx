@@ -17,6 +17,7 @@ export interface GlobalSettings {
   ai_embedding_model: string
   model_chat: string
   model_summarization: string
+  model_ocr: string
 }
 
 export interface Connection {
@@ -60,6 +61,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
   const [summarizationModel, setSummarizationModel] = React.useState(
     'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast',
   )
+  const [ocrModel, setOcrModel] = React.useState('@cf/meta/llama-3.2-11b-vision-instruct')
 
   // Connection List States
   const [connections, setConnections] = React.useState<Connection[]>([])
@@ -75,12 +77,14 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
   const [embeddingGroupCandidates, setEmbeddingGroupCandidates] = React.useState<ProviderModels[]>(
     [],
   )
+  const [ocrGroupCandidates, setOcrGroupCandidates] = React.useState<ProviderModels[]>([])
   const [modelsLoading, setModelsLoading] = React.useState(false)
 
   // Direct Input toggles
   const [customEmbedding, setCustomEmbedding] = React.useState(false)
   const [customChat, setCustomChat] = React.useState(false)
   const [customSummarization, setCustomSummarization] = React.useState(false)
+  const [customOcr, setCustomOcr] = React.useState(false)
 
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
@@ -115,6 +119,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
       setSummarizationModel(
         settingsData.model_summarization || 'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast',
       )
+      setOcrModel(settingsData.model_ocr || 'workers-ai:@cf/meta/llama-3.2-11b-vision-instruct')
 
       // 2. Fetch Connections
       const connRes = await fetch('/api/connections')
@@ -165,14 +170,35 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
           })),
       )
 
+      const ocrPromises = allConns.map((c) =>
+        fetch(`/api/connections/${c.id}/models?type=ocr`)
+          .then((res) => {
+            if (!res.ok) throw new Error()
+            return res.json() as Promise<{ models: string[] }>
+          })
+          .then((data) => ({
+            connectionId: c.id,
+            connectionName: c.name,
+            models: data.models || [],
+          }))
+          .catch(() => ({
+            connectionId: c.id,
+            connectionName: c.name,
+            models: [],
+          })),
+      )
+
       const chatResults = await Promise.all(chatPromises)
       const embedResults = await Promise.all(embedPromises)
+      const ocrResults = await Promise.all(ocrPromises)
 
       const filteredChats = chatResults.filter((r) => r.models.length > 0)
       const filteredEmbeds = embedResults.filter((r) => r.models.length > 0)
+      const filteredOcrs = ocrResults.filter((r) => r.models.length > 0)
 
       setChatGroupCandidates(filteredChats)
       setEmbeddingGroupCandidates(filteredEmbeds)
+      setOcrGroupCandidates(filteredOcrs)
 
       // Auto-toggle direct input if saved value is not in any of the fetched lists
       const hasChat = filteredChats.some((g) =>
@@ -184,6 +210,11 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
         g.models.some((m) => `${g.connectionId}:${m}` === settingsData.model_summarization),
       )
       if (!hasSum && settingsData.model_summarization) setCustomSummarization(true)
+
+      const hasOcr = filteredOcrs.some((g) =>
+        g.models.some((m) => `${g.connectionId}:${m}` === settingsData.model_ocr),
+      )
+      if (!hasOcr && settingsData.model_ocr) setCustomOcr(true)
 
       const hasEmbed = filteredEmbeds.some((g) =>
         g.models.some((m) => `${g.connectionId}:${m}` === settingsData.ai_embedding_model),
@@ -291,6 +322,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
           ai_embedding_model: embeddingModel.trim(),
           model_chat: chatModel.trim(),
           model_summarization: summarizationModel.trim(),
+          model_ocr: ocrModel.trim(),
         }),
       })
 
@@ -581,6 +613,57 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     >
                       {chatGroupCandidates.map((group) => (
+                        <optgroup key={group.connectionId} label={group.connectionName}>
+                          {group.models.map((m) => (
+                            <option
+                              key={`${group.connectionId}:${m}`}
+                              value={`${group.connectionId}:${m}`}
+                            >
+                              {m}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* OCR Model */}
+                <div>
+                  <div className='flex justify-between items-center mb-1'>
+                    <label className='label py-0' htmlFor='settings-ocr'>
+                      <span className='label-text font-semibold text-base-content/75 text-xs'>
+                        OCR Model
+                      </span>
+                    </label>
+                    <button
+                      type='button'
+                      className='text-[10px] text-primary hover:underline font-semibold'
+                      onClick={() => setCustomOcr(!customOcr)}
+                    >
+                      {customOcr
+                        ? t('notebookSettings.selectFromList')
+                        : t('notebookSettings.directInput')}
+                    </button>
+                  </div>
+                  {customOcr || ocrGroupCandidates.length === 0 ? (
+                    <input
+                      id='settings-ocr'
+                      type='text'
+                      className='input input-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none focus:border-primary/60'
+                      value={ocrModel}
+                      onChange={(e) => setOcrModel(e.target.value)}
+                      disabled={modelsLoading}
+                    />
+                  ) : (
+                    <select
+                      id='settings-ocr'
+                      className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
+                      value={ocrModel}
+                      onChange={(e) => setOcrModel(e.target.value)}
+                      disabled={modelsLoading}
+                    >
+                      {ocrGroupCandidates.map((group) => (
                         <optgroup key={group.connectionId} label={group.connectionName}>
                           {group.models.map((m) => (
                             <option

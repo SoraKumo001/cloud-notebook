@@ -11,6 +11,7 @@ export interface NotebookSettingsNotebook {
   ai_embedding_model?: string | null
   model_chat?: string | null
   model_summarization?: string | null
+  model_ocr?: string | null
   [key: string]: unknown
 }
 
@@ -52,16 +53,19 @@ export function NotebookSettingsModal({
   const [summarizationModel, setSummarizationModel] = React.useState(
     notebook.model_summarization ?? 'inherit',
   )
+  const [ocrModel, setOcrModel] = React.useState(notebook.model_ocr ?? 'inherit')
 
   const [chatGroupCandidates, setChatGroupCandidates] = React.useState<ProviderModels[]>([])
   const [embeddingGroupCandidates, setEmbeddingGroupCandidates] = React.useState<ProviderModels[]>(
     [],
   )
+  const [ocrGroupCandidates, setOcrGroupCandidates] = React.useState<ProviderModels[]>([])
 
   // Direct Input toggles
   const [customEmbedding, setCustomEmbedding] = React.useState(false)
   const [customChat, setCustomChat] = React.useState(false)
   const [customSummarization, setCustomSummarization] = React.useState(false)
+  const [customOcr, setCustomOcr] = React.useState(false)
 
   const [isSaving, setIsSaving] = React.useState(false)
   const [modelsLoading, setModelsLoading] = React.useState(false)
@@ -126,14 +130,35 @@ export function NotebookSettingsModal({
           })),
       )
 
+      const ocrPromises = allConns.map((c) =>
+        fetch(`/api/connections/${c.id}/models?type=ocr`)
+          .then((res) => {
+            if (!res.ok) throw new Error()
+            return res.json() as Promise<{ models: string[] }>
+          })
+          .then((data) => ({
+            connectionId: c.id,
+            connectionName: c.name,
+            models: data.models || [],
+          }))
+          .catch(() => ({
+            connectionId: c.id,
+            connectionName: c.name,
+            models: [],
+          })),
+      )
+
       const chatResults = await Promise.all(chatPromises)
       const embedResults = await Promise.all(embedPromises)
+      const ocrResults = await Promise.all(ocrPromises)
 
       const filteredChats = chatResults.filter((r) => r.models.length > 0)
       const filteredEmbeds = embedResults.filter((r) => r.models.length > 0)
+      const filteredOcrs = ocrResults.filter((r) => r.models.length > 0)
 
       setChatGroupCandidates(filteredChats)
       setEmbeddingGroupCandidates(filteredEmbeds)
+      setOcrGroupCandidates(filteredOcrs)
 
       // Auto-toggle direct input if current settings are not in candidates list
       const currentChat = notebook.model_chat ?? 'inherit'
@@ -150,6 +175,14 @@ export function NotebookSettingsModal({
           g.models.some((m) => `${g.connectionId}:${m}` === currentSum),
         )
         if (!hasSum) setCustomSummarization(true)
+      }
+
+      const currentOcr = notebook.model_ocr ?? 'inherit'
+      if (currentOcr !== 'inherit' && currentOcr !== '') {
+        const hasOcr = filteredOcrs.some((g) =>
+          g.models.some((m) => `${g.connectionId}:${m}` === currentOcr),
+        )
+        if (!hasOcr) setCustomOcr(true)
       }
 
       const currentEmbed = notebook.ai_embedding_model ?? 'inherit'
@@ -181,6 +214,7 @@ export function NotebookSettingsModal({
       setSavedEmbeddingModel(initEmbed)
       setChatModel(notebook.model_chat ?? 'inherit')
       setSummarizationModel(notebook.model_summarization ?? 'inherit')
+      setOcrModel(notebook.model_ocr ?? 'inherit')
       setNeedsReindex(false)
       setReindexDone(false)
       setError(null)
@@ -213,6 +247,7 @@ export function NotebookSettingsModal({
       model_chat: chatModel === 'inherit' ? null : chatModel.trim() || null,
       model_summarization:
         summarizationModel === 'inherit' ? null : summarizationModel.trim() || null,
+      model_ocr: ocrModel === 'inherit' ? null : ocrModel.trim() || null,
     }
 
     try {
@@ -498,6 +533,59 @@ export function NotebookSettingsModal({
                   >
                     <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
                     {chatGroupCandidates.map((group) => (
+                      <optgroup key={group.connectionId} label={group.connectionName}>
+                        {group.models.map((m) => (
+                          <option
+                            key={`${group.connectionId}:${m}`}
+                            value={`${group.connectionId}:${m}`}
+                          >
+                            {m}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* OCR Model */}
+              <div className='space-y-2'>
+                <div className='flex justify-between items-center mb-1'>
+                  <label
+                    htmlFor='settings-ocr'
+                    className='block text-sm font-medium text-base-content/70'
+                  >
+                    OCR Model
+                  </label>
+                  <button
+                    type='button'
+                    className='text-[10px] text-primary hover:underline font-semibold'
+                    onClick={() => setCustomOcr(!customOcr)}
+                  >
+                    {customOcr
+                      ? t('notebookSettings.selectFromList')
+                      : t('notebookSettings.directInput')}
+                  </button>
+                </div>
+                {customOcr || chatGroupCandidates.length === 0 ? (
+                  <input
+                    id='settings-ocr'
+                    type='text'
+                    value={ocrModel}
+                    onChange={(e) => setOcrModel(e.target.value)}
+                    disabled={isSaving || modelsLoading}
+                    className='w-full input input-bordered rounded-xl'
+                  />
+                ) : (
+                  <select
+                    id='settings-ocr'
+                    className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
+                    value={ocrModel}
+                    onChange={(e) => setOcrModel(e.target.value)}
+                    disabled={isSaving || modelsLoading}
+                  >
+                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
+                    {ocrGroupCandidates.map((group) => (
                       <optgroup key={group.connectionId} label={group.connectionName}>
                         {group.models.map((m) => (
                           <option

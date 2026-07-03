@@ -15,6 +15,7 @@ export interface AiConfig {
   embedding: TaskConfig
   chat: TaskConfig
   summarization: TaskConfig
+  ocr: TaskConfig
 }
 
 async function resolveTaskConfig(
@@ -77,6 +78,7 @@ export async function getEffectiveAiConfig(
     aiEmbeddingModel?: string | null
     modelChat?: string | null
     modelSummarization?: string | null
+    modelOcr?: string | null
   },
 ): Promise<AiConfig> {
   // 1. Fetch Global Settings
@@ -131,9 +133,25 @@ export async function getEffectiveAiConfig(
     '@cf/meta/llama-3.1-8b-instruct-fast',
   )
 
+  // 5. Resolve ocr model
+  const effectiveOcrStr =
+    nb.modelOcr !== undefined && nb.modelOcr !== null
+      ? nb.modelOcr
+      : globalSettings?.modelOcr || '@cf/meta/llama-3.2-11b-vision-instruct'
+
+  const ocr = await resolveTaskConfig(
+    db,
+    userId,
+    masterKey,
+    effectiveOcrStr,
+    'workers-ai',
+    '@cf/meta/llama-3.2-11b-vision-instruct',
+  )
+
   return {
     embedding,
     chat,
     summarization,
+    ocr,
   }
 }

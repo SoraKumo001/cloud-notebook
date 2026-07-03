@@ -166,6 +166,7 @@ export function createTestEnv(): {
       }),
       put: async () => ({ etag: 'mock-etag', size: 0 }),
       head: async () => null,
+      get: async () => null,
       delete: async () => undefined,
       healthCheck: async () => undefined,
       supportsDirectPresign: () => true,

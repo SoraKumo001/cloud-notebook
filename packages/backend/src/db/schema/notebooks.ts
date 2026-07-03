@@ -14,6 +14,7 @@ export const notebooks = sqliteTable(
     aiEmbeddingModel: text('ai_embedding_model'),
     modelChat: text('model_chat'),
     modelSummarization: text('model_summarization'),
+    modelOcr: text('model_ocr'),
     mcpToken: text('mcp_token'),
     createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
     updatedAt: text('updated_at').notNull().default(sql`(current_timestamp)`),
