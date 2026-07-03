@@ -3,6 +3,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { McpTokenPanel } from './McpTokenPanel'
 import { Button } from './ui/Button'
+import { SearchableSelect } from './ui/SearchableSelect'
 
 export interface NotebookSettingsNotebook {
   id: string
@@ -418,27 +419,14 @@ export function NotebookSettingsModal({
                     className='w-full input input-bordered rounded-xl'
                   />
                 ) : (
-                  <select
+                  <SearchableSelect
                     id='settings-embedding'
-                    className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                     value={embeddingModel}
-                    onChange={(e) => setEmbeddingModel(e.target.value)}
+                    onChange={setEmbeddingModel}
+                    groups={embeddingGroupCandidates}
                     disabled={isSaving || modelsLoading}
-                  >
-                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
-                    {embeddingGroupCandidates.map((group) => (
-                      <optgroup key={group.connectionId} label={group.connectionName}>
-                        {group.models.map((m) => (
-                          <option
-                            key={`${group.connectionId}:${m}`}
-                            value={`${group.connectionId}:${m}`}
-                          >
-                            {m}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    inheritLabel={t('notebookSettings.useGlobal')}
+                  />
                 )}
               </div>
 
@@ -471,27 +459,14 @@ export function NotebookSettingsModal({
                     className='w-full input input-bordered rounded-xl'
                   />
                 ) : (
-                  <select
+                  <SearchableSelect
                     id='settings-chat'
-                    className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                     value={chatModel}
-                    onChange={(e) => setChatModel(e.target.value)}
+                    onChange={setChatModel}
+                    groups={chatGroupCandidates}
                     disabled={isSaving || modelsLoading}
-                  >
-                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
-                    {chatGroupCandidates.map((group) => (
-                      <optgroup key={group.connectionId} label={group.connectionName}>
-                        {group.models.map((m) => (
-                          <option
-                            key={`${group.connectionId}:${m}`}
-                            value={`${group.connectionId}:${m}`}
-                          >
-                            {m}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    inheritLabel={t('notebookSettings.useGlobal')}
+                  />
                 )}
               </div>
 
@@ -524,27 +499,14 @@ export function NotebookSettingsModal({
                     className='w-full input input-bordered rounded-xl'
                   />
                 ) : (
-                  <select
+                  <SearchableSelect
                     id='settings-summarization'
-                    className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                     value={summarizationModel}
-                    onChange={(e) => setSummarizationModel(e.target.value)}
+                    onChange={setSummarizationModel}
+                    groups={chatGroupCandidates}
                     disabled={isSaving || modelsLoading}
-                  >
-                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
-                    {chatGroupCandidates.map((group) => (
-                      <optgroup key={group.connectionId} label={group.connectionName}>
-                        {group.models.map((m) => (
-                          <option
-                            key={`${group.connectionId}:${m}`}
-                            value={`${group.connectionId}:${m}`}
-                          >
-                            {m}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    inheritLabel={t('notebookSettings.useGlobal')}
+                  />
                 )}
               </div>
 
@@ -577,27 +539,14 @@ export function NotebookSettingsModal({
                     className='w-full input input-bordered rounded-xl'
                   />
                 ) : (
-                  <select
+                  <SearchableSelect
                     id='settings-ocr'
-                    className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                     value={ocrModel}
-                    onChange={(e) => setOcrModel(e.target.value)}
+                    onChange={setOcrModel}
+                    groups={ocrGroupCandidates}
                     disabled={isSaving || modelsLoading}
-                  >
-                    <option value='inherit'>{t('notebookSettings.useGlobal')}</option>
-                    {ocrGroupCandidates.map((group) => (
-                      <optgroup key={group.connectionId} label={group.connectionName}>
-                        {group.models.map((m) => (
-                          <option
-                            key={`${group.connectionId}:${m}`}
-                            value={`${group.connectionId}:${m}`}
-                          >
-                            {m}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    inheritLabel={t('notebookSettings.useGlobal')}
+                  />
                 )}
               </div>
             </div>

@@ -155,6 +155,14 @@ class WorkersAIScriptProvider implements ScriptProvider {
 // OpenAI
 // ---------------------------------------------------------------------------
 
+export function buildOpenAiUrl(baseUrl: string, apiPath: string): string {
+  const cleanBase = baseUrl.replace(/\/+$/, '')
+  if (cleanBase.endsWith('/v1') && apiPath.startsWith('/v1')) {
+    return `${cleanBase}${apiPath.slice(3)}`
+  }
+  return `${cleanBase}${apiPath}`
+}
+
 abstract class BaseOpenAIProvider {
   protected abstract apiPath: string
   protected headers: Record<string, string>
@@ -170,7 +178,8 @@ abstract class BaseOpenAIProvider {
   }
 
   protected async post(body: unknown): Promise<Response> {
-    return fetch(`${this.baseUrl}${this.apiPath}`, {
+    const url = buildOpenAiUrl(this.baseUrl, this.apiPath)
+    return fetch(url, {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(body),
@@ -452,24 +461,335 @@ export async function fetchConnectionModels(
     case 'openai':
     case 'custom': {
       const key = apiKey || ''
-      const url = `${baseUrl || 'https://api.openai.com/v1'}/models`
+      const cleanBaseUrl = (baseUrl || 'https://api.openai.com').replace(/\/+$/, '')
+      const url = buildOpenAiUrl(cleanBaseUrl, '/v1/models')
       const headers: Record<string, string> = {}
       if (key) {
         headers.Authorization = `Bearer ${key}`
       }
-      const res = await fetch(url, { headers })
-      if (!res.ok) {
-        throw new Error(`OpenAI-compatible API error ${res.status}: ${await res.text()}`)
-      }
-      const json = (await res.json()) as { data: Array<{ id: string }> }
-      const allModels = (json.data || []).map((m) => m.id)
-      if (type === 'embedding') {
-        return allModels.filter((m) => m.toLowerCase().includes('embed')).sort()
-      } else {
-        return allModels.filter((m) => !m.toLowerCase().includes('embed')).sort()
+      try {
+        const res = await fetch(url, { headers })
+        if (!res.ok) {
+          throw new Error(`OpenAI-compatible API error ${res.status}: ${await res.text()}`)
+        }
+        const json = (await res.json()) as { data: Array<{ id: string }> }
+        const allModels = (json.data || []).map((m) => m.id)
+        if (type === 'embedding') {
+          return allModels.filter((m) => m.toLowerCase().includes('embed')).sort()
+        } else {
+          return allModels.filter((m) => !m.toLowerCase().includes('embed')).sort()
+        }
+      } catch (err) {
+        console.error(`Failed to fetch models from ${url}, using fallback models:`, err)
+        if (type === 'embedding') {
+          return ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002']
+        } else if (type === 'ocr') {
+          return ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'gemini-1.5-flash']
+        } else {
+          return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo']
+        }
       }
     }
     default:
       throw new Error(`Unknown provider: ${provider}`)
   }
 }
+
+// ---------------------------------------------------------------------------
+// OCR Providers
+// ---------------------------------------------------------------------------
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = ''
+  const bytes = new Uint8Array(buffer)
+  const len = bytes.byteLength
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+export interface OcrProvider {
+  ocr(params: {
+    model: string
+    imageBuffer: ArrayBuffer
+    prompt: string
+  }): Promise<string>
+}
+
+class WorkersAiOcrProvider implements OcrProvider {
+  constructor(private env: ProviderEnv) {}
+
+  async ocr({
+    model,
+    imageBuffer,
+    prompt,
+  }: {
+    model: string
+    imageBuffer: ArrayBuffer
+    prompt: string
+  }): Promise<string> {
+    const sanitized = sanitizeModel(model)
+    let aiRes: any
+    try {
+      aiRes = await this.env.AI.run(sanitized as any, {
+        image: Array.from(new Uint8Array(imageBuffer)),
+        prompt,
+      })
+    } catch (err: any) {
+      const errStr = String(err)
+      if (errStr.includes("submit the prompt 'agree'") || errStr.includes("5016")) {
+        console.log(`Model ${model} requires license agreement. Submitting 'agree'...`)
+        await this.env.AI.run(sanitized as any, { prompt: 'agree' })
+        // Retry the original request
+        aiRes = await this.env.AI.run(sanitized as any, {
+          image: Array.from(new Uint8Array(imageBuffer)),
+          prompt,
+        })
+      } else {
+        throw err
+      }
+    }
+
+    if (aiRes?.response) {
+      return aiRes.response.trim()
+    }
+    if (aiRes?.text) {
+      return aiRes.text.trim()
+    }
+    return ''
+  }
+}
+
+class OpenAIOcrProvider implements OcrProvider {
+  private baseUrl: string
+  private apiKey: string
+
+  constructor(_env: ProviderEnv, config: { apiKey?: string | null; baseUrl?: string | null }) {
+    this.baseUrl = (config.baseUrl || 'https://api.openai.com').replace(/\/+$/, '')
+    this.apiKey = config.apiKey || ''
+  }
+
+  async ocr({
+    model,
+    imageBuffer,
+    prompt,
+  }: {
+    model: string
+    imageBuffer: ArrayBuffer
+    prompt: string
+  }): Promise<string> {
+    const base64 = arrayBufferToBase64(imageBuffer)
+    const url = buildOpenAiUrl(this.baseUrl, '/v1/chat/completions')
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64}`,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 1000,
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      if (
+        errText.includes('image_url') ||
+        errText.includes('unknown variant') ||
+        errText.includes('expected `text`') ||
+        errText.includes('expected text')
+      ) {
+        throw new Error(
+          `The selected model does not support Vision/images (image_url is not supported by the provider/model). Please choose a Vision-enabled model for OCR. (Original error: ${errText})`
+        )
+      }
+      throw new Error(`OpenAI OCR API error ${res.status}: ${errText}`)
+    }
+
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+    return json.choices?.[0]?.message?.content?.trim() || ''
+  }
+}
+
+class AnthropicOcrProvider implements OcrProvider {
+  private baseUrl: string
+  private apiKey: string
+
+  constructor(_env: ProviderEnv, config: { apiKey?: string | null; baseUrl?: string | null }) {
+    this.baseUrl = (config.baseUrl || 'https://api.anthropic.com').replace(/\/+$/, '')
+    this.apiKey = config.apiKey || ''
+  }
+
+  async ocr({
+    model,
+    imageBuffer,
+    prompt,
+  }: {
+    model: string
+    imageBuffer: ArrayBuffer
+    prompt: string
+  }): Promise<string> {
+    const base64 = arrayBufferToBase64(imageBuffer)
+    const url = `${this.baseUrl}/v1/messages`
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-api-key': this.apiKey,
+      'anthropic-version': '2023-06-01',
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        max_tokens: 1000,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: 'image/jpeg',
+                  data: base64,
+                },
+              },
+              {
+                type: 'text',
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    })
+
+    if (!res.ok) {
+      throw new Error(`Anthropic OCR API error ${res.status}: ${await res.text()}`)
+    }
+
+    const json = (await res.json()) as {
+      content?: Array<{ type: string; text?: string }>
+    }
+    return json.content?.find((c) => c.type === 'text')?.text?.trim() || ''
+  }
+}
+
+class GoogleOcrProvider implements OcrProvider {
+  private apiKey: string
+
+  constructor(_env: ProviderEnv, config: { apiKey?: string | null }) {
+    this.apiKey = config.apiKey || ''
+  }
+
+  async ocr({
+    model,
+    imageBuffer,
+    prompt,
+  }: {
+    model: string
+    imageBuffer: ArrayBuffer
+    prompt: string
+  }): Promise<string> {
+    const base64 = arrayBufferToBase64(imageBuffer)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`
+
+    let attempts = 0
+    const maxAttempts = 3
+    let delay = 1000
+
+    while (attempts < maxAttempts) {
+      try {
+        attempts++
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: 'image/jpeg',
+                      data: base64,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        })
+
+        if (!res.ok) {
+          const text = await res.text()
+          if ((res.status >= 500 || res.status === 429) && attempts < maxAttempts) {
+            console.warn(`Gemini OCR API error ${res.status} (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`)
+            await new Promise((resolve) => setTimeout(resolve, delay))
+            delay *= 2
+            continue
+          }
+          throw new Error(`Google OCR API error ${res.status}: ${text}`)
+        }
+
+        const json = (await res.json()) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+        }
+        return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+      } catch (err) {
+        if (attempts >= maxAttempts) {
+          throw err
+        }
+        console.warn(`Gemini OCR connection error (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`, err)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        delay *= 2
+      }
+    }
+    throw new Error('Google OCR failed after max retries')
+  }
+}
+
+export function getOcrProvider(
+  env: ProviderEnv,
+  config: { provider: string; apiKey?: string | null; baseUrl?: string | null },
+): OcrProvider {
+  switch (config.provider) {
+    case 'workers-ai':
+      return new WorkersAiOcrProvider(env)
+    case 'openai':
+    case 'custom':
+      return new OpenAIOcrProvider(env, config)
+    case 'anthropic':
+      return new AnthropicOcrProvider(env, config)
+    case 'google':
+      return new GoogleOcrProvider(env, config)
+    default:
+      throw new Error(`Unknown OCR provider: ${config.provider}`)
+  }
+}
+

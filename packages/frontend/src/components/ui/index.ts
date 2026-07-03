@@ -9,3 +9,5 @@ export {
   type ButtonSize,
   type ButtonVariant,
 } from './Button'
+
+export { SearchableSelect, type SelectGroup } from './SearchableSelect'

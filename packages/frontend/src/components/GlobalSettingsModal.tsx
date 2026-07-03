@@ -12,6 +12,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from './ui/Button'
+import { SearchableSelect } from './ui/SearchableSelect'
 
 export interface GlobalSettings {
   ai_embedding_model: string
@@ -277,6 +278,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
       setConnName('')
       setConnApiKey('')
       setConnBaseUrl('')
+      setIsSaving(false)
     } catch (err: any) {
       setError(err.message)
       setIsSaving(false)
@@ -503,26 +505,13 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     />
                   ) : (
-                    <select
+                    <SearchableSelect
                       id='settings-embedding'
-                      className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                       value={embeddingModel}
-                      onChange={(e) => setEmbeddingModel(e.target.value)}
+                      onChange={setEmbeddingModel}
+                      groups={embeddingGroupCandidates}
                       disabled={modelsLoading}
-                    >
-                      {embeddingGroupCandidates.map((group) => (
-                        <optgroup key={group.connectionId} label={group.connectionName}>
-                          {group.models.map((m) => (
-                            <option
-                              key={`${group.connectionId}:${m}`}
-                              value={`${group.connectionId}:${m}`}
-                            >
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   )}
                 </div>
 
@@ -554,26 +543,13 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     />
                   ) : (
-                    <select
+                    <SearchableSelect
                       id='settings-chat'
-                      className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                       value={chatModel}
-                      onChange={(e) => setChatModel(e.target.value)}
+                      onChange={setChatModel}
+                      groups={chatGroupCandidates}
                       disabled={modelsLoading}
-                    >
-                      {chatGroupCandidates.map((group) => (
-                        <optgroup key={group.connectionId} label={group.connectionName}>
-                          {group.models.map((m) => (
-                            <option
-                              key={`${group.connectionId}:${m}`}
-                              value={`${group.connectionId}:${m}`}
-                            >
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   )}
                 </div>
 
@@ -605,26 +581,13 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     />
                   ) : (
-                    <select
+                    <SearchableSelect
                       id='settings-summarization'
-                      className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                       value={summarizationModel}
-                      onChange={(e) => setSummarizationModel(e.target.value)}
+                      onChange={setSummarizationModel}
+                      groups={chatGroupCandidates}
                       disabled={modelsLoading}
-                    >
-                      {chatGroupCandidates.map((group) => (
-                        <optgroup key={group.connectionId} label={group.connectionName}>
-                          {group.models.map((m) => (
-                            <option
-                              key={`${group.connectionId}:${m}`}
-                              value={`${group.connectionId}:${m}`}
-                            >
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   )}
                 </div>
 
@@ -656,26 +619,13 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     />
                   ) : (
-                    <select
+                    <SearchableSelect
                       id='settings-ocr'
-                      className='select select-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none'
                       value={ocrModel}
-                      onChange={(e) => setOcrModel(e.target.value)}
+                      onChange={setOcrModel}
+                      groups={ocrGroupCandidates}
                       disabled={modelsLoading}
-                    >
-                      {ocrGroupCandidates.map((group) => (
-                        <optgroup key={group.connectionId} label={group.connectionName}>
-                          {group.models.map((m) => (
-                            <option
-                              key={`${group.connectionId}:${m}`}
-                              value={`${group.connectionId}:${m}`}
-                            >
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   )}
                 </div>
               </div>
@@ -856,9 +806,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     popup is satisfied by them and leaves the real fields
                     alone. The decoys have no name, no id, no value, and
                     tabIndex={-1} so they cannot be focused or submitted. */}
-                <div aria-hidden='true' className='hidden' inert=''>
-                  <input type='text' tabIndex={-1} />
-                  <input type='password' tabIndex={-1} />
+                <div aria-hidden='true' style={{ position: 'absolute', top: -1000, left: -1000, width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>
+                  <input type='text' tabIndex={-1} autoComplete='off' />
+                  <input type='password' tabIndex={-1} autoComplete='new-password' />
                 </div>
 
                 <div className='grid grid-cols-2 gap-3'>
@@ -922,7 +872,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       type='password'
                       name='connection-api-key'
                       placeholder={t('globalSettings.apiKeyPlaceholder')}
-                      autoComplete='off'
+                      autoComplete='new-password'
                       autoCorrect='off'
                       autoCapitalize='off'
                       spellCheck={false}

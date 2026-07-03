@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { notebooks, sourceChunks, sourceImages, sources } from '../db/schema'
 import { getEffectiveAiConfig } from '../db/settings'
 import { embedChunks, getEmbeddingProvider } from '../embeddings'
+import { getOcrProvider } from '../providers'
 import { ErrorCode, errorResponse } from '../errors'
 import { type Bindings, type Variables, vHook } from './common'
 
@@ -249,30 +250,22 @@ router.post(
       if (processedChunks.length === 0 && images.length > 0) {
         const storage = c.get('storage')
         const sortedImages = [...images].sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0))
+        const ocrProvider = getOcrProvider(c.env as any, effectiveConfig.ocr)
 
         for (const img of sortedImages) {
           const buffer = await storage.get(img.r2Key)
           if (!buffer) continue
 
           let pageText = ''
-          if (effectiveConfig.ocr.provider === 'workers-ai') {
-            const model = effectiveConfig.ocr.model || '@cf/meta/llama-3.2-11b-vision-instruct'
-            try {
-              const aiRes = (await c.env.AI.run(model as any, {
-                image: Array.from(new Uint8Array(buffer)),
-                prompt:
-                  'Transcribe all text from this document image in Japanese. Output only the transcribed text without any conversational preamble or notes.',
-              })) as any
-              if (aiRes?.response) {
-                pageText = aiRes.response.trim()
-              } else if (aiRes?.text) {
-                pageText = aiRes.text.trim()
-              }
-            } catch (err) {
-              console.error(`Failed to OCR page ${img.pageNumber} using Workers AI:`, err)
-            }
-          } else {
-            console.warn(`OCR provider "${effectiveConfig.ocr.provider}" is not implemented yet.`)
+          try {
+            pageText = await ocrProvider.ocr({
+              model: effectiveConfig.ocr.model,
+              imageBuffer: buffer,
+              prompt:
+                'Transcribe all text from this document image in Japanese. Output only the transcribed text without any conversational preamble or notes.',
+            })
+          } catch (err) {
+            console.error(`Failed to OCR page ${img.pageNumber} using provider ${effectiveConfig.ocr.provider}:`, err)
           }
 
           if (pageText) {

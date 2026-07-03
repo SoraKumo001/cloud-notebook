@@ -134,6 +134,7 @@ describe('NotebookSettingsModal', () => {
         ai_embedding_model: 'embedding-model',
         model_chat: 'chat-model',
         model_summarization: 'summary-model',
+        model_ocr: null,
       }),
     })
     expect(onSaved).toHaveBeenCalled()
