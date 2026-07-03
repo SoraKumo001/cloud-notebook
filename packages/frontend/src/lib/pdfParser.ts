@@ -14,6 +14,12 @@ export interface PDFParseResult {
 
 // ── Lazy pdfjs-dist loader (dynamic import to reduce initial bundle) ────────
 
+// `?url` makes Vite emit the pdf.js worker as a real asset in the bundle
+// (served from the same origin), avoiding the cross-origin CDN 404 that
+// happened with pdfjs-dist 6.x (cdnjs only ships the .min.js worker for
+// the 3.x line).
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
 type PdfjsModule = typeof import('pdfjs-dist')
 
 let cachedPdfjs: PdfjsModule | null = null
@@ -21,7 +27,7 @@ let cachedPdfjs: PdfjsModule | null = null
 async function getPdfjsLib(): Promise<PdfjsModule> {
   if (!cachedPdfjs) {
     const mod = await import('pdfjs-dist')
-    mod.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${mod.version}/pdf.worker.min.js`
+    mod.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
     cachedPdfjs = mod
   }
   return cachedPdfjs

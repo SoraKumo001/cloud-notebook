@@ -12,7 +12,7 @@ const { mockGetDocument, mockGetPage, mockGetViewport, mockRender } = vi.hoisted
 vi.mock('pdfjs-dist', () => ({
   getDocument: mockGetDocument,
   GlobalWorkerOptions: { workerSrc: '' },
-  version: '4.0.0',
+  version: '6.1.200',
 }))
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
