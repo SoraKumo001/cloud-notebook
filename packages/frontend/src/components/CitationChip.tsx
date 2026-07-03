@@ -1,5 +1,7 @@
+import { BookOpen } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from './ui/Button'
 
 export interface CitationChunk {
   id: string
@@ -34,18 +36,20 @@ export function CitationChip({ index, chunk, invalid }: CitationChipProps) {
 
   return (
     <span ref={popoverRef} className='dropdown dropdown-top'>
-      <button
+      <Button
         type='button'
+        size='xs'
         tabIndex={0}
+        iconLeft={BookOpen}
         onClick={() => setOpen((prev) => !prev)}
-        className={`btn btn-xs ${
+        className={`${
           invalid
             ? 'btn-disabled line-through'
             : 'btn-ghost bg-secondary/15 border-secondary/30 text-secondary hover:bg-secondary/25'
         }`}
       >
         [{index}]
-      </button>
+      </Button>
 
       {open && chunk && (
         <div className='dropdown-content z-20 mb-2 w-56 rounded-xl bg-base-100 border border-base-300 shadow-xl shadow-black/40 p-3'>

@@ -1,5 +1,6 @@
-import { Link } from '@tanstack/react-router'
+import { Home } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Button } from './ui/Button'
 
 export default function NotFound() {
   const { t } = useTranslation('common')
@@ -14,9 +15,9 @@ export default function NotFound() {
         </div>
         <h1 className='text-2xl font-semibold text-base-content/90'>{t('notFound.title')}</h1>
         <p className='text-base-content/60 leading-relaxed'>{t('notFound.body')}</p>
-        <Link to='/' className='btn btn-primary'>
+        <Button as='link' to='/' variant='primary' iconLeft={Home}>
           {t('notFound.goHome')}
-        </Link>
+        </Button>
       </div>
     </div>
   )

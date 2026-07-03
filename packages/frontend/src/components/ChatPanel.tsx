@@ -5,6 +5,7 @@ import { useChatSessions } from '../hooks/useChatSessions'
 import { type ChatMessage, useChatStream } from '../hooks/useChatStream'
 import { CitationChip, type CitationChunk } from './CitationChip'
 import { SessionList } from './SessionList'
+import { Button } from './ui/Button'
 
 interface ChatPanelProps {
   notebookId: string
@@ -271,19 +272,17 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
             rows={1}
             className='flex-1 min-h-[44px] max-h-40 textarea textarea-bordered resize-none overflow-hidden'
           />
-          <button
+          <Button
             type='button'
-            onClick={() => void handleSubmit()}
+            variant='primary'
+            shape='circle'
             disabled={isStreaming || input.trim() === ''}
-            className='btn btn-primary btn-circle hover:scale-[1.02] active:scale-[0.98]'
-            aria-label={t('chat.sendAria')}
-          >
-            {isStreaming ? (
-              <span className='loading loading-spinner loading-sm text-white' />
-            ) : (
-              <Send size={18} strokeWidth={2} aria-hidden='true' />
-            )}
-          </button>
+            iconLeft={isStreaming ? undefined : Send}
+            loading={isStreaming}
+            onClick={() => void handleSubmit()}
+            iconOnlyAriaLabel={t('chat.sendAria')}
+            className='hover:scale-[1.02] active:scale-[0.98]'
+          />
         </div>
         <p className='mt-2 text-[11px] text-base-content/40'>{t('chat.sendHint')}</p>
       </div>

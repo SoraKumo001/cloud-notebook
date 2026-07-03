@@ -1,6 +1,7 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from './ui/Button'
 
 export interface CreateNotebookFormData {
   title: string
@@ -80,15 +81,16 @@ export function CreateNotebookModal({
           <h2 id='create-notebook-title' className='text-lg font-semibold text-base-content'>
             {t('createNotebook.title')}
           </h2>
-          <button
+          <Button
             type='button'
-            onClick={onClose}
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={X}
+            iconOnlyAriaLabel={t('common.close')}
             disabled={isSubmitting}
-            className='btn btn-ghost btn-circle'
-            aria-label={t('common.close')}
-          >
-            <X size={20} strokeWidth={2} aria-hidden='true' />
-          </button>
+            onClick={onClose}
+          />
         </div>
 
         <form onSubmit={handleSubmit} className='p-6 space-y-5'>
@@ -133,28 +135,24 @@ export function CreateNotebookModal({
           </div>
 
           <div className='flex items-center justify-end gap-3 pt-2'>
-            <button
+            <Button
               type='button'
-              onClick={onClose}
+              variant='ghost'
+              iconLeft={X}
               disabled={isSubmitting}
-              className='btn btn-ghost'
+              onClick={onClose}
             >
               {t('common.cancel')}
-            </button>
-            <button
+            </Button>
+            <Button
               type='submit'
-              disabled={isSubmitting || isTitleEmpty}
-              className='btn btn-primary'
+              variant='primary'
+              iconLeft={Plus}
+              loading={isSubmitting}
+              disabled={isTitleEmpty}
             >
-              {isSubmitting ? (
-                <>
-                  <span className='loading loading-spinner loading-sm text-white' />
-                  {t('common.creating')}
-                </>
-              ) : (
-                t('createNotebook.submit')
-              )}
-            </button>
+              {isSubmitting ? t('common.creating') : t('createNotebook.submit')}
+            </Button>
           </div>
         </form>
       </div>

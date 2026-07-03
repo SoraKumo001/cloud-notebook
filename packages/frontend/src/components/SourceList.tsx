@@ -22,6 +22,7 @@ import type { IngestProgressItem } from '../hooks/useIngestPipeline'
 import { useNotebookStats } from '../hooks/useNotebookStats'
 import { formatBytes, formatNumber, formatShortDate } from '../i18n/formatters'
 import { useLocale } from '../i18n/useLocale'
+import { Button } from './ui/Button'
 
 export interface Source {
   id: string
@@ -116,16 +117,18 @@ function SourceActions({
   if (isConfirmingDelete) {
     return (
       <div className='flex items-center gap-2'>
-        <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
+        <Button type='button' size='xs' variant='error' iconLeft={Trash2} onClick={confirmDelete}>
           {t('sourceList.deleteConfirm')}
-        </button>
-        <button
+        </Button>
+        <Button
           type='button'
+          size='xs'
+          variant='ghost'
+          iconLeft={X}
           onClick={() => setIsConfirmingDelete(false)}
-          className='btn btn-ghost btn-xs'
         >
           {t('common.cancel')}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -135,26 +138,30 @@ function SourceActions({
   return (
     <div className='flex items-center gap-1'>
       {onRename && (
-        <button
+        <Button
           type='button'
-          onClick={onRenameStart}
-          className='btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-primary'
-          aria-label={t('sourceList.renameAria')}
+          size='xs'
+          shape='circle'
+          variant='ghost'
+          iconLeft={Pencil}
+          iconOnlyAriaLabel={t('sourceList.renameAria')}
           title={t('sourceList.renameLabel')}
-        >
-          <Pencil size={14} strokeWidth={2} aria-hidden='true' />
-        </button>
+          className='text-base-content/60 hover:text-primary'
+          onClick={onRenameStart}
+        />
       )}
       {onDelete && (
-        <button
+        <Button
           type='button'
-          onClick={() => setIsConfirmingDelete(true)}
-          className='btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-error'
-          aria-label={t('sourceList.deleteAria')}
+          size='xs'
+          shape='circle'
+          variant='ghost'
+          iconLeft={Trash2}
+          iconOnlyAriaLabel={t('sourceList.deleteAria')}
           title={t('common.delete')}
-        >
-          <Trash2 size={14} strokeWidth={2} aria-hidden='true' />
-        </button>
+          className='text-base-content/60 hover:text-error'
+          onClick={() => setIsConfirmingDelete(true)}
+        />
       )}
     </div>
   )
@@ -227,15 +234,17 @@ function SortableSourceItem({
       }`}
     >
       <div className='flex items-center gap-3 min-w-0 flex-1'>
-        <button
+        <Button
           type='button'
+          size='xs'
+          shape='circle'
+          variant='ghost'
+          iconLeft={GripVertical}
+          iconOnlyAriaLabel={t('sourceList.dragAria')}
+          className='cursor-grab active:cursor-grabbing flex-shrink-0'
           {...attributes}
           {...listeners}
-          className='btn btn-ghost btn-xs btn-circle cursor-grab active:cursor-grabbing flex-shrink-0'
-          aria-label={t('sourceList.dragAria')}
-        >
-          <GripVertical size={16} strokeWidth={2} aria-hidden='true' />
-        </button>
+        />
         <div className='flex-shrink-0 w-9 h-9 rounded-lg bg-base-300 text-base-content/60 flex items-center justify-center'>
           {typeIcon(source.type)}
         </div>
@@ -637,14 +646,9 @@ export function SourceList({
         </div>
         <div className='flex items-center gap-3'>
           {hasErrors && onClearErrors && (
-            <button
-              type='button'
-              onClick={onClearErrors}
-              className='btn btn-ghost btn-xs'
-              aria-label={t('sourceList.clearErrors')}
-            >
+            <Button type='button' size='xs' variant='ghost' iconLeft={X} onClick={onClearErrors}>
               {t('sourceList.clearErrors')}
-            </button>
+            </Button>
           )}
           <span className='text-xs text-base-content/50'>
             {t('sourceList.stats', {

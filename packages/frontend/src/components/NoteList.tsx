@@ -1,8 +1,9 @@
-import { FileText, MoreVertical } from 'lucide-react'
+import { FileText, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatShortDate } from '../i18n/formatters'
 import { useLocale } from '../i18n/useLocale'
+import { Button } from './ui/Button'
 
 export interface Note {
   id: string
@@ -146,16 +147,18 @@ function NoteItem({
       <div className={`px-4 py-3 border-l-2 ${activeClass}`}>
         <p className='text-xs text-base-content/60 mb-2'>{t('note.deleteDialog.title')}</p>
         <div className='flex items-center gap-2'>
-          <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
+          <Button type='button' size='xs' variant='error' iconLeft={Trash2} onClick={confirmDelete}>
             {t('common.delete')}
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
+            size='xs'
+            variant='ghost'
+            iconLeft={X}
             onClick={() => setIsConfirmingDelete(false)}
-            className='btn btn-ghost btn-xs'
           >
             {t('common.cancel')}
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -183,48 +186,56 @@ function NoteItem({
 
       {(onDelete || onRename) && (
         <div ref={menuRef} className='absolute right-2 top-1/2 -translate-y-1/2 z-10'>
-          <button
+          <Button
             type='button'
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={MoreVertical}
+            iconOnlyAriaLabel={t('note.actionsAria')}
+            className='opacity-0 group-hover:opacity-100 focus:opacity-100'
             onClick={(e) => {
               e.stopPropagation()
               setMenuOpen((prev) => !prev)
             }}
-            className='btn btn-ghost btn-sm btn-circle opacity-0 group-hover:opacity-100 focus:opacity-100'
-            aria-label={t('note.actionsAria')}
-          >
-            <MoreVertical size={16} strokeWidth={2} aria-hidden='true' />
-          </button>
+          />
 
           {menuOpen && (
             <ul className='absolute right-0 top-full mt-1 w-36 bg-base-100 border border-base-300 rounded-xl shadow-xl shadow-black/40 py-1 z-20 text-xs'>
               {onRename && (
                 <li>
-                  <button
+                  <Button
                     type='button'
+                    size='sm'
+                    variant='ghost'
+                    iconLeft={Pencil}
+                    className='w-full justify-start px-3 py-1.5 text-base-content/80'
                     onClick={(e) => {
                       e.stopPropagation()
                       setIsEditing(true)
                       setMenuOpen(false)
                     }}
-                    className='w-full text-left px-3 py-1.5 hover:bg-base-200 transition-colors text-base-content/80'
                   >
                     {t('common.rename')}
-                  </button>
+                  </Button>
                 </li>
               )}
               {onDelete && (
                 <li>
-                  <button
+                  <Button
                     type='button'
+                    size='sm'
+                    variant='ghost'
+                    iconLeft={Trash2}
+                    className='w-full justify-start px-3 py-1.5 text-error font-medium'
                     onClick={(e) => {
                       e.stopPropagation()
                       setIsConfirmingDelete(true)
                       setMenuOpen(false)
                     }}
-                    className='w-full text-left px-3 py-1.5 hover:bg-error/10 text-error transition-colors font-medium'
                   >
                     {t('common.delete')}
-                  </button>
+                  </Button>
                 </li>
               )}
             </ul>
@@ -255,9 +266,9 @@ export function NoteList({
             {t('note.listCount', { count: notes.length })}
           </p>
         </div>
-        <button type='button' onClick={onCreate} className='btn btn-primary btn-sm'>
+        <Button type='button' size='sm' variant='primary' iconLeft={Plus} onClick={onCreate}>
           {t('note.newNote')}
-        </button>
+        </Button>
       </div>
 
       {notes.length === 0 ? (

@@ -1,7 +1,8 @@
-import { Check, Globe } from 'lucide-react'
+import { Check, Globe, Plus } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { parseWebpage } from '../lib/sourceParser'
+import { Button } from './ui/Button'
 
 interface WebpageImporterProps {
   notebookId: string
@@ -99,20 +100,15 @@ export function WebpageImporter({ uploadWebpage, isProcessing }: WebpageImporter
               className='w-full input input-bordered'
             />
           </div>
-          <button
+          <Button
             type='submit'
-            disabled={isProcessing || parsing || url.trim() === ''}
-            className='btn btn-primary'
+            variant='primary'
+            iconLeft={Plus}
+            loading={parsing}
+            disabled={url.trim() === ''}
           >
-            {parsing ? (
-              <span className='flex items-center gap-2'>
-                <span className='loading loading-spinner loading-sm text-white' />
-                {t('webpageImporter.submitting')}
-              </span>
-            ) : (
-              t('webpageImporter.submit')
-            )}
-          </button>
+            {parsing ? t('webpageImporter.submitting') : t('webpageImporter.submit')}
+          </Button>
         </form>
 
         {error && <div className='alert alert-error text-sm'>{error}</div>}

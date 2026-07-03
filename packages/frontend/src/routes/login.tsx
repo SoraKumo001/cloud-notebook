@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-r
 import { LogIn, Mail, UserPlus } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../components/ui/Button'
 import { useAuth } from '../contexts/AuthContext'
 
 export const Route = createFileRoute('/login')({
@@ -171,30 +172,32 @@ function LoginPage() {
               {mode === 'login' ? (
                 <>
                   {t('common.noAccount')}{' '}
-                  <button
+                  <Button
                     type='button'
-                    className='link link-primary'
+                    variant='link'
+                    iconLeft={UserPlus}
                     onClick={() => {
                       setError(null)
                       setMode('register')
                     }}
                   >
                     {t('common.register')}
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
                   {t('common.haveAccount')}{' '}
-                  <button
+                  <Button
                     type='button'
-                    className='link link-primary'
+                    variant='link'
+                    iconLeft={LogIn}
                     onClick={() => {
                       setError(null)
                       setMode('login')
                     }}
                   >
                     {t('common.signInShort')}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>

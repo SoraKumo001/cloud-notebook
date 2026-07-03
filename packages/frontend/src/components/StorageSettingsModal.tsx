@@ -14,9 +14,10 @@
 // before saving. S3-compatible secrets are write-only — the GET endpoint
 // only returns `has_access_key` / `has_secret_key` booleans.
 
-import { AlertTriangle, Cloud, Database, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Cloud, Database, Save, X, XCircle } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from './ui/Button'
 
 interface StorageSettingsModalProps {
   isOpen: boolean
@@ -339,20 +340,12 @@ export function StorageSettingsModal({ isOpen, onClose, isAdmin }: StorageSettin
             )}
 
             <div className='mt-6 flex justify-end gap-2'>
-              <button
-                type='button'
-                onClick={onClose}
-                className='rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50'
-              >
+              <Button type='button' variant='ghost' iconLeft={X} onClick={onClose}>
                 {t('common.cancel')}
-              </button>
-              <button
-                type='submit'
-                disabled={isSaving}
-                className='rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50'
-              >
+              </Button>
+              <Button type='submit' variant='primary' iconLeft={Save} loading={isSaving}>
                 {isSaving ? t('common.saving') : t('common.save')}
-              </button>
+              </Button>
             </div>
           </form>
         </>
@@ -390,14 +383,15 @@ function ModalShell({
       >
         <div className='mb-4 flex items-center justify-between'>
           <h2 className='text-lg font-semibold text-gray-900'>{title}</h2>
-          <button
+          <Button
             type='button'
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={X}
+            iconOnlyAriaLabel='Close'
             onClick={onClose}
-            className='text-gray-400 hover:text-gray-600'
-            aria-label='Close'
-          >
-            <X className='w-5 h-5' />
-          </button>
+          />
         </div>
         {children}
       </div>

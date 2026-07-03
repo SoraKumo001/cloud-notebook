@@ -1,7 +1,8 @@
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Copy, Eye, EyeOff, Key, RefreshCw, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMcpToken } from '../hooks/useMcpToken'
+import { Button } from './ui/Button'
 
 interface McpTokenPanelProps {
   notebookId: string
@@ -42,13 +43,16 @@ function CodeBlock({ code, t }: { code: string; t: (key: string) => string }) {
       <pre className='p-3 pr-16 overflow-x-auto font-mono text-xs text-base-content/70 whitespace-pre-wrap break-all'>
         <code>{code}</code>
       </pre>
-      <button
+      <Button
         type='button'
+        size='xs'
+        variant='ghost'
+        iconLeft={copied ? Check : Copy}
         onClick={() => void handleCopy()}
-        className='absolute right-2 top-2 btn btn-ghost btn-xs'
+        className='absolute right-2 top-2'
       >
         {copied ? t('common.copied') : t('common.copy')}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -78,12 +82,17 @@ function ConfirmDialog({
         <h3 className='text-lg font-semibold text-base-content mb-2'>{title}</h3>
         <p className='text-sm text-base-content/60 mb-6'>{message}</p>
         <div className='flex items-center justify-end gap-3'>
-          <button type='button' onClick={onCancel} className='btn btn-ghost'>
+          <Button type='button' variant='ghost' iconLeft={X} onClick={onCancel}>
             {t('common.cancel')}
-          </button>
-          <button type='button' onClick={onConfirm} className='btn btn-error'>
+          </Button>
+          <Button
+            type='button'
+            variant='error'
+            iconLeft={confirmAction === 'regenerate' ? RefreshCw : Trash2}
+            onClick={onConfirm}
+          >
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -155,39 +164,49 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
               <div className='flex-1 min-w-0 px-3 py-2 rounded-md bg-base-200 border border-base-300 font-mono text-sm text-base-content/70 truncate'>
                 {showToken ? lastGeneratedToken : maskToken(lastGeneratedToken)}
               </div>
-              <button
+              <Button
                 type='button'
+                size='sm'
+                variant='neutral'
+                iconLeft={showToken ? EyeOff : Eye}
                 onClick={() => setShowToken((prev) => !prev)}
-                className='flex-shrink-0 btn btn-neutral btn-sm'
+                className='flex-shrink-0'
               >
                 {showToken ? t('common.hide') : t('common.show')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type='button'
+                size='sm'
+                variant='neutral'
+                iconLeft={copied ? Check : Copy}
                 onClick={() => void handleCopy()}
-                className='flex-shrink-0 btn btn-neutral btn-sm'
+                className='flex-shrink-0'
               >
                 {copied ? t('common.copied') : t('common.copy')}
-              </button>
+              </Button>
             </div>
-            <button
+            <Button
               type='button'
+              size='sm'
+              variant='primary'
+              iconLeft={Check}
               onClick={clearLastGeneratedToken}
-              className='w-full btn btn-primary btn-sm'
+              className='w-full'
             >
               {t('mcp.savedAck')}
-            </button>
+            </Button>
           </div>
         ) : !hasToken ? (
-          <button
+          <Button
             type='button'
+            variant='primary'
+            iconLeft={Key}
+            loading={loading}
             onClick={() => void generateToken()}
-            disabled={loading}
-            className='w-full btn btn-primary'
+            className='w-full'
           >
-            {loading ? <Spinner /> : null}
             {t('mcp.generateToken')}
-          </button>
+          </Button>
         ) : (
           <div className='space-y-3'>
             {/* Token already generated previously and not surfaced this session. */}
@@ -202,22 +221,28 @@ export function McpTokenPanel({ notebookId }: McpTokenPanelProps) {
             </div>
 
             <div className='flex items-center gap-2'>
-              <button
+              <Button
                 type='button'
-                onClick={() => setConfirmAction('regenerate')}
+                size='sm'
+                variant='neutral'
+                iconLeft={RefreshCw}
                 disabled={loading}
-                className='flex-1 btn btn-neutral btn-sm'
+                onClick={() => setConfirmAction('regenerate')}
+                className='flex-1'
               >
                 {t('mcp.regenerate')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type='button'
-                onClick={() => setConfirmAction('revoke')}
+                size='sm'
+                variant='error'
+                iconLeft={Trash2}
                 disabled={loading}
-                className='flex-1 btn btn-error btn-sm'
+                onClick={() => setConfirmAction('revoke')}
+                className='flex-1'
               >
                 {t('mcp.discard')}
-              </button>
+              </Button>
             </div>
           </div>
         )}

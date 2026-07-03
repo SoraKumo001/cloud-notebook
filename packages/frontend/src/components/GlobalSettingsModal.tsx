@@ -1,6 +1,17 @@
-import { AlertTriangle, CircleCheck, Trash2, XCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  CircleCheck,
+  Plus,
+  RefreshCw,
+  Save,
+  SlidersHorizontal,
+  Trash2,
+  X,
+  XCircle,
+} from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from './ui/Button'
 
 export interface GlobalSettings {
   ai_embedding_model: string
@@ -347,22 +358,27 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
             <h2 className='text-lg font-bold text-base-content'>{t('globalSettings.title')}</h2>
             <p className='text-xs text-base-content/60'>{t('globalSettings.subtitle')}</p>
           </div>
-          <button
+          <Button
             type='button'
-            onClick={onClose}
-            className='btn btn-sm btn-circle btn-ghost text-base-content/70 hover:text-base-content'
-            aria-label={t('globalSettings.closeAria')}
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={X}
+            iconOnlyAriaLabel={t('globalSettings.closeAria')}
             disabled={isSaving || isLoading}
-          >
-            ✕
-          </button>
+            className='text-base-content/70 hover:text-base-content'
+            onClick={onClose}
+          />
         </div>
 
         {/* Navigation Tabs */}
         <div className='flex border-b border-base-300 bg-base-200/40 px-6'>
-          <button
+          <Button
             type='button'
-            className={`py-3 px-4 font-semibold text-sm border-b-2 transition-all ${
+            size='sm'
+            variant='ghost'
+            iconLeft={SlidersHorizontal}
+            className={`py-3 px-4 font-semibold text-sm border-b-2 transition-all rounded-none ${
               activeTab === 'settings'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-base-content/70 hover:text-base-content'
@@ -370,10 +386,13 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
             onClick={() => setActiveTab('settings')}
           >
             {t('globalSettings.tabModels')}
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
-            className={`py-3 px-4 font-semibold text-sm border-b-2 transition-all ${
+            size='sm'
+            variant='ghost'
+            iconLeft={SlidersHorizontal}
+            className={`py-3 px-4 font-semibold text-sm border-b-2 transition-all rounded-none ${
               activeTab === 'connections'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-base-content/70 hover:text-base-content'
@@ -381,7 +400,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
             onClick={() => setActiveTab('connections')}
           >
             {t('globalSettings.tabConnections', { count: connections.length })}
-          </button>
+          </Button>
         </div>
 
         {/* Content Box */}
@@ -613,29 +632,28 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     </div>
                   )}
                   <div className='flex justify-end gap-2'>
-                    <button
+                    <Button
                       type='button'
-                      onClick={onClose}
-                      className='btn btn-ghost btn-sm rounded-xl text-xs'
+                      size='sm'
+                      variant='ghost'
+                      iconLeft={X}
                       disabled={isReindexing}
+                      onClick={onClose}
+                      className='rounded-xl text-xs'
                     >
                       {t('notebookSettings.reindex.later')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type='button'
+                      size='sm'
+                      variant='warning'
+                      iconLeft={RefreshCw}
+                      loading={isReindexing}
                       onClick={() => void handleReindexAll()}
-                      className='btn btn-warning btn-sm rounded-xl text-xs font-semibold'
-                      disabled={isReindexing}
+                      className='rounded-xl text-xs font-semibold'
                     >
-                      {isReindexing ? (
-                        <>
-                          <span className='loading loading-spinner loading-xs' />
-                          {t('notebookSettings.reindex.running')}
-                        </>
-                      ) : (
-                        t('notebookSettings.reindex.run')
-                      )}
-                    </button>
+                      {t('notebookSettings.reindex.run')}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -655,21 +673,26 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
               {/* Actions */}
               {!needsReindex && (
                 <div className='flex items-center justify-end gap-3 pt-4 border-t border-base-300'>
-                  <button
+                  <Button
                     type='button'
-                    onClick={onClose}
-                    className='btn btn-ghost rounded-xl px-5 text-sm font-medium'
+                    variant='ghost'
+                    iconLeft={X}
                     disabled={isSaving}
+                    onClick={onClose}
+                    className='rounded-xl px-5 text-sm font-medium'
                   >
                     {t('common.cancel')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type='submit'
-                    className='btn btn-primary rounded-xl px-5 text-sm font-medium'
-                    disabled={isSaving || modelsLoading}
+                    variant='primary'
+                    iconLeft={Save}
+                    loading={isSaving}
+                    disabled={modelsLoading}
+                    className='rounded-xl px-5 text-sm font-medium'
                   >
                     {isSaving ? t('common.saving') : t('common.saveSettings')}
-                  </button>
+                  </Button>
                 </div>
               )}
             </form>
@@ -852,13 +875,15 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                 </div>
 
                 <div className='flex justify-end pt-1'>
-                  <button
+                  <Button
                     type='submit'
-                    className='btn btn-primary rounded-xl px-4 text-xs font-semibold'
-                    disabled={isSaving}
+                    variant='primary'
+                    iconLeft={Plus}
+                    loading={isSaving}
+                    className='rounded-xl px-4 text-xs font-semibold'
                   >
                     {isSaving ? t('globalSettings.adding') : t('globalSettings.addConnection')}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

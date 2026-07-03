@@ -1,5 +1,7 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+import { LogIn, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../components/ui/Button'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -21,9 +23,9 @@ function Home() {
             </span>
           </div>
           <div className='flex items-center space-x-4'>
-            <Link to='/notebooks' className='btn btn-neutral'>
+            <Button as='link' to='/notebooks' variant='neutral' iconLeft={LogIn}>
               {t('common.signIn')}
-            </Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -44,9 +46,9 @@ function Home() {
           </p>
 
           <div className='flex flex-col sm:flex-row items-center justify-center gap-4 pt-4'>
-            <Link to='/notebooks' className='btn btn-primary'>
+            <Button as='link' to='/notebooks' variant='primary' iconLeft={Plus}>
               {t('landing.cta')}
-            </Link>
+            </Button>
           </div>
         </div>
 

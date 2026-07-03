@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { BookOpen, Database, Plus, Search, Settings, UserPlus } from 'lucide-react'
+import { BookOpen, Database, LogOut, Plus, Search, Settings, UserPlus, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -7,6 +7,7 @@ import {
   CreateNotebookModal,
 } from '../../components/CreateNotebookModal'
 import { type Notebook, NotebookCard } from '../../components/NotebookCard'
+import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../contexts/AuthContext'
 import { LanguageSwitcher } from '../../i18n/components/LanguageSwitcher'
 
@@ -167,47 +168,53 @@ function NotebooksPage() {
               </span>
             )}
             {user?.isAdmin && (
-              <button
+              <Button
                 type='button'
-                onClick={() => setIsInviteOpen(true)}
-                className='btn btn-ghost btn-circle btn-sm'
-                aria-label={t('notebookList.inviteAria')}
+                size='sm'
+                shape='circle'
+                variant='ghost'
+                iconLeft={UserPlus}
+                iconOnlyAriaLabel={t('notebookList.inviteAria')}
                 title={t('notebookList.inviteAria')}
-              >
-                <UserPlus size={20} strokeWidth={2} aria-hidden='true' />
-              </button>
+                onClick={() => setIsInviteOpen(true)}
+              />
             )}
             {user?.isAdmin && (
-              <button
+              <Button
                 type='button'
-                onClick={() => setIsStorageSettingsOpen(true)}
-                className='btn btn-ghost btn-circle btn-sm'
-                aria-label={t('notebookList.storageAria')}
+                size='sm'
+                shape='circle'
+                variant='ghost'
+                iconLeft={Database}
+                iconOnlyAriaLabel={t('notebookList.storageAria')}
                 title={t('notebookList.storageAria')}
-              >
-                <Database size={20} strokeWidth={2} aria-hidden='true' />
-              </button>
+                onClick={() => setIsStorageSettingsOpen(true)}
+              />
             )}
-            <button
+            <Button
               type='button'
+              size='sm'
+              shape='circle'
+              variant='ghost'
+              iconLeft={Settings}
+              iconOnlyAriaLabel={t('notebookList.globalSettingsAria')}
               onClick={() => setIsGlobalSettingsOpen(true)}
-              className='btn btn-ghost btn-circle btn-sm'
-              aria-label={t('notebookList.globalSettingsAria')}
-            >
-              <Settings size={20} strokeWidth={2} aria-hidden='true' />
-            </button>
+            />
             <LanguageSwitcher />
-            <button
+            <Button
               type='button'
+              size='sm'
+              variant='neutral'
+              iconLeft={LogOut}
+              className='rounded-xl'
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
                 await refresh()
                 await navigate({ to: '/login' })
               }}
-              className='btn btn-neutral btn-sm rounded-xl'
             >
               {t('common.signOut')}
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -220,10 +227,14 @@ function NotebooksPage() {
             </h1>
             <p className='mt-1 text-base-content/60'>{t('notebookList.subtitle')}</p>
           </div>
-          <button type='button' onClick={() => setIsModalOpen(true)} className='btn btn-primary'>
-            <Plus size={18} strokeWidth={2} aria-hidden='true' />
+          <Button
+            type='button'
+            variant='primary'
+            iconLeft={Plus}
+            onClick={() => setIsModalOpen(true)}
+          >
             {t('notebookList.newNotebook')}
-          </button>
+          </Button>
         </div>
 
         {/* Search and sort */}
@@ -299,17 +310,18 @@ function NotebooksPage() {
                 : t('notebookList.emptyHint')}
             </p>
             {debouncedQuery ? (
-              <button type='button' onClick={() => setQuery('')} className='btn btn-neutral'>
+              <Button type='button' variant='neutral' iconLeft={X} onClick={() => setQuery('')}>
                 {t('notebookList.clearSearch')}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type='button'
+                variant='primary'
+                iconLeft={Plus}
                 onClick={() => setIsModalOpen(true)}
-                className='btn btn-primary'
               >
                 {t('notebookList.newNotebook')}
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -353,14 +365,15 @@ function NotebooksPage() {
           <div className='modal-box max-w-lg p-0 relative'>
             <div className='flex items-center justify-between border-b border-base-300 px-5 py-3'>
               <h2 className='text-lg font-semibold'>{t('notebookList.inviteTitle')}</h2>
-              <button
+              <Button
                 type='button'
+                size='sm'
+                shape='circle'
+                variant='ghost'
+                iconLeft={X}
+                iconOnlyAriaLabel={t('common.close')}
                 onClick={() => setIsInviteOpen(false)}
-                className='btn btn-ghost btn-sm btn-circle'
-                aria-label={t('common.close')}
-              >
-                ✕
-              </button>
+              />
             </div>
             <React.Suspense fallback={null}>
               <InviteUserPanel />

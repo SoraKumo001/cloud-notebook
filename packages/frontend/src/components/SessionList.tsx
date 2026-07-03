@@ -1,8 +1,9 @@
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatShortDate } from '../i18n/formatters'
 import { useLocale } from '../i18n/useLocale'
+import { Button } from './ui/Button'
 
 export interface ChatSession {
   id: string
@@ -16,10 +17,6 @@ interface SessionListProps {
   onSelect: (id: string) => void
   onDelete?: (id: string) => void
   onRename?: (id: string, title: string) => void
-}
-
-function KebabIcon() {
-  return <MoreVertical size={16} strokeWidth={2} aria-hidden='true' />
 }
 
 function SessionItem({
@@ -108,16 +105,18 @@ function SessionItem({
       <div className={`px-4 py-3 border-l-2 ${activeClass}`}>
         <p className='text-xs text-base-content/60 mb-2'>{t('sessionList.deleteDialog.title')}</p>
         <div className='flex items-center gap-2'>
-          <button type='button' onClick={confirmDelete} className='btn btn-error btn-xs'>
+          <Button type='button' size='xs' variant='error' iconLeft={Trash2} onClick={confirmDelete}>
             {t('common.delete')}
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
+            size='xs'
+            variant='ghost'
+            iconLeft={X}
             onClick={() => setIsConfirmingDelete(false)}
-            className='btn btn-ghost btn-xs'
           >
             {t('common.cancel')}
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -146,42 +145,49 @@ function SessionItem({
 
       {(onDelete || onRename) && (
         <div className='dropdown dropdown-end dropdown-top absolute right-2 top-1/2 -translate-y-1/2 z-10'>
-          <button
+          <Button
             type='button'
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={MoreVertical}
+            iconOnlyAriaLabel={t('sessionList.actionsAria')}
             tabIndex={0}
-            aria-label={t('sessionList.actionsAria')}
-            className='btn btn-ghost btn-sm btn-circle'
             onClick={(e) => e.stopPropagation()}
-          >
-            <KebabIcon />
-          </button>
+          />
           <ul className='dropdown-content menu menu-sm bg-base-100 border border-base-300 rounded-xl shadow-xl shadow-black/40 z-20 w-36 p-1 text-xs'>
             {onRename && (
               <li>
-                <button
+                <Button
                   type='button'
+                  size='sm'
+                  variant='ghost'
+                  iconLeft={Pencil}
+                  className='w-full justify-start rounded-md text-base-content/80'
                   onClick={(e) => {
                     e.stopPropagation()
                     startRename()
                   }}
-                  className='rounded-md text-base-content/80'
                 >
                   {t('common.rename')}
-                </button>
+                </Button>
               </li>
             )}
             {onDelete && (
               <li>
-                <button
+                <Button
                   type='button'
+                  size='sm'
+                  variant='ghost'
+                  iconLeft={Trash2}
+                  className='w-full justify-start rounded-md text-error font-medium'
                   onClick={(e) => {
                     e.stopPropagation()
                     setIsConfirmingDelete(true)
                   }}
-                  className='rounded-md text-error font-medium'
                 >
                   {t('common.delete')}
-                </button>
+                </Button>
               </li>
             )}
           </ul>

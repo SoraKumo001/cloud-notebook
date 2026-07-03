@@ -1,6 +1,8 @@
+import { Eye, Pencil, Save, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import { Button } from './ui/Button'
 
 export interface Note {
   id: string
@@ -92,22 +94,28 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
           {isNew ? t('note.editor.newNote') : t('note.editor.editNote')}
         </h3>
         <div role='tablist' className='tabs tabs-box bg-base-200 border border-base-300'>
-          <button
+          <Button
             type='button'
             role='tab'
+            size='sm'
+            variant='ghost'
+            iconLeft={Pencil}
             onClick={() => setMode('edit')}
-            className={`tab tab-sm ${mode === 'edit' ? 'tab-active' : ''}`}
+            className={`tab ${mode === 'edit' ? 'tab-active' : ''}`}
           >
             {t('note.editor.tabEdit')}
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
             role='tab'
+            size='sm'
+            variant='ghost'
+            iconLeft={Eye}
             onClick={() => setMode('preview')}
-            className={`tab tab-sm ${mode === 'preview' ? 'tab-active' : ''}`}
+            className={`tab ${mode === 'preview' ? 'tab-active' : ''}`}
           >
             {t('note.editor.tabPreview')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -198,29 +206,25 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
         <div className='flex items-center justify-between pt-2'>
           <span className='text-xs text-base-content/50'>{statusText()}</span>
           <div className='flex items-center gap-3'>
-            <button
+            <Button
               type='button'
-              onClick={onCancel}
+              variant='neutral'
+              iconLeft={X}
               disabled={isSaving}
-              className='btn btn-neutral'
+              onClick={onCancel}
             >
               {t('common.cancel')}
-            </button>
-            <button
+            </Button>
+            <Button
               type='button'
+              variant='primary'
+              iconLeft={Save}
+              loading={isSaving}
+              disabled={title.trim() === ''}
               onClick={() => void handleSave()}
-              disabled={isSaving || title.trim() === ''}
-              className='btn btn-primary'
             >
-              {isSaving ? (
-                <>
-                  <span className='loading loading-spinner loading-sm text-white' />
-                  {t('common.saving')}
-                </>
-              ) : (
-                t('note.editor.save')
-              )}
-            </button>
+              {isSaving ? t('common.saving') : t('note.editor.save')}
+            </Button>
           </div>
         </div>
       </div>

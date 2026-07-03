@@ -1,7 +1,8 @@
-import { AlertTriangle, CircleCheck, X } from 'lucide-react'
+import { AlertTriangle, CircleCheck, RefreshCw, Save, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { McpTokenPanel } from './McpTokenPanel'
+import { Button } from './ui/Button'
 
 export interface NotebookSettingsNotebook {
   id: string
@@ -296,15 +297,16 @@ export function NotebookSettingsModal({
           <h2 id='notebook-settings-title' className='text-lg font-semibold text-base-content'>
             {t('notebookSettings.title')}
           </h2>
-          <button
+          <Button
             type='button'
-            onClick={onClose}
+            size='sm'
+            shape='circle'
+            variant='ghost'
+            iconLeft={X}
+            iconOnlyAriaLabel={t('common.close')}
             disabled={isSaving}
-            className='btn btn-ghost btn-circle'
-            aria-label={t('common.close')}
-          >
-            <X size={20} strokeWidth={2} aria-hidden='true' />
-          </button>
+            onClick={onClose}
+          />
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className='p-6 space-y-6'>
@@ -539,29 +541,28 @@ export function NotebookSettingsModal({
                 </div>
               </div>
               <div className='flex justify-end gap-2'>
-                <button
+                <Button
                   type='button'
-                  onClick={onClose}
-                  className='btn btn-ghost btn-sm rounded-xl text-xs'
+                  size='sm'
+                  variant='ghost'
+                  iconLeft={X}
                   disabled={isReindexing}
+                  onClick={onClose}
+                  className='rounded-xl text-xs'
                 >
                   {t('notebookSettings.reindex.later')}
-                </button>
-                <button
+                </Button>
+                <Button
                   type='button'
+                  size='sm'
+                  variant='warning'
+                  iconLeft={RefreshCw}
+                  loading={isReindexing}
                   onClick={() => void handleReindex()}
-                  className='btn btn-warning btn-sm rounded-xl text-xs font-semibold'
-                  disabled={isReindexing}
+                  className='rounded-xl text-xs font-semibold'
                 >
-                  {isReindexing ? (
-                    <>
-                      <span className='loading loading-spinner loading-xs' />
-                      {t('notebookSettings.reindex.running')}
-                    </>
-                  ) : (
-                    t('notebookSettings.reindex.run')
-                  )}
-                </button>
+                  {t('notebookSettings.reindex.run')}
+                </Button>
               </div>
             </div>
           )}
@@ -580,21 +581,26 @@ export function NotebookSettingsModal({
 
           {!needsReindex && (
             <div className='flex items-center justify-end gap-3 pt-4 border-t border-base-300'>
-              <button
+              <Button
                 type='button'
-                onClick={onClose}
+                variant='neutral'
+                iconLeft={X}
                 disabled={isSaving}
-                className='btn btn-neutral rounded-xl px-5 text-sm font-medium'
+                onClick={onClose}
+                className='rounded-xl px-5 text-sm font-medium'
               >
                 {t('common.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type='submit'
-                disabled={isSaving || isTitleEmpty || modelsLoading}
-                className='btn btn-primary rounded-xl px-5 text-sm font-medium'
+                variant='primary'
+                iconLeft={Save}
+                loading={isSaving}
+                disabled={isTitleEmpty || modelsLoading}
+                className='rounded-xl px-5 text-sm font-medium'
               >
                 {isSaving ? t('common.saving') : t('common.saveChanges')}
-              </button>
+              </Button>
             </div>
           )}
         </form>

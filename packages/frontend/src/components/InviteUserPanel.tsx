@@ -1,8 +1,9 @@
-import { Check, Clipboard, Trash2, UserPlus } from 'lucide-react'
+import { Check, Clipboard, Trash2, UserPlus, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatDateTime } from '../i18n/formatters'
 import { useLocale } from '../i18n/useLocale'
+import { Button } from './ui/Button'
 
 interface Invitation {
   id: string
@@ -45,12 +46,12 @@ function ConfirmDelete({
           {t('invite.revokeDialog.body', { email })}
         </p>
         <div className='flex items-center justify-end gap-3'>
-          <button type='button' onClick={onCancel} className='btn btn-ghost'>
+          <Button type='button' variant='ghost' iconLeft={X} onClick={onCancel}>
             {t('common.cancel')}
-          </button>
-          <button type='button' onClick={onConfirm} className='btn btn-error'>
+          </Button>
+          <Button type='button' variant='error' iconLeft={Trash2} onClick={onConfirm}>
             {t('invite.revokeDialog.submit')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -197,13 +198,15 @@ export function InviteUserPanel() {
               {t('invite.sentToast', { email: lastIssued.email })}
             </p>
             <CopyableLink url={buildInviteUrl(lastIssued.token)} t={t} />
-            <button
+            <Button
               type='button'
+              size='xs'
+              variant='ghost'
+              iconLeft={X}
               onClick={() => setLastIssued(null)}
-              className='btn btn-ghost btn-xs'
             >
               {t('common.dismiss')}
-            </button>
+            </Button>
           </div>
         )}
 

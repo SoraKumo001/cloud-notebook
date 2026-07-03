@@ -1,8 +1,9 @@
-import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, MoreVertical } from 'lucide-react'
+import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
+import { ArrowLeft, MoreVertical, Pencil, Settings, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { SourceList } from '../../components/SourceList'
+import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../contexts/AuthContext'
 import type { IngestProgressItem } from '../../hooks/useIngestPipeline'
 import { useIngestPipeline } from '../../hooks/useIngestPipeline'
@@ -268,13 +269,14 @@ function NotebookDetailPage() {
       <header className='border-b border-base-300 bg-base-100/50 backdrop-blur-md flex-shrink-0 z-40'>
         <div className='w-full px-6 h-16 flex items-center justify-between gap-4'>
           <div className='flex items-center gap-4 min-w-0'>
-            <Link
+            <Button
+              as='link'
               to='/notebooks'
-              className='btn btn-ghost btn-circle'
-              aria-label={t('notebookDetail.backToList')}
-            >
-              <ArrowLeft size={20} strokeWidth={2} aria-hidden='true' />
-            </Link>
+              shape='circle'
+              variant='ghost'
+              iconLeft={ArrowLeft}
+              iconOnlyAriaLabel={t('notebookDetail.backToList')}
+            />
 
             {loading ? (
               <div className='skeleton h-6 w-40' />
@@ -291,14 +293,17 @@ function NotebookDetailPage() {
                     className='text-lg font-semibold bg-base-300/50 border border-primary/30 rounded-md px-2 py-1 text-base-content focus:outline-none focus:ring-2 focus:ring-primary/20'
                   />
                 ) : (
-                  <button
+                  <Button
                     type='button'
+                    variant='ghost'
+                    size='sm'
+                    iconLeft={Pencil}
                     onClick={startTitleEdit}
-                    className='text-lg font-semibold text-base-content hover:text-primary transition-colors cursor-pointer'
                     title={t('notebookDetail.editTitleAria')}
+                    className='text-lg font-semibold text-base-content hover:text-primary transition-colors cursor-pointer'
                   >
                     {notebook.title}
-                  </button>
+                  </Button>
                 )}
                 {notebook.description && !isEditingTitle && (
                   <p className='text-xs text-base-content/50 truncate hidden sm:block'>
@@ -316,55 +321,65 @@ function NotebookDetailPage() {
           {!loading && notebook && (
             <div ref={menuRef} className='relative flex-shrink-0 flex items-center space-x-2'>
               <LanguageSwitcher />
-              <button
+              <Button
                 type='button'
+                size='sm'
+                shape='circle'
+                variant='ghost'
+                iconLeft={MoreVertical}
+                iconOnlyAriaLabel={t('notebookDetail.actionsAria')}
                 onClick={(e) => {
                   e.stopPropagation()
                   setMenuOpen((prev) => !prev)
                 }}
-                className='btn btn-ghost btn-circle btn-sm'
-                aria-label={t('notebookDetail.actionsAria')}
-              >
-                <MoreVertical size={20} strokeWidth={2} aria-hidden='true' />
-              </button>
+              />
 
               {menuOpen && (
                 <ul className='absolute right-0 top-full mt-2 w-48 bg-base-100 border border-base-300 rounded-xl shadow-xl shadow-black/40 py-2 z-50 text-sm'>
                   <li>
-                    <button
+                    <Button
                       type='button'
+                      variant='ghost'
+                      size='sm'
+                      iconLeft={Settings}
+                      className='w-full justify-start px-4 py-2 text-base-content'
                       onClick={() => {
                         setIsSettingsOpen(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content cursor-pointer'
                     >
                       {t('notebookDetail.settingsMenu')}
-                    </button>
+                    </Button>
                   </li>
                   <li>
-                    <button
+                    <Button
                       type='button'
+                      variant='ghost'
+                      size='sm'
+                      iconLeft={Settings}
+                      className='w-full justify-start px-4 py-2 text-base-content'
                       onClick={() => {
                         setIsGlobalSettingsOpen(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-base-200 transition-colors text-base-content cursor-pointer'
                     >
                       {t('notebookDetail.globalSettingsMenu')}
-                    </button>
+                    </Button>
                   </li>
                   <li>
-                    <button
+                    <Button
                       type='button'
+                      variant='ghost'
+                      size='sm'
+                      iconLeft={Trash2}
+                      className='w-full justify-start px-4 py-2 text-error font-medium'
                       onClick={() => {
                         setIsConfirmingDelete(true)
                         setMenuOpen(false)
                       }}
-                      className='w-full text-left px-4 py-2 hover:bg-error/10 text-error transition-colors font-medium cursor-pointer'
                     >
                       {t('notebookDetail.deleteMenu')}
-                    </button>
+                    </Button>
                   </li>
                 </ul>
               )}
@@ -390,16 +405,22 @@ function NotebookDetailPage() {
                 {t('notebookDetail.deleteDialog.body', { title: notebook?.title ?? '' })}
               </p>
               <div className='flex items-center justify-end gap-3'>
-                <button
+                <Button
                   type='button'
+                  variant='ghost'
+                  iconLeft={X}
                   onClick={() => setIsConfirmingDelete(false)}
-                  className='btn btn-ghost'
                 >
                   {t('common.cancel')}
-                </button>
-                <button type='button' onClick={confirmDeleteNotebook} className='btn btn-error'>
+                </Button>
+                <Button
+                  type='button'
+                  variant='error'
+                  iconLeft={Trash2}
+                  onClick={confirmDeleteNotebook}
+                >
                   {t('common.delete')}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
