@@ -27,20 +27,20 @@
   "dependencies": {
     "@hono/zod-validator": "0.8.0",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "agents": "0.17.1",
+    "agents": "0.17.3",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "1.0.0-rc.4",
     "hono": "^4.12.27",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.20",
-    "@cloudflare/workers-types": "^4.20260629.1",
+    "@cloudflare/vitest-pool-workers": "^0.18.0",
+    "@cloudflare/workers-types": "^5.20260703.1",
     "@types/better-sqlite3": "7.6.13",
     "better-sqlite3": "12.11.1",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9",
-    "wrangler": "^4.105.0"
+    "wrangler": "^4.107.0"
   }
 }
