@@ -23,3 +23,9 @@ SESSION_SECRET=eAD9hTPUIwPYsMXHchOxjKvzbHKqWyaOCfJfAZKOkQc=
 # Generate with: openssl rand -base64 32
 # Dummy 32-byte base64 key for local development — DO NOT use this in production.
 API_KEY_ENCRYPTION_MASTER=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=
+
+# ---- Cloudflare Credentials (Optional) ----
+# Required ONLY if you want to dynamically fetch the available Workers AI models
+# from the Cloudflare API. If unset, the backend falls back to models.json.
+# CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+# CLOUDFLARE_API_TOKEN=your_cloudflare_api_token

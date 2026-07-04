@@ -403,7 +403,7 @@ router.patch(
             c,
             ErrorCode.ValidationFailed,
             `ai_provider "${body.ai_provider}" is not supported for embedding. ` +
-              `The Vectorize index is 1024-dim and only Workers AI (bge-large-en-v1.5) produces matching vectors. ` +
+              `The Vectorize index is 1024-dim and only Workers AI (bge-m3) produces matching vectors. ` +
               `Use ai_provider=workers-ai for embedding, and configure model_chat / model_summarization separately if you need a different chat model.`,
             400,
           )

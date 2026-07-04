@@ -54,7 +54,7 @@ function createMockAi(embeddingVector?: number[], chatTokens?: string[]) {
 
   return vi.fn((model: string, inputs: unknown) => {
     // Embedding model
-    if (model === '@cf/baai/bge-large-en-v1.5') {
+    if (model === '@cf/baai/bge-m3') {
       const { text } = inputs as { text: string | string[] }
       const texts = Array.isArray(text) ? text : [text]
       return Promise.resolve({
@@ -236,7 +236,7 @@ describe('streamChat', () => {
 
   it('sends error event when LLM streaming fails', async () => {
     const ai = vi.fn((model: string) => {
-      if (model === '@cf/baai/bge-large-en-v1.5') {
+      if (model === '@cf/baai/bge-m3') {
         return Promise.resolve({
           shape: [1, 1024],
           data: [Array.from({ length: 1024 }, () => 0.1)],

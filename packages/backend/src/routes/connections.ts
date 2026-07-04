@@ -116,7 +116,9 @@ router.get(
     const db = c.get('db')
 
     if (id === 'workers-ai') {
-      const models = await fetchConnectionModels('workers-ai', null, null, type)
+      const apiToken = c.env.CLOUDFLARE_API_TOKEN as string | undefined
+      const accountId = c.env.CLOUDFLARE_ACCOUNT_ID as string | undefined
+      const models = await fetchConnectionModels('workers-ai', apiToken, accountId, type)
       return c.json({ models })
     }
 

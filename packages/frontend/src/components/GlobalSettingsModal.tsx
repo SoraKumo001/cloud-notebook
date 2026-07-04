@@ -71,9 +71,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
   const [activeTab, setActiveTab] = React.useState<'settings' | 'connections'>('settings')
 
   // Global Settings States
-  const [embeddingModel, setEmbeddingModel] = React.useState(
-    'workers-ai:@cf/baai/bge-large-en-v1.5',
-  )
+  const [embeddingModel, setEmbeddingModel] = React.useState('workers-ai:@cf/baai/bge-m3')
   const [chatModel, setChatModel] = React.useState('workers-ai:@cf/meta/llama-3.1-8b-instruct-fast')
   const [summarizationModel, setSummarizationModel] = React.useState(
     'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast',
@@ -129,8 +127,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
       const settingsRes = await fetch('/api/settings')
       if (!settingsRes.ok) throw new Error(t('errors.loadGlobalSettingsFailed'))
       const settingsData = (await settingsRes.json()) as GlobalSettings
-      const currentEmbed =
-        settingsData.ai_embedding_model || 'workers-ai:@cf/baai/bge-large-en-v1.5'
+      const currentEmbed = settingsData.ai_embedding_model || 'workers-ai:@cf/baai/bge-m3'
       setEmbeddingModel(currentEmbed)
       setSavedEmbeddingModel(currentEmbed)
       setChatModel(settingsData.model_chat || 'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast')

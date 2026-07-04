@@ -25,7 +25,7 @@ router.get('/settings', async (c) => {
 
   if (!settings) {
     return c.json({
-      ai_embedding_model: '@cf/baai/bge-large-en-v1.5',
+      ai_embedding_model: '@cf/baai/bge-m3',
       model_chat: '@cf/meta/llama-3.1-8b-instruct-fast',
       model_summarization: '@cf/meta/llama-3.1-8b-instruct-fast',
       model_ocr: '@cf/meta/llama-3.2-11b-vision-instruct',

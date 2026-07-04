@@ -92,7 +92,7 @@ export async function getEffectiveAiConfig(
   const effectiveEmbeddingStr =
     nb.aiEmbeddingModel !== undefined && nb.aiEmbeddingModel !== null
       ? nb.aiEmbeddingModel
-      : globalSettings?.aiEmbeddingModel || 'workers-ai:@cf/baai/bge-large-en-v1.5'
+      : globalSettings?.aiEmbeddingModel || 'workers-ai:@cf/baai/bge-m3'
 
   const embedding = await resolveTaskConfig(
     db,
@@ -100,7 +100,7 @@ export async function getEffectiveAiConfig(
     masterKey,
     effectiveEmbeddingStr,
     'workers-ai',
-    '@cf/baai/bge-large-en-v1.5',
+    '@cf/baai/bge-m3',
   )
 
   // 3. Resolve chat model

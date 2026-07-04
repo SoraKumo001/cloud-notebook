@@ -1,5 +1,6 @@
 // packages/backend/src/providers.ts
 // AI provider abstraction layer — Workers AI / OpenAI / Anthropic / Google AI.
+import modelsConfig from '../models.json'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,7 +37,7 @@ export interface ScriptProvider {
 // Default embedding model for Workers AI
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_EMBED_MODEL = '@cf/baai/bge-large-en-v1.5'
+export const DEFAULT_EMBED_MODEL = '@cf/baai/bge-m3'
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -403,29 +404,53 @@ export async function fetchConnectionModels(
   type: 'chat' | 'embedding' | 'ocr' = 'chat',
 ): Promise<string[]> {
   switch (provider) {
-    case 'workers-ai':
-      if (type === 'embedding') {
-        return [
-          '@cf/baai/bge-large-en-v1.5',
-          '@cf/baai/bge-base-en-v1.5',
-          '@cf/baai/bge-small-en-v1.5',
-          '@cf/baai/bge-m3',
-          '@cf/pfnet/plamo-embedding-1b',
-          '@cf/google/embeddinggemma-300m',
-          '@cf/qwen/qwen3-embedding-0.6b',
-        ]
+    case 'workers-ai': {
+      const apiToken = apiKey
+      const accountId = baseUrl
+
+      if (apiToken && accountId) {
+        try {
+          const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`
+          const res = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          if (res.ok) {
+            const data = (await res.json()) as {
+              success: boolean
+              result: Array<{
+                name: string
+                task: { name: string }
+              }>
+            }
+            if (data.success && Array.isArray(data.result)) {
+              // Map Cloudflare task classifications to application types
+              if (type === 'embedding') {
+                return data.result
+                  .filter((m) => m.task.name === 'Text Embeddings')
+                  .map((m) => m.name)
+              }
+              if (type === 'ocr') {
+                // Workers AI has 'Image-to-Text' task, also include vision LLMs if any
+                return data.result
+                  .filter((m) => m.task.name === 'Image-to-Text' || m.name.includes('vision'))
+                  .map((m) => m.name)
+              }
+              // chat/text-generation
+              return data.result.filter((m) => m.task.name === 'Text Generation').map((m) => m.name)
+            }
+          }
+        } catch (err) {
+          console.error('[workers-ai] Failed to dynamically fetch models from Cloudflare API:', err)
+        }
       }
-      if (type === 'ocr') {
-        return ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/meta/llama-3.2-90b-vision-instruct']
-      }
-      return [
-        '@cf/meta/llama-3.1-8b-instruct-fast',
-        '@cf/meta/llama-3-8b-instruct',
-        '@cf/qwen/qwen1.5-14b-chat',
-        '@cf/mistral/mistral-7b-instruct-v0.2',
-        '@cf/google/gemma-7b-it',
-        '@cf/tinyllama/tinyllama-1.1b-chat-v1.0',
-      ]
+
+      // Fallback to models.json config
+      const fallbackList = modelsConfig['workers-ai']?.[type] || []
+      return fallbackList
+    }
     case 'anthropic':
       if (type === 'embedding') {
         return []

@@ -94,7 +94,7 @@ async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions): Promis
 // Workers AI embedding helpers
 // ---------------------------------------------------------------------------
 
-const EMBEDDING_MODEL = '@cf/baai/bge-large-en-v1.5'
+const EMBEDDING_MODEL = '@cf/baai/bge-m3'
 const DEFAULT_CONCURRENCY = 2
 const DEFAULT_MAX_RETRIES = 3
 const DEFAULT_BASE_DELAY_MS = 500

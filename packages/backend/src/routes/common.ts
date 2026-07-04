@@ -13,6 +13,8 @@ export type Bindings = {
   SESSION_SECRET?: string
   API_KEY_ENCRYPTION_MASTER?: string
   __storage?: ObjectStorage
+  CLOUDFLARE_API_TOKEN?: string
+  CLOUDFLARE_ACCOUNT_ID?: string
 }
 
 export type Variables = {

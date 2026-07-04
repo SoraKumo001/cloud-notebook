@@ -30,7 +30,14 @@ async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promi
       status: res.status,
     } satisfies ApiError
   }
-  return res.json() as Promise<T>
+  if (res.status === 204) {
+    return {} as T
+  }
+  if (typeof res.text !== 'function') {
+    return res.json() as Promise<T>
+  }
+  const text = await res.text()
+  return (text ? JSON.parse(text) : {}) as T
 }
 
 // ── Source status mapping ─────────────────────────────────────────────────────

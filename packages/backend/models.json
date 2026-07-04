@@ -1,0 +1,42 @@
+{
+  "workers-ai": {
+    "embedding": [
+      "@cf/baai/bge-m3",
+      "@cf/qwen/qwen3-embedding-0.6b",
+      "@cf/pfnet/plamo-embedding-1b",
+      "@cf/baai/bge-small-en-v1.5",
+      "@cf/baai/bge-base-en-v1.5",
+      "@cf/google/embeddinggemma-300m",
+      "@cf/baai/bge-large-en-v1.5"
+    ],
+    "ocr": ["@cf/llava-hf/llava-1.5-7b-hf", "@cf/meta/llama-3.2-11b-vision-instruct"],
+    "chat": [
+      "@cf/openai/gpt-oss-120b",
+      "@cf/google/gemma-2b-it-lora",
+      "@cf/meta/llama-3.2-3b-instruct",
+      "@cf/meta/llama-guard-3-8b",
+      "@cf/mistral/mistral-7b-instruct-v0.2-lora",
+      "@cf/moonshotai/kimi-k2.7-code",
+      "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+      "@cf/meta/llama-3.1-8b-instruct-fp8",
+      "@cf/meta/llama-3.2-1b-instruct",
+      "@cf/moonshotai/kimi-k2.6",
+      "@cf/zai-org/glm-4.7-flash",
+      "@cf/meta-llama/llama-2-7b-chat-hf-lora",
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "@cf/ibm-granite/granite-4.0-h-micro",
+      "@cf/qwen/qwen2.5-coder-32b-instruct",
+      "@cf/zai-org/glm-5.2",
+      "@cf/nvidia/nemotron-3-120b-a12b",
+      "@cf/aisingapore/gemma-sea-lion-v4-27b-it",
+      "@cf/qwen/qwen3-30b-a3b-fp8",
+      "@cf/google/gemma-7b-it-lora",
+      "@cf/google/gemma-4-26b-a4b-it",
+      "@cf/mistralai/mistral-small-3.1-24b-instruct",
+      "@cf/meta/llama-3.2-11b-vision-instruct",
+      "@cf/openai/gpt-oss-20b",
+      "@cf/meta/llama-4-scout-17b-16e-instruct",
+      "@cf/qwen/qwq-32b"
+    ]
+  }
+}

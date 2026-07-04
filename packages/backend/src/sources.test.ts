@@ -273,7 +273,7 @@ describe('POST /api/sources/finalize', () => {
 
     // AI.run called with both texts in a single batch (batch size 32)
     expect(mockAiRun).toHaveBeenCalledTimes(1)
-    expect(mockAiRun).toHaveBeenCalledWith('@cf/baai/bge-large-en-v1.5', {
+    expect(mockAiRun).toHaveBeenCalledWith('@cf/baai/bge-m3', {
       text: ['first chunk text', 'second chunk text'],
     })
 

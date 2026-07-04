@@ -6,7 +6,7 @@ export const userSettings = sqliteTable('user_settings', {
   aiProvider: text('ai_provider'),
   aiApiKey: text('ai_api_key'), // Encrypted AES-GCM ciphertext
   aiBaseUrl: text('ai_base_url'),
-  aiEmbeddingModel: text('ai_embedding_model').notNull().default('@cf/baai/bge-large-en-v1.5'),
+  aiEmbeddingModel: text('ai_embedding_model').notNull().default('@cf/baai/bge-m3'),
   modelChat: text('model_chat').notNull().default('@cf/meta/llama-3.1-8b-instruct-fast'),
   modelSummarization: text('model_summarization')
     .notNull()

@@ -198,7 +198,7 @@ describe('PATCH /api/notebooks/:id', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ai_provider: 'workers-ai',
-          ai_embedding_model: '@cf/baai/bge-large-en-v1.5',
+          ai_embedding_model: '@cf/baai/bge-m3',
           model_chat: '@cf/meta/llama-3.1-8b-instruct-fast',
           model_summarization: '@cf/meta/llama-3.1-8b-instruct-fast',
         }),
@@ -208,7 +208,7 @@ describe('PATCH /api/notebooks/:id', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, unknown>
     expect(body.ai_provider).toBe('workers-ai')
-    expect(body.ai_embedding_model).toBe('@cf/baai/bge-large-en-v1.5')
+    expect(body.ai_embedding_model).toBe('@cf/baai/bge-m3')
     expect(body.model_chat).toBe('@cf/meta/llama-3.1-8b-instruct-fast')
   })
 
