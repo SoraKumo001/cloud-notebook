@@ -1,5 +1,6 @@
 import { zValidator } from '@hono/zod-validator'
 import { desc, eq, sql } from 'drizzle-orm'
+import type { SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { notebooks, notes } from '../db/schema'
@@ -151,14 +152,11 @@ router.patch(
       return errorResponse(c, ErrorCode.NoteNotFound, 'Note not found', 404)
     }
 
-    const updates: Record<string, unknown> = { updatedAt: sql`(current_timestamp)` }
+    const updates: SQLiteUpdateSetSource<typeof notes> = { updatedAt: sql`(current_timestamp)` }
     if (body.title !== undefined) updates.title = body.title.trim()
     if (body.content !== undefined) updates.content = body.content
 
-    await db
-      .update(notes)
-      .set(updates as any)
-      .where(eq(notes.id, noteId))
+    await db.update(notes).set(updates).where(eq(notes.id, noteId))
 
     const [updated] = await db
       .select({

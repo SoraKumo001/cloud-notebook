@@ -3,6 +3,7 @@
 
 import { zValidator } from '@hono/zod-validator'
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm'
+import type { SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { encryptApiKey } from '../../crypto'
@@ -184,7 +185,7 @@ router.patch(
       return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
-    const updates: Record<string, unknown> = { updatedAt: sql`(current_timestamp)` }
+    const updates: SQLiteUpdateSetSource<typeof notebooks> = { updatedAt: sql`(current_timestamp)` }
     if (body.title !== undefined) updates.title = body.title.trim()
     if (body.description !== undefined) updates.description = body.description
 
@@ -226,10 +227,7 @@ router.patch(
       }
     }
 
-    await db
-      .update(notebooks)
-      .set(updates as any)
-      .where(eq(notebooks.id, id))
+    await db.update(notebooks).set(updates).where(eq(notebooks.id, id))
 
     const [updated] = await db
       .select({

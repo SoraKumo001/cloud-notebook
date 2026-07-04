@@ -3,6 +3,7 @@
 
 import { zValidator } from '@hono/zod-validator'
 import { and, asc, desc, eq, inArray } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { encryptApiKey } from '../../crypto'
@@ -116,14 +117,13 @@ router.post(
     }
 
     // Update display_order in source order using batch
-    await db.batch(
-      sourceIds.map((sid, i) =>
-        db
-          .update(sources)
-          .set({ displayOrder: i })
-          .where(and(eq(sources.id, sid), eq(sources.notebookId, id))),
-      ) as any,
+    const queries: BatchItem<'sqlite'>[] = sourceIds.map((sid, i) =>
+      db
+        .update(sources)
+        .set({ displayOrder: i })
+        .where(and(eq(sources.id, sid), eq(sources.notebookId, id))),
     )
+    await db.batch(queries as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
 
     return c.json({ ok: true })
   },

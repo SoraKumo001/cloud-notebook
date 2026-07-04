@@ -3,6 +3,7 @@
 
 import { zValidator } from '@hono/zod-validator'
 import { eq } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { formatSSE } from '../../chat'
@@ -170,17 +171,16 @@ router.post(
             pageNumber: chunk.pageNumber ?? null,
           }))
 
-          await db.batch(
-            chunkRecords.map((rec) =>
-              db.insert(sourceChunks).values({
-                id: rec.id,
-                sourceId,
-                notebookId,
-                content: rec.content,
-                pageNumber: rec.pageNumber,
-              }),
-            ) as any,
+          const chunkQueries: BatchItem<'sqlite'>[] = chunkRecords.map((rec) =>
+            db.insert(sourceChunks).values({
+              id: rec.id,
+              sourceId,
+              notebookId,
+              content: rec.content,
+              pageNumber: rec.pageNumber,
+            }),
           )
+          await db.batch(chunkQueries as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
 
           const vectors = await embedChunks(
             embedProvider,
@@ -201,17 +201,16 @@ router.post(
         }
 
         if (images.length > 0) {
-          await db.batch(
-            images.map((img) =>
-              db.insert(sourceImages).values({
-                id: crypto.randomUUID(),
-                sourceId,
-                notebookId,
-                r2Key: img.r2Key,
-                pageNumber: img.pageNumber ?? null,
-              }),
-            ) as any,
+          const imageQueries: BatchItem<'sqlite'>[] = images.map((img) =>
+            db.insert(sourceImages).values({
+              id: crypto.randomUUID(),
+              sourceId,
+              notebookId,
+              r2Key: img.r2Key,
+              pageNumber: img.pageNumber ?? null,
+            }),
           )
+          await db.batch(imageQueries as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
         }
 
         await db.update(sources).set({ status: 'completed' }).where(eq(sources.id, sourceId))

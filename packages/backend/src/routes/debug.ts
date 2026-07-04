@@ -47,7 +47,9 @@ router.get('/debug/health', async (c) => {
 
   // 4. Workers AI Check
   try {
-    const aiRes = (await c.env.AI.run('@cf/baai/bge-large-en-v1.5', { text: ['test'] })) as any
+    const aiRes = (await c.env.AI.run('@cf/baai/bge-large-en-v1.5', { text: ['test'] })) as {
+      data?: unknown[]
+    }
     if (aiRes?.data) {
       results.ai = { status: 'ok' }
     } else {

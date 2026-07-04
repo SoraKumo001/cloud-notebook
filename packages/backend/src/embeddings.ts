@@ -186,7 +186,9 @@ export function getEmbeddingProvider(
   if (provider === 'workers-ai') {
     return {
       embed: async (texts: string[]) => {
-        const result = await env.AI.run((model as any) || EMBEDDING_MODEL, { text: texts })
+        const result = await env.AI.run((model as keyof Ai) || (EMBEDDING_MODEL as keyof Ai), {
+          text: texts,
+        })
         const output = result as { data?: number[][]; shape?: number[] }
         const data = output.data
         if (!data || data.length === 0) {

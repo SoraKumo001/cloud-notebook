@@ -60,6 +60,24 @@ function getContentType(type: SourceType): string {
   }
 }
 
+// ── Pure utility functions (hoisted for stability) ──────────────────────────
+
+function deriveWebpageFileName(url: string): string {
+  try {
+    const { hostname } = new URL(url)
+    return `webpage-${hostname.replace(/[^a-zA-Z0-9.-]/g, '_')}.txt`
+  } catch {
+    return 'webpage.txt'
+  }
+}
+
+async function calculateHash(fileOrBlob: File | Blob): Promise<string> {
+  const arrayBuffer = await fileOrBlob.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 // ── Concurrency helper ───────────────────────────────────────────────────────
 
 /**
@@ -171,7 +189,7 @@ export function useIngestPipeline(notebookId: string, userId: string) {
 
   // ---- helpers ---------------------------------------------------------------
 
-  function initProgress(files: File[]) {
+  const initProgress = useCallback((files: File[]) => {
     setProgress((prev) => {
       const existingNames = new Set(prev.map((p) => p.fileName))
       const newItems: IngestProgressItem[] = files
@@ -183,9 +201,9 @@ export function useIngestPipeline(notebookId: string, userId: string) {
         }))
       return [...prev, ...newItems]
     })
-  }
+  }, [])
 
-  function updateFile(fileName: string, patch: Partial<IngestProgressItem>) {
+  const updateFile = useCallback((fileName: string, patch: Partial<IngestProgressItem>) => {
     setProgress((prev) => {
       const oldItem = prev.find((p) => p.fileName === fileName)
 
@@ -207,206 +225,196 @@ export function useIngestPipeline(notebookId: string, userId: string) {
 
       return prev.map((p) => (p.fileName === fileName ? { ...p, ...patch } : p))
     })
-  }
-
-  function deriveWebpageFileName(url: string): string {
-    try {
-      const { hostname } = new URL(url)
-      return `webpage-${hostname.replace(/[^a-zA-Z0-9.-]/g, '_')}.txt`
-    } catch {
-      return 'webpage.txt'
-    }
-  }
-
-  async function calculateHash(fileOrBlob: File | Blob): Promise<string> {
-    const arrayBuffer = await fileOrBlob.arrayBuffer()
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-  }
+  }, [])
 
   // ---- per-file pipeline -----------------------------------------------------
 
-  async function processFile(file: File): Promise<void> {
-    const fileName = file.name
-    const sourceId = crypto.randomUUID()
+  const processFile = useCallback(
+    async (file: File): Promise<void> => {
+      const fileName = file.name
+      const sourceId = crypto.randomUUID()
 
-    try {
-      // a) Detect source type
-      updateFile(fileName, { status: 'parsing', percent: 5 })
-      const sourceType = detectSourceType(file)
-      const contentType = getContentType(sourceType)
+      try {
+        // a) Detect source type
+        updateFile(fileName, { status: 'parsing', percent: 5 })
+        const sourceType = detectSourceType(file)
+        const contentType = getContentType(sourceType)
 
-      // b) Parse file
-      updateFile(fileName, { status: 'parsing', percent: 10 })
-      const parsed = await parseFile(file, sourceType)
+        // b) Parse file
+        updateFile(fileName, { status: 'parsing', percent: 10 })
+        const parsed = await parseFile(file, sourceType)
 
-      // Calculate file hash
-      const fileHash = await calculateHash(file)
+        // Calculate file hash
+        const fileHash = await calculateHash(file)
 
-      // d) Chunk extracted text (tokenizer is dynamically imported to reduce bundle size)
-      updateFile(fileName, { status: 'parsing', percent: 15 })
-      const { chunkText } = await import('../lib/tokenizer')
-      const chunks = chunkText(parsed.fullText)
+        // d) Chunk extracted text (tokenizer is dynamically imported to reduce bundle size)
+        updateFile(fileName, { status: 'parsing', percent: 15 })
+        const { chunkText } = await import('../lib/tokenizer')
+        const chunks = chunkText(parsed.fullText)
 
-      const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
+        const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
 
-      // e) Upload original file to R2 via Worker proxy (avoids the
-      //    *.r2.cloudflarestorage.com CORS preflight issue)
-      updateFile(fileName, { status: 'uploading', percent: 20 })
-      const fileUploadRes = await fetch(
-        `/api/uploads/direct?key=${encodeURIComponent(r2Key)}&contentType=${encodeURIComponent(contentType)}`,
-        {
-          method: 'POST',
-          body: file,
-          headers: { 'Content-Type': contentType },
-        },
-      )
-      if (!fileUploadRes.ok) {
-        throw new Error(`File upload failed (${fileUploadRes.status})`)
-      }
+        // e) Upload original file to R2 via Worker proxy (avoids the
+        //    *.r2.cloudflarestorage.com CORS preflight issue)
+        updateFile(fileName, { status: 'uploading', percent: 20 })
+        const fileUploadRes = await fetch(
+          `/api/uploads/direct?key=${encodeURIComponent(r2Key)}&contentType=${encodeURIComponent(contentType)}`,
+          {
+            method: 'POST',
+            body: file,
+            headers: { 'Content-Type': contentType },
+          },
+        )
+        if (!fileUploadRes.ok) {
+          throw new Error(`File upload failed (${fileUploadRes.status})`)
+        }
 
-      // g) Upload page images concurrently (pool size = 4)
-      const imagePages = parsed.pages.filter((p) => p.imageBlob != null)
+        // g) Upload page images concurrently (pool size = 4)
+        const imagePages = parsed.pages.filter((p) => p.imageBlob != null)
 
-      const uploadedImages: UploadedImageInfo[] = []
-      if (imagePages.length > 0) {
-        updateFile(fileName, { status: 'uploading', percent: 50 })
+        const uploadedImages: UploadedImageInfo[] = []
+        if (imagePages.length > 0) {
+          updateFile(fileName, { status: 'uploading', percent: 50 })
 
-        await asyncPool(imagePages, 4, async (page) => {
-          const imageFileName = `page-${page.pageNumber}.jpg`
-          const imageR2Key = `notebooks/${notebookId}/sources/${sourceId}/${imageFileName}`
+          await asyncPool(imagePages, 4, async (page) => {
+            const imageFileName = `page-${page.pageNumber}.jpg`
+            const imageR2Key = `notebooks/${notebookId}/sources/${sourceId}/${imageFileName}`
 
-          // Upload
-          const imgUploadRes = await fetch(
-            `/api/uploads/direct?key=${encodeURIComponent(imageR2Key)}&contentType=image/jpeg`,
-            {
-              method: 'POST',
-              // biome-ignore lint/style/noNonNullAssertion: filtered by imageBlob != null above
-              body: page.imageBlob!,
-              headers: { 'Content-Type': 'image/jpeg' },
-            },
-          )
-          if (!imgUploadRes.ok) {
-            throw new Error(
-              `Image upload failed for page ${page.pageNumber} (${imgUploadRes.status})`,
+            // Upload
+            const imgUploadRes = await fetch(
+              `/api/uploads/direct?key=${encodeURIComponent(imageR2Key)}&contentType=image/jpeg`,
+              {
+                method: 'POST',
+                // biome-ignore lint/style/noNonNullAssertion: filtered by imageBlob != null above
+                body: page.imageBlob!,
+                headers: { 'Content-Type': 'image/jpeg' },
+              },
             )
-          }
+            if (!imgUploadRes.ok) {
+              throw new Error(
+                `Image upload failed for page ${page.pageNumber} (${imgUploadRes.status})`,
+              )
+            }
 
-          uploadedImages.push({ r2Key: imageR2Key, pageNumber: page.pageNumber })
+            uploadedImages.push({ r2Key: imageR2Key, pageNumber: page.pageNumber })
+          })
+        }
+
+        // h) Finalize source
+        updateFile(fileName, { status: 'finalizing', percent: 50 })
+        const finalizeRes = await fetch('/api/sources/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            notebookId,
+            sourceId,
+            userId,
+            fileName,
+            type: sourceType,
+            hash: fileHash,
+            chunks: chunks.map((c) => ({ content: c.content })),
+            images: uploadedImages.map((img) => ({
+              r2Key: img.r2Key,
+              pageNumber: img.pageNumber,
+            })),
+          }),
+        })
+        if (!finalizeRes.ok) {
+          throw new Error(`Finalize failed (${finalizeRes.status})`)
+        }
+
+        await readFinalizeStream(finalizeRes, (streamPercent) => {
+          const scaledPercent = 50 + Math.round(streamPercent * 0.45)
+          updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
+        })
+
+        updateFile(fileName, { status: 'done', percent: 100 })
+      } catch (err) {
+        updateFile(fileName, {
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+          percent: 100,
         })
       }
+    },
+    [notebookId, userId, updateFile],
+  )
 
-      // h) Finalize source
-      updateFile(fileName, { status: 'finalizing', percent: 50 })
-      const finalizeRes = await fetch('/api/sources/finalize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notebookId,
-          sourceId,
-          userId,
-          fileName,
-          type: sourceType,
-          hash: fileHash,
-          chunks: chunks.map((c) => ({ content: c.content })),
-          images: uploadedImages.map((img) => ({
-            r2Key: img.r2Key,
-            pageNumber: img.pageNumber,
-          })),
-        }),
-      })
-      if (!finalizeRes.ok) {
-        throw new Error(`Finalize failed (${finalizeRes.status})`)
-      }
+  const processWebpage = useCallback(
+    async (url: string): Promise<void> => {
+      const fileName = deriveWebpageFileName(url)
+      const sourceId = crypto.randomUUID()
 
-      await readFinalizeStream(finalizeRes, (streamPercent) => {
-        const scaledPercent = 50 + Math.round(streamPercent * 0.45)
-        updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
-      })
+      try {
+        // a) Pending → Parsing
+        updateFile(fileName, { status: 'parsing', percent: 5 })
 
-      updateFile(fileName, { status: 'done', percent: 100 })
-    } catch (err) {
-      updateFile(fileName, {
-        status: 'error',
-        error: err instanceof Error ? err.message : String(err),
-        percent: 100,
-      })
-    }
-  }
+        // b) Parse webpage via backend proxy
+        updateFile(fileName, { status: 'parsing', percent: 10 })
+        const parsed = await parseWebpage(url)
 
-  async function processWebpage(url: string): Promise<void> {
-    const fileName = deriveWebpageFileName(url)
-    const sourceId = crypto.randomUUID()
+        // c) Chunk extracted text (tokenizer is dynamically imported to reduce bundle size)
+        updateFile(fileName, { status: 'parsing', percent: 15 })
+        const { chunkText } = await import('../lib/tokenizer')
+        const chunks = chunkText(parsed.fullText)
 
-    try {
-      // a) Pending → Parsing
-      updateFile(fileName, { status: 'parsing', percent: 5 })
+        // d) Create a text blob from the extracted content
+        const textBlob = new Blob([parsed.fullText], { type: 'text/plain' })
+        const fileHash = await calculateHash(textBlob)
 
-      // b) Parse webpage via backend proxy
-      updateFile(fileName, { status: 'parsing', percent: 10 })
-      const parsed = await parseWebpage(url)
+        const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
 
-      // c) Chunk extracted text (tokenizer is dynamically imported to reduce bundle size)
-      updateFile(fileName, { status: 'parsing', percent: 15 })
-      const { chunkText } = await import('../lib/tokenizer')
-      const chunks = chunkText(parsed.fullText)
+        // e) Upload text to R2 via Worker proxy
+        updateFile(fileName, { status: 'uploading', percent: 20 })
+        const fileUploadRes = await fetch(
+          `/api/uploads/direct?key=${encodeURIComponent(r2Key)}&contentType=text/plain`,
+          {
+            method: 'POST',
+            body: textBlob,
+            headers: { 'Content-Type': 'text/plain' },
+          },
+        )
+        if (!fileUploadRes.ok) {
+          throw new Error(`File upload failed (${fileUploadRes.status})`)
+        }
 
-      // d) Create a text blob from the extracted content
-      const textBlob = new Blob([parsed.fullText], { type: 'text/plain' })
-      const fileHash = await calculateHash(textBlob)
-
-      const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
-
-      // e) Upload text to R2 via Worker proxy
-      updateFile(fileName, { status: 'uploading', percent: 20 })
-      const fileUploadRes = await fetch(
-        `/api/uploads/direct?key=${encodeURIComponent(r2Key)}&contentType=text/plain`,
-        {
+        // g) Finalize source
+        updateFile(fileName, { status: 'finalizing', percent: 50 })
+        const finalizeRes = await fetch('/api/sources/finalize', {
           method: 'POST',
-          body: textBlob,
-          headers: { 'Content-Type': 'text/plain' },
-        },
-      )
-      if (!fileUploadRes.ok) {
-        throw new Error(`File upload failed (${fileUploadRes.status})`)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            notebookId,
+            sourceId,
+            userId,
+            fileName,
+            type: 'webpage',
+            url,
+            hash: fileHash,
+            chunks: chunks.map((c) => ({ content: c.content })),
+            images: [],
+          }),
+        })
+        if (!finalizeRes.ok) {
+          throw new Error(`Finalize failed (${finalizeRes.status})`)
+        }
+
+        await readFinalizeStream(finalizeRes, (streamPercent) => {
+          const scaledPercent = 50 + Math.round(streamPercent * 0.45)
+          updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
+        })
+
+        updateFile(fileName, { status: 'done', percent: 100 })
+      } catch (err) {
+        updateFile(fileName, {
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+          percent: 100,
+        })
       }
-
-      // g) Finalize source
-      updateFile(fileName, { status: 'finalizing', percent: 50 })
-      const finalizeRes = await fetch('/api/sources/finalize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notebookId,
-          sourceId,
-          userId,
-          fileName,
-          type: 'webpage',
-          url,
-          hash: fileHash,
-          chunks: chunks.map((c) => ({ content: c.content })),
-          images: [],
-        }),
-      })
-      if (!finalizeRes.ok) {
-        throw new Error(`Finalize failed (${finalizeRes.status})`)
-      }
-
-      await readFinalizeStream(finalizeRes, (streamPercent) => {
-        const scaledPercent = 50 + Math.round(streamPercent * 0.45)
-        updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
-      })
-
-      updateFile(fileName, { status: 'done', percent: 100 })
-    } catch (err) {
-      updateFile(fileName, {
-        status: 'error',
-        error: err instanceof Error ? err.message : String(err),
-        percent: 100,
-      })
-    }
-  }
+    },
+    [notebookId, userId, updateFile],
+  )
 
   // ---- public API ------------------------------------------------------------
 
@@ -427,9 +435,7 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       processingRef.current = false
       setIsProcessing(false)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // biome-ignore lint/correctness/useExhaustiveDependencies: processFile and initProgress are stable via closure; wrapping them in useCallback would cascade unnecessarily
-    [processFile, initProgress],
+    [initProgress, processFile],
   )
 
   const uploadWebpage = useCallback(
@@ -450,9 +456,7 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       processingRef.current = false
       setIsProcessing(false)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // biome-ignore lint/correctness/useExhaustiveDependencies: processWebpage and deriveWebpageFileName are stable via closure
-    [processWebpage, deriveWebpageFileName],
+    [processWebpage],
   )
 
   const clearAllErrors = useCallback(() => {

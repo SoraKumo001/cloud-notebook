@@ -29,7 +29,7 @@ export class WorkersAIChatProvider implements ChatProvider {
     messages: Array<{ role: string; content: string }>
   }): Promise<ReadableStream<Uint8Array>> {
     const sanitized = sanitizeModel(model)
-    const result = await this.env.AI.run(sanitized, { messages, stream: true } as any)
+    const result = await this.env.AI.run(sanitized, { messages, stream: true } as never)
     return result as unknown as ReadableStream
   }
 }
@@ -63,8 +63,8 @@ export class WorkersAIScriptProvider implements ScriptProvider {
     messages: Array<{ role: string; content: string }>
   }): Promise<string> {
     const sanitized = sanitizeModel(model)
-    const result = await this.env.AI.run(sanitized, { messages } as any)
-    return (result as any).response as string
+    const result = await this.env.AI.run(sanitized, { messages } as never)
+    return (result as { response?: string }).response ?? ''
   }
 }
 
@@ -92,7 +92,7 @@ export class WorkersAiOcrProvider implements OcrProvider {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        aiRes = await this.env.AI.run(sanitized as any, {
+        aiRes = await this.env.AI.run(sanitized as keyof ProviderEnv['AI'], {
           image: Array.from(new Uint8Array(imageBuffer)),
           prompt,
         })
@@ -102,7 +102,7 @@ export class WorkersAiOcrProvider implements OcrProvider {
         lastError = err
         const errStr = String(err)
         if (errStr.includes("submit the prompt 'agree'") || errStr.includes('5016')) {
-          await this.env.AI.run(sanitized as any, { prompt: 'agree' })
+          await this.env.AI.run(sanitized as keyof ProviderEnv['AI'], { prompt: 'agree' })
           attempt-- // Reset attempt count for license agreement flow
           continue
         }
