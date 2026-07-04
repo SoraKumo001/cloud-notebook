@@ -4,7 +4,7 @@
 
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { createDb } from './db/client'
-import { chatMessages, chatSessions, notebooks, notes, sourceChunks, sources } from './db/schema'
+import { chatMessages, chatSessions, notebooks, notes, sourceChunks, sources, userSettings } from './db/schema'
 import { getEffectiveAiConfig } from './db/settings'
 import { embedChunks, embedQuery, getEmbeddingProvider } from './embeddings'
 import { ErrorCode } from './errors'
@@ -39,6 +39,7 @@ interface NotebookRow {
   embedding_api_key?: string | null
   embedding_base_url?: string | null
   embedding_model?: string | null
+  system_prompt?: string | null
 }
 
 interface VectorizeMatchResult {
@@ -142,6 +143,7 @@ async function getNotebookCached(env: ChatEnv, notebookId: string): Promise<Note
           ai_embedding_model: notebooks.aiEmbeddingModel,
           model_chat: notebooks.modelChat,
           model_summarization: notebooks.modelSummarization,
+          system_prompt: notebooks.systemPrompt,
         })
         .from(notebooks)
         .where(eq(notebooks.id, notebookId))
@@ -167,6 +169,7 @@ async function getNotebookCached(env: ChatEnv, notebookId: string): Promise<Note
         embedding_api_key: effectiveConfig.embedding.apiKey,
         embedding_base_url: effectiveConfig.embedding.baseUrl,
         embedding_model: effectiveConfig.embedding.model,
+        system_prompt: notebookRaw.system_prompt,
       }
 
       const response = new Response(JSON.stringify(notebook), {
@@ -190,6 +193,7 @@ async function getNotebookCached(env: ChatEnv, notebookId: string): Promise<Note
       ai_embedding_model: notebooks.aiEmbeddingModel,
       model_chat: notebooks.modelChat,
       model_summarization: notebooks.modelSummarization,
+      system_prompt: notebooks.systemPrompt,
     })
     .from(notebooks)
     .where(eq(notebooks.id, notebookId))
@@ -215,6 +219,7 @@ async function getNotebookCached(env: ChatEnv, notebookId: string): Promise<Note
     embedding_api_key: effectiveConfig.embedding.apiKey,
     embedding_base_url: effectiveConfig.embedding.baseUrl,
     embedding_model: effectiveConfig.embedding.model,
+    system_prompt: notebookRaw.system_prompt,
   }
 }
 
@@ -371,9 +376,27 @@ async function runPipeline(
   const notesForContext = noteRows.length > 0 ? noteRows : undefined
 
   // ---- g1. Build prompt ----------------------------------------------------
-  const { system, user } = isFallback
+  const defaultPromptPair = isFallback
     ? buildGeneralPrompt(query, notesForContext)
     : buildRagPrompt(query, chunks, notesForContext)
+
+  // 3-tier fallback prompt resolution
+  // 1. Notebook-level prompt
+  // 2. Global default prompt (user_settings)
+  // 3. Built-in system prompt
+  const [globalSettings] = await db
+    .select({ systemPrompt: userSettings.systemPrompt })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1)
+
+  const finalSystemPrompt =
+    notebook.system_prompt?.trim() ||
+    globalSettings?.systemPrompt?.trim() ||
+    defaultPromptPair.system
+
+  const system = finalSystemPrompt
+  const user = defaultPromptPair.user
 
   // ---- h. Session management -----------------------------------------------
   let activeSessionId: string

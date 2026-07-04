@@ -77,10 +77,22 @@ export class R2BindingAdapter implements ObjectStorage {
   async delete(keys: string | string[]): Promise<void> {
     const arr = Array.isArray(keys) ? keys : [keys]
     if (arr.length === 0) return
-    // R2 supports batch delete of up to 1000 keys natively. The
-    // return value is ignored: best-effort, never throws (the binding
-    // already silently no-ops on missing keys).
-    await this.bucket.delete(arr as [string, ...string[]])
+
+    // Perform individual deletes using Promise.all to guarantee execution
+    // across all environments (especially the local Wrangler dev server which
+    // has issues with batch deletes in some versions).
+    await Promise.all(
+      arr.map(async (key) => {
+        try {
+          await this.bucket.delete(key)
+        } catch (err) {
+          console.error(
+            `[storage] R2 delete failed for key=${key}:`,
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })
+    )
   }
 
   async healthCheck(): Promise<void> {

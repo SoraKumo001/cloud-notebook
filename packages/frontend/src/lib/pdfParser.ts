@@ -45,7 +45,13 @@ export async function parsePDF(
   extractImages: boolean = true,
 ): Promise<PDFParseResult> {
   const pdfjsLib = await getPdfjsLib()
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+  const loadingTask = pdfjsLib.getDocument({
+    data: arrayBuffer,
+    cMapUrl: 'https://unpkg.com/pdfjs-dist@6.1.200/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@6.1.200/standard_fonts/',
+    wasmUrl: 'https://unpkg.com/pdfjs-dist@6.1.200/wasm/',
+  })
   const pdf = await loadingTask.promise
 
   const pages: ParsedPage[] = []
@@ -81,10 +87,14 @@ export async function parsePDF(
             viewport: viewport,
           }).promise
 
-          imageBlob = await new Promise<Blob>((resolve) => {
+          imageBlob = await new Promise<Blob>((resolve, reject) => {
             canvas.toBlob(
               (blob) => {
-                if (blob) resolve(blob)
+                if (blob) {
+                  resolve(blob)
+                } else {
+                  reject(new Error('Canvas toBlob returned null'))
+                }
               },
               'image/jpeg',
               0.8,

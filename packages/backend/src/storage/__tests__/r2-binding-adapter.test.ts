@@ -102,22 +102,25 @@ describe('R2BindingAdapter', () => {
     expect(await adapter.head('k')).toEqual({ size: 42, contentType: 'text/plain' })
   })
 
-  it('delete() calls binding.delete with a single key as a one-element array', async () => {
+  it('delete() calls binding.delete with a single key', async () => {
     const del = vi.fn().mockResolvedValue(undefined)
     const adapter = new R2BindingAdapter(makeMockBucket({ delete: del }))
 
     await adapter.delete('only-key')
 
-    expect(del).toHaveBeenCalledWith(['only-key'])
+    expect(del).toHaveBeenCalledWith('only-key')
   })
 
-  it('delete() passes multiple keys as one batched call', async () => {
+  it('delete() passes multiple keys as individual calls', async () => {
     const del = vi.fn().mockResolvedValue(undefined)
     const adapter = new R2BindingAdapter(makeMockBucket({ delete: del }))
 
     await adapter.delete(['a', 'b', 'c'])
 
-    expect(del).toHaveBeenCalledWith(['a', 'b', 'c'])
+    expect(del).toHaveBeenCalledWith('a')
+    expect(del).toHaveBeenCalledWith('b')
+    expect(del).toHaveBeenCalledWith('c')
+    expect(del).toHaveBeenCalledTimes(3)
   })
 
   it('delete() noops on empty array without calling the binding', async () => {

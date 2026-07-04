@@ -127,6 +127,7 @@ router.get(
         model_chat: notebooks.modelChat,
         model_summarization: notebooks.modelSummarization,
         model_ocr: notebooks.modelOcr,
+        system_prompt: notebooks.systemPrompt,
         created_at: notebooks.createdAt,
         updated_at: notebooks.updatedAt,
       })
@@ -369,6 +370,7 @@ router.patch(
       model_chat: z.string().max(100).nullable().optional(),
       model_summarization: z.string().max(100).nullable().optional(),
       model_ocr: z.string().max(100).nullable().optional(),
+      system_prompt: z.string().max(4000).nullable().optional(),
       ai_api_key: z.string().nullable().optional(),
     }),
     vHook,
@@ -418,6 +420,7 @@ router.patch(
       updates.modelSummarization = body.model_summarization ? body.model_summarization.trim() : null
     if (body.model_ocr !== undefined)
       updates.modelOcr = body.model_ocr ? body.model_ocr.trim() : null
+    if (body.system_prompt !== undefined) updates.systemPrompt = body.system_prompt
 
     // Encrypt API key if provided
     if (body.ai_api_key !== undefined) {
@@ -447,6 +450,7 @@ router.patch(
         model_chat: notebooks.modelChat,
         model_summarization: notebooks.modelSummarization,
         model_ocr: notebooks.modelOcr,
+        system_prompt: notebooks.systemPrompt,
         created_at: notebooks.createdAt,
         updated_at: notebooks.updatedAt,
       })

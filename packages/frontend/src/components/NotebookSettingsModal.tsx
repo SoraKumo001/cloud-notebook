@@ -13,6 +13,7 @@ export interface NotebookSettingsNotebook {
   model_chat?: string | null
   model_summarization?: string | null
   model_ocr?: string | null
+  system_prompt?: string | null
   [key: string]: unknown
 }
 
@@ -55,6 +56,7 @@ export function NotebookSettingsModal({
     notebook.model_summarization ?? 'inherit',
   )
   const [ocrModel, setOcrModel] = React.useState(notebook.model_ocr ?? 'inherit')
+  const [systemPrompt, setSystemPrompt] = React.useState(notebook.system_prompt ?? '')
 
   const [chatGroupCandidates, setChatGroupCandidates] = React.useState<ProviderModels[]>([])
   const [embeddingGroupCandidates, setEmbeddingGroupCandidates] = React.useState<ProviderModels[]>(
@@ -216,6 +218,7 @@ export function NotebookSettingsModal({
       setChatModel(notebook.model_chat ?? 'inherit')
       setSummarizationModel(notebook.model_summarization ?? 'inherit')
       setOcrModel(notebook.model_ocr ?? 'inherit')
+      setSystemPrompt(notebook.system_prompt ?? '')
       setNeedsReindex(false)
       setReindexDone(false)
       setError(null)
@@ -249,6 +252,7 @@ export function NotebookSettingsModal({
       model_summarization:
         summarizationModel === 'inherit' ? null : summarizationModel.trim() || null,
       model_ocr: ocrModel === 'inherit' ? null : ocrModel.trim() || null,
+      system_prompt: systemPrompt.trim() || null,
     }
 
     try {
@@ -548,6 +552,30 @@ export function NotebookSettingsModal({
                     inheritLabel={t('notebookSettings.useGlobal')}
                   />
                 )}
+              </div>
+
+              {/* System Prompt Override */}
+              <div className='space-y-2'>
+                <label
+                  htmlFor='settings-system-prompt'
+                  className='block text-sm font-medium text-base-content/70'
+                >
+                  {t('notebookSettings.systemPrompt', { defaultValue: 'System Prompt' })}
+                </label>
+                <textarea
+                  id='settings-system-prompt'
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  disabled={isSaving}
+                  placeholder={t('notebookSettings.systemPromptPlaceholder', {
+                    defaultValue: 'Leave blank to inherit the global default system prompt...',
+                  })}
+                  rows={4}
+                  className='w-full textarea textarea-bordered font-mono text-sm resize-y rounded-xl'
+                />
+                <p className='text-[10px] text-base-content/50 leading-relaxed'>
+                  You can specify custom system instructions for this notebook. Leave empty to use the global settings configuration.
+                </p>
               </div>
             </div>
           </div>

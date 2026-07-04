@@ -15,6 +15,7 @@ export const notebooks = sqliteTable(
     modelChat: text('model_chat'),
     modelSummarization: text('model_summarization'),
     modelOcr: text('model_ocr'),
+    systemPrompt: text('system_prompt'),
     mcpToken: text('mcp_token'),
     createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
     updatedAt: text('updated_at').notNull().default(sql`(current_timestamp)`),

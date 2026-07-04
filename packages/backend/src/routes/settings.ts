@@ -29,6 +29,7 @@ router.get('/settings', async (c) => {
       model_chat: '@cf/meta/llama-3.1-8b-instruct-fast',
       model_summarization: '@cf/meta/llama-3.1-8b-instruct-fast',
       model_ocr: '@cf/meta/llama-3.2-11b-vision-instruct',
+      system_prompt: null,
     })
   }
 
@@ -37,6 +38,7 @@ router.get('/settings', async (c) => {
     model_chat: settings.modelChat,
     model_summarization: settings.modelSummarization,
     model_ocr: settings.modelOcr,
+    system_prompt: settings.systemPrompt,
   })
 })
 
@@ -50,6 +52,7 @@ router.put(
       model_chat: z.string().min(1).max(200),
       model_summarization: z.string().min(1).max(200),
       model_ocr: z.string().min(1).max(200),
+      system_prompt: z.string().max(4000).nullable().optional(),
     }),
     vHook,
   ),
@@ -63,6 +66,7 @@ router.put(
       modelChat: body.model_chat,
       modelSummarization: body.model_summarization,
       modelOcr: body.model_ocr,
+      systemPrompt: body.system_prompt,
       updatedAt: sql`(current_timestamp)`,
     }
 
@@ -81,6 +85,7 @@ router.put(
         modelChat: updates.modelChat,
         modelSummarization: updates.modelSummarization,
         modelOcr: updates.modelOcr,
+        systemPrompt: updates.systemPrompt,
       })
     }
 

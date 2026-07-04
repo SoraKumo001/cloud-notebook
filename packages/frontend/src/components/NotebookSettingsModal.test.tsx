@@ -135,6 +135,7 @@ describe('NotebookSettingsModal', () => {
         model_chat: 'chat-model',
         model_summarization: 'summary-model',
         model_ocr: null,
+        system_prompt: null,
       }),
     })
     expect(onSaved).toHaveBeenCalled()

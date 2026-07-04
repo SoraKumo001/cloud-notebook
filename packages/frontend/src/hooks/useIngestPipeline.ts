@@ -72,12 +72,19 @@ async function asyncPool<T>(
   fn: (item: T) => Promise<void>,
 ): Promise<void> {
   const queue = [...items]
+  let hasError = false
+  const errors: any[] = []
 
   async function worker(): Promise<void> {
-    while (queue.length > 0) {
+    while (queue.length > 0 && !hasError) {
       // biome-ignore lint/style/noNonNullAssertion: checked queue.length > 0
       const item = queue.shift()!
-      await fn(item)
+      try {
+        await fn(item)
+      } catch (err) {
+        hasError = true
+        errors.push(err)
+      }
     }
   }
 
@@ -85,7 +92,11 @@ async function asyncPool<T>(
     .fill(null)
     .map(() => worker())
 
-  await Promise.all(workers)
+  await Promise.allSettled(workers)
+
+  if (errors.length > 0) {
+    throw errors[0]
+  }
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────

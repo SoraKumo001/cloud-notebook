@@ -531,31 +531,53 @@ class WorkersAiOcrProvider implements OcrProvider {
   }): Promise<string> {
     const sanitized = sanitizeModel(model)
     let aiRes: any
-    try {
-      aiRes = await this.env.AI.run(sanitized as any, {
-        image: Array.from(new Uint8Array(imageBuffer)),
-        prompt,
-      })
-    } catch (err: any) {
-      const errStr = String(err)
-      if (errStr.includes("submit the prompt 'agree'") || errStr.includes("5016")) {
-        console.log(`Model ${model} requires license agreement. Submitting 'agree'...`)
-        await this.env.AI.run(sanitized as any, { prompt: 'agree' })
-        // Retry the original request
+    let lastError: any = null
+    const maxRetries = 3
+    const baseDelay = 500
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
         aiRes = await this.env.AI.run(sanitized as any, {
           image: Array.from(new Uint8Array(imageBuffer)),
           prompt,
         })
-      } else {
-        throw err
+        lastError = null
+        break
+      } catch (err: any) {
+        lastError = err
+        const errStr = String(err)
+        if (errStr.includes("submit the prompt 'agree'") || errStr.includes("5016")) {
+          console.log(`Model ${model} requires license agreement. Submitting 'agree'...`)
+          await this.env.AI.run(sanitized as any, { prompt: 'agree' })
+          attempt-- // Reset attempt count for license agreement flow
+          continue
+        }
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * Math.pow(2, attempt - 1)
+          console.warn(
+            `Workers AI OCR failed (attempt ${attempt}/${maxRetries}) for model ${model}: ${errStr}. Retrying in ${delay}ms...`
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
       }
     }
 
-    if (aiRes?.response) {
+    if (lastError) {
+      throw lastError
+    }
+
+    if (typeof aiRes?.response === 'string') {
       return aiRes.response.trim()
     }
-    if (aiRes?.text) {
+    if (typeof aiRes?.text === 'string') {
       return aiRes.text.trim()
+    }
+    if (aiRes?.response) {
+      return String(aiRes.response).trim()
+    }
+    if (aiRes?.text) {
+      return String(aiRes.text).trim()
     }
     return ''
   }

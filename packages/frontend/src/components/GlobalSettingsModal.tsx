@@ -19,6 +19,7 @@ export interface GlobalSettings {
   model_chat: string
   model_summarization: string
   model_ocr: string
+  system_prompt?: string | null
 }
 
 export interface Connection {
@@ -29,6 +30,21 @@ export interface Connection {
   base_url: string | null
   created_at: string
 }
+
+export const DEFAULT_SYSTEM_PROMPT = [
+  'You are a precise research assistant that answers questions based solely on the provided document context.',
+  "ALWAYS respond in the same language as the user's question (e.g., if the user asks in Japanese, your entire response must be in Japanese).",
+  '',
+  'Rules:',
+  '1. ONLY use information present in the "Context" blocks below. Do not use any external or prior knowledge.',
+  '2. If the answer cannot be found in the context, respond ONLY with: "The provided documents do not contain that information." (or respond ONLY with: "提供されたドキュメントにはその情報が含まれていません。" if the question is in Japanese). Do not add any extra text or translations to this disclaimer.',
+  '3. If the user asks for examples, summary, overview, or specific parts of the documents, retrieve and present the actual text/content from the provided context as examples.',
+  '4. When citing information, use the citation numbers shown in the context, e.g. [1], [2]. Cite every factual claim.',
+  '5. Be concise. Answer in one paragraph unless the question explicitly asks for a detailed breakdown.',
+  '6. Never invent sources, authors, dates, or numbers that are not present in the context.',
+  '7. If the context contains contradictory information, point out the contradiction with citations.',
+  '8. The user may have written notes about this topic. If notes are provided alongside source documents, treat the notes as authoritative context.',
+].join('\n')
 
 interface GlobalSettingsModalProps {
   isOpen: boolean
@@ -63,6 +79,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
     'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast',
   )
   const [ocrModel, setOcrModel] = React.useState('@cf/meta/llama-3.2-11b-vision-instruct')
+  const [systemPrompt, setSystemPrompt] = React.useState('')
 
   // Connection List States
   const [connections, setConnections] = React.useState<Connection[]>([])
@@ -121,6 +138,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
         settingsData.model_summarization || 'workers-ai:@cf/meta/llama-3.1-8b-instruct-fast',
       )
       setOcrModel(settingsData.model_ocr || 'workers-ai:@cf/meta/llama-3.2-11b-vision-instruct')
+      setSystemPrompt(settingsData.system_prompt || DEFAULT_SYSTEM_PROMPT)
 
       // 2. Fetch Connections
       const connRes = await fetch('/api/connections')
@@ -325,6 +343,7 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
           model_chat: chatModel.trim(),
           model_summarization: summarizationModel.trim(),
           model_ocr: ocrModel.trim(),
+          system_prompt: systemPrompt.trim() || null,
         }),
       })
 
@@ -627,6 +646,26 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                       disabled={modelsLoading}
                     />
                   )}
+                </div>
+
+                {/* Default System Prompt */}
+                <div>
+                  <label className='label py-0' htmlFor='settings-system-prompt'>
+                    <span className='label-text font-semibold text-base-content/75 text-xs'>
+                      {t('globalSettings.defaultSystemPrompt', { defaultValue: 'Default System Prompt' })}
+                    </span>
+                  </label>
+                  <textarea
+                    id='settings-system-prompt'
+                    className='textarea textarea-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none focus:border-primary/60 min-h-[100px] font-mono mt-1'
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="Enter custom instructions for the AI (RAG and general chat)..."
+                    disabled={modelsLoading}
+                  />
+                  <p className='text-[10px] text-base-content/50 mt-1 leading-relaxed'>
+                    This system prompt will be used as the default behavior for all notebooks unless overridden individually.
+                  </p>
                 </div>
               </div>
 
