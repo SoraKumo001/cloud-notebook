@@ -99,6 +99,68 @@ async function asyncPool<T>(
   }
 }
 
+async function readFinalizeStream(
+  response: Response,
+  onProgress: (percent: number, current?: number, total?: number) => void,
+): Promise<void> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    try {
+      const data = await response.json()
+      if (data && data.status === 'failed') {
+        throw new Error(data.error || 'Finalize failed')
+      }
+      onProgress(100)
+      return
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('Finalize failed')) {
+        throw err
+      }
+      throw new Error('Response body stream is not readable')
+    }
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let currentEvent = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+
+        if (trimmed.startsWith('event: ')) {
+          currentEvent = trimmed.slice(7).trim()
+        } else if (trimmed.startsWith('data: ')) {
+          const rawData = trimmed.slice(6).trim()
+          try {
+            const data = JSON.parse(rawData)
+            if (currentEvent === 'progress') {
+              onProgress(data.percent, data.current, data.total)
+            } else if (currentEvent === 'done') {
+              return
+            } else if (currentEvent === 'error') {
+              throw new Error(data.message || 'Unknown server error during finalization')
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useIngestPipeline(notebookId: string, userId: string) {
@@ -236,7 +298,7 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       }
 
       // h) Finalize source
-      updateFile(fileName, { status: 'finalizing', percent: 85 })
+      updateFile(fileName, { status: 'finalizing', percent: 50 })
       const finalizeRes = await fetch('/api/sources/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -257,6 +319,11 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       if (!finalizeRes.ok) {
         throw new Error(`Finalize failed (${finalizeRes.status})`)
       }
+
+      await readFinalizeStream(finalizeRes, (streamPercent) => {
+        const scaledPercent = 50 + Math.round(streamPercent * 0.45)
+        updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
+      })
 
       updateFile(fileName, { status: 'done', percent: 100 })
     } catch (err) {
@@ -306,7 +373,7 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       }
 
       // g) Finalize source
-      updateFile(fileName, { status: 'finalizing', percent: 85 })
+      updateFile(fileName, { status: 'finalizing', percent: 50 })
       const finalizeRes = await fetch('/api/sources/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,6 +392,11 @@ export function useIngestPipeline(notebookId: string, userId: string) {
       if (!finalizeRes.ok) {
         throw new Error(`Finalize failed (${finalizeRes.status})`)
       }
+
+      await readFinalizeStream(finalizeRes, (streamPercent) => {
+        const scaledPercent = 50 + Math.round(streamPercent * 0.45)
+        updateFile(fileName, { status: 'finalizing', percent: scaledPercent })
+      })
 
       updateFile(fileName, { status: 'done', percent: 100 })
     } catch (err) {

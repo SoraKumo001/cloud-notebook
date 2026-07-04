@@ -8,6 +8,39 @@ import type { ObjectStorage } from './storage/interface'
 import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
 
+async function collectSSE(response: Response): Promise<Array<{ event: string; data: unknown }>> {
+  const reader = response.body?.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const events: Array<{ event: string; data: unknown }> = []
+
+  while (true) {
+    if (!reader) break
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const parts = buffer.split('\n\n')
+    buffer = parts.pop() ?? ''
+
+    for (const part of parts) {
+      if (!part.trim()) continue
+      const lines = part.split('\n')
+      let event = ''
+      let dataStr = ''
+      for (const line of lines) {
+        if (line.startsWith('event: ')) event = line.slice(7)
+        else if (line.startsWith('data: ')) dataStr = line.slice(6)
+      }
+      if (dataStr) {
+        events.push({ event, data: JSON.parse(dataStr) })
+      }
+    }
+  }
+
+  return events
+}
+
 /** Build a default no-op storage adapter. Tests override individual methods. */
 function noopStorage(): ObjectStorage {
   return {
@@ -229,12 +262,14 @@ describe('POST /api/sources/finalize', () => {
     )
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as Record<string, unknown>
+    const events = await collectSSE(res)
+    const doneEvent = events.find((e) => e.event === 'done')
+    expect(doneEvent).toBeDefined()
+    const body = doneEvent?.data as Record<string, unknown>
     expect(body.status).toBe('completed')
     expect(body.embedded).toBe(2)
     expect(body.chunks).toBe(2)
     expect(body.images).toBe(1)
-    expect(body.error).toBeUndefined()
 
     // AI.run called with both texts in a single batch (batch size 32)
     expect(mockAiRun).toHaveBeenCalledTimes(1)
@@ -284,11 +319,12 @@ describe('POST /api/sources/finalize', () => {
       env,
     )
 
-    expect(res.status).toBe(500)
-    const body = (await res.json()) as Record<string, unknown>
-    expect(body.status).toBe('failed')
-    expect(body.embedded).toBe(0)
-    expect(body.error).toContain('AI API error')
+    expect(res.status).toBe(200)
+    const events = await collectSSE(res)
+    const errorEvent = events.find((e) => e.event === 'error')
+    expect(errorEvent).toBeDefined()
+    const body = errorEvent?.data as Record<string, unknown>
+    expect(body.message).toContain('AI API error')
     // VECTORIZE should NOT have been called
     expect(mockUpsert).not.toHaveBeenCalled()
   })
@@ -338,7 +374,10 @@ describe('POST /api/sources/finalize', () => {
     )
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as Record<string, unknown>
+    const events = await collectSSE(res)
+    const doneEvent = events.find((e) => e.event === 'done')
+    expect(doneEvent).toBeDefined()
+    const body = doneEvent?.data as Record<string, unknown>
     expect(body.status).toBe('completed')
     expect(body.embedded).toBe(0)
     expect(body.chunks).toBe(0)

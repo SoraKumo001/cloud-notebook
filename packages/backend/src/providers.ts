@@ -416,10 +416,7 @@ export async function fetchConnectionModels(
         ]
       }
       if (type === 'ocr') {
-        return [
-          '@cf/meta/llama-3.2-11b-vision-instruct',
-          '@cf/meta/llama-3.2-90b-vision-instruct',
-        ]
+        return ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/meta/llama-3.2-90b-vision-instruct']
       }
       return [
         '@cf/meta/llama-3.1-8b-instruct-fast',
@@ -510,11 +507,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 export interface OcrProvider {
-  ocr(params: {
-    model: string
-    imageBuffer: ArrayBuffer
-    prompt: string
-  }): Promise<string>
+  ocr(params: { model: string; imageBuffer: ArrayBuffer; prompt: string }): Promise<string>
 }
 
 class WorkersAiOcrProvider implements OcrProvider {
@@ -546,7 +539,7 @@ class WorkersAiOcrProvider implements OcrProvider {
       } catch (err: any) {
         lastError = err
         const errStr = String(err)
-        if (errStr.includes("submit the prompt 'agree'") || errStr.includes("5016")) {
+        if (errStr.includes("submit the prompt 'agree'") || errStr.includes('5016')) {
           console.log(`Model ${model} requires license agreement. Submitting 'agree'...`)
           await this.env.AI.run(sanitized as any, { prompt: 'agree' })
           attempt-- // Reset attempt count for license agreement flow
@@ -554,9 +547,9 @@ class WorkersAiOcrProvider implements OcrProvider {
         }
 
         if (attempt < maxRetries) {
-          const delay = baseDelay * Math.pow(2, attempt - 1)
+          const delay = baseDelay * 2 ** (attempt - 1)
           console.warn(
-            `Workers AI OCR failed (attempt ${attempt}/${maxRetries}) for model ${model}: ${errStr}. Retrying in ${delay}ms...`
+            `Workers AI OCR failed (attempt ${attempt}/${maxRetries}) for model ${model}: ${errStr}. Retrying in ${delay}ms...`,
           )
           await new Promise((resolve) => setTimeout(resolve, delay))
         }
@@ -642,7 +635,7 @@ class OpenAIOcrProvider implements OcrProvider {
         errText.includes('expected text')
       ) {
         throw new Error(
-          `The selected model does not support Vision/images (image_url is not supported by the provider/model). Please choose a Vision-enabled model for OCR. (Original error: ${errText})`
+          `The selected model does not support Vision/images (image_url is not supported by the provider/model). Please choose a Vision-enabled model for OCR. (Original error: ${errText})`,
         )
       }
       throw new Error(`OpenAI OCR API error ${res.status}: ${errText}`)
@@ -771,7 +764,9 @@ class GoogleOcrProvider implements OcrProvider {
         if (!res.ok) {
           const text = await res.text()
           if ((res.status >= 500 || res.status === 429) && attempts < maxAttempts) {
-            console.warn(`Gemini OCR API error ${res.status} (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`)
+            console.warn(
+              `Gemini OCR API error ${res.status} (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`,
+            )
             await new Promise((resolve) => setTimeout(resolve, delay))
             delay *= 2
             continue
@@ -787,7 +782,10 @@ class GoogleOcrProvider implements OcrProvider {
         if (attempts >= maxAttempts) {
           throw err
         }
-        console.warn(`Gemini OCR connection error (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`, err)
+        console.warn(
+          `Gemini OCR connection error (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms...`,
+          err,
+        )
         await new Promise((resolve) => setTimeout(resolve, delay))
         delay *= 2
       }
@@ -814,4 +812,3 @@ export function getOcrProvider(
       throw new Error(`Unknown OCR provider: ${config.provider}`)
   }
 }
-

@@ -652,7 +652,9 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                 <div>
                   <label className='label py-0' htmlFor='settings-system-prompt'>
                     <span className='label-text font-semibold text-base-content/75 text-xs'>
-                      {t('globalSettings.defaultSystemPrompt', { defaultValue: 'Default System Prompt' })}
+                      {t('globalSettings.defaultSystemPrompt', {
+                        defaultValue: 'Default System Prompt',
+                      })}
                     </span>
                   </label>
                   <textarea
@@ -660,11 +662,12 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     className='textarea textarea-bordered w-full rounded-xl bg-base-200 text-sm focus:outline-none focus:border-primary/60 min-h-[100px] font-mono mt-1'
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder="Enter custom instructions for the AI (RAG and general chat)..."
+                    placeholder='Enter custom instructions for the AI (RAG and general chat)...'
                     disabled={modelsLoading}
                   />
                   <p className='text-[10px] text-base-content/50 mt-1 leading-relaxed'>
-                    This system prompt will be used as the default behavior for all notebooks unless overridden individually.
+                    This system prompt will be used as the default behavior for all notebooks unless
+                    overridden individually.
                   </p>
                 </div>
               </div>
@@ -845,7 +848,18 @@ export function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProp
                     popup is satisfied by them and leaves the real fields
                     alone. The decoys have no name, no id, no value, and
                     tabIndex={-1} so they cannot be focused or submitted. */}
-                <div aria-hidden='true' style={{ position: 'absolute', top: -1000, left: -1000, width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>
+                <div
+                  aria-hidden='true'
+                  style={{
+                    position: 'absolute',
+                    top: -1000,
+                    left: -1000,
+                    width: 1,
+                    height: 1,
+                    overflow: 'hidden',
+                    opacity: 0,
+                  }}
+                >
                   <input type='text' tabIndex={-1} autoComplete='off' />
                   <input type='password' tabIndex={-1} autoComplete='new-password' />
                 </div>

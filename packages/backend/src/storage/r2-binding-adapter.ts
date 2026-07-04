@@ -91,7 +91,7 @@ export class R2BindingAdapter implements ObjectStorage {
             err instanceof Error ? err.message : err,
           )
         }
-      })
+      }),
     )
   }
 

@@ -56,7 +56,7 @@ export function SearchableSelect({
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         // Also check if click is inside the portal dropdown
         const portalDropdown = document.getElementById('searchable-select-portal')
-        if (portalDropdown && portalDropdown.contains(event.target as Node)) {
+        if (portalDropdown?.contains(event.target as Node)) {
           return
         }
         setIsOpen(false)
@@ -115,9 +115,7 @@ export function SearchableSelect({
 
     return groups
       .map((group) => {
-        const matchingModels = group.models.filter((m) =>
-          m.toLowerCase().includes(term)
-        )
+        const matchingModels = group.models.filter((m) => m.toLowerCase().includes(term))
         return {
           ...group,
           models: matchingModels,
@@ -134,8 +132,8 @@ export function SearchableSelect({
   // Dropdown menu content rendered inside React Portal
   const dropdownMenu = isOpen && (
     <div
-      id="searchable-select-portal"
-      className="fixed z-[9999] bg-base-100 border border-base-300 rounded-xl shadow-2xl overflow-hidden flex flex-col transition-opacity duration-150 animate-in fade-in duration-100"
+      id='searchable-select-portal'
+      className='fixed z-[9999] bg-base-100 border border-base-300 rounded-xl shadow-2xl overflow-hidden flex flex-col transition-opacity duration-150 animate-in fade-in duration-100'
       style={{
         top: `${coords.top}px`,
         left: `${coords.left}px`,
@@ -144,58 +142,59 @@ export function SearchableSelect({
       }}
     >
       {/* Search Input */}
-      <div className="p-2 border-b border-base-300 flex items-center gap-2 bg-base-200/50">
-        <Search size={14} className="text-base-content/40 shrink-0" />
+      <div className='p-2 border-b border-base-300 flex items-center gap-2 bg-base-200/50'>
+        <Search size={14} className='text-base-content/40 shrink-0' />
         <input
-          type="text"
-          placeholder="Search models..."
+          type='text'
+          placeholder='Search models...'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-transparent border-none text-sm focus:outline-none text-base-content"
+          className='w-full bg-transparent border-none text-sm focus:outline-none text-base-content'
           // biome-ignore lint/a11y/noAutofocus: user opens select intending to search
           autoFocus
         />
       </div>
 
       {/* Options List */}
-      <div className="overflow-y-auto py-1 flex-1">
+      <div className='overflow-y-auto py-1 flex-1'>
         {inheritLabel && (
           <button
-            type="button"
+            type='button'
             onClick={() => handleSelect('inherit')}
-            className="w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-base-200 text-base-content transition-colors duration-150"
+            className='w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-base-200 text-base-content transition-colors duration-150'
           >
-            <span className="font-semibold text-primary">{inheritLabel}</span>
-            {value === 'inherit' && <Check size={14} className="text-primary" />}
+            <span className='font-semibold text-primary'>{inheritLabel}</span>
+            {value === 'inherit' && <Check size={14} className='text-primary' />}
           </button>
         )}
 
         {filteredGroups.length === 0 ? (
-          <div className="px-4 py-3 text-sm text-base-content/50 text-center">
-            No models found
-          </div>
+          <div className='px-4 py-3 text-sm text-base-content/50 text-center'>No models found</div>
         ) : (
           filteredGroups.map((group) => (
-            <div key={group.connectionId} className="border-t border-base-300/40 first:border-t-0">
-              <div className="px-3 py-1.5 text-[11px] font-bold tracking-wider text-base-content/40 bg-base-200/20 uppercase">
+            <div key={group.connectionId} className='border-t border-base-300/40 first:border-t-0'>
+              <div className='px-3 py-1.5 text-[11px] font-bold tracking-wider text-base-content/40 bg-base-200/20 uppercase'>
                 {group.connectionName}
               </div>
-              <div className="py-1">
+              <div className='py-1'>
                 {group.models.map((m) => {
                   const fullVal = `${group.connectionId}:${m}`
-                  const isSelected = value === fullVal || (group.connectionId === 'workers-ai' && m === value)
+                  const isSelected =
+                    value === fullVal || (group.connectionId === 'workers-ai' && m === value)
 
                   return (
                     <button
                       key={`${group.connectionId}:${m}`}
-                      type="button"
+                      type='button'
                       onClick={() => handleSelect(fullVal)}
                       className={`w-full flex items-center justify-between px-5 py-2 text-sm text-left transition-colors duration-150 ${
-                        isSelected ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-base-200 text-base-content/80'
+                        isSelected
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'hover:bg-base-200 text-base-content/80'
                       }`}
                     >
-                      <span className="truncate">{m}</span>
-                      {isSelected && <Check size={14} className="text-primary shrink-0" />}
+                      <span className='truncate'>{m}</span>
+                      {isSelected && <Check size={14} className='text-primary shrink-0' />}
                     </button>
                   )
                 })}
@@ -208,16 +207,19 @@ export function SearchableSelect({
   )
 
   return (
-    <div ref={containerRef} className="relative w-full text-left" id={id}>
+    <div ref={containerRef} className='relative w-full text-left' id={id}>
       <button
         ref={buttonRef}
-        type="button"
+        type='button'
         disabled={disabled}
         onClick={handleToggle}
-        className="w-full flex items-center justify-between px-4 py-2 text-sm bg-base-200 border border-base-300 rounded-xl hover:bg-base-300/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[42px]"
+        className='w-full flex items-center justify-between px-4 py-2 text-sm bg-base-200 border border-base-300 rounded-xl hover:bg-base-300/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[42px]'
       >
-        <span className="truncate text-base-content font-medium">{getSelectedLabel()}</span>
-        <ChevronDown size={16} className={`text-base-content/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className='truncate text-base-content font-medium'>{getSelectedLabel()}</span>
+        <ChevronDown
+          size={16}
+          className={`text-base-content/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {isOpen && createPortal(dropdownMenu, document.body)}

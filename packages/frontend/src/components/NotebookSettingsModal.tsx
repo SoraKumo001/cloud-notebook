@@ -574,7 +574,8 @@ export function NotebookSettingsModal({
                   className='w-full textarea textarea-bordered font-mono text-sm resize-y rounded-xl'
                 />
                 <p className='text-[10px] text-base-content/50 leading-relaxed'>
-                  You can specify custom system instructions for this notebook. Leave empty to use the global settings configuration.
+                  You can specify custom system instructions for this notebook. Leave empty to use
+                  the global settings configuration.
                 </p>
               </div>
             </div>

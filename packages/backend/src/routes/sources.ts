@@ -2,12 +2,18 @@ import { zValidator } from '@hono/zod-validator'
 import { and, eq, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { formatSSE } from '../chat'
 import { notebooks, sourceChunks, sourceImages, sources } from '../db/schema'
 import { getEffectiveAiConfig } from '../db/settings'
 import { embedChunks, getEmbeddingProvider } from '../embeddings'
-import { getOcrProvider } from '../providers'
 import { ErrorCode, errorResponse } from '../errors'
+import { getOcrProvider } from '../providers'
 import { type Bindings, type Variables, vHook } from './common'
+
+const SSE_ENCODER = new TextEncoder()
+function writeSSE(writer: WritableStreamDefaultWriter<Uint8Array>, event: string, data: unknown) {
+  writer.write(SSE_ENCODER.encode(formatSSE(event, data)))
+}
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -216,143 +222,174 @@ router.post(
       return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
     }
 
-    const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
-    const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
-      aiEmbeddingModel: notebook.ai_embedding_model,
-      modelOcr: notebook.model_ocr,
-    })
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
 
-    const embedProvider = getEmbeddingProvider(c.env as any, {
-      provider: effectiveConfig.embedding.provider,
-      apiKey: effectiveConfig.embedding.apiKey,
-      baseUrl: effectiveConfig.embedding.baseUrl,
-      model: effectiveConfig.embedding.model,
-    })
+    ;(async () => {
+      try {
+        const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
+        const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
+          aiEmbeddingModel: notebook.ai_embedding_model,
+          modelOcr: notebook.model_ocr,
+        })
 
-    const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
+        const embedProvider = getEmbeddingProvider(c.env as any, {
+          provider: effectiveConfig.embedding.provider,
+          apiKey: effectiveConfig.embedding.apiKey,
+          baseUrl: effectiveConfig.embedding.baseUrl,
+          model: effectiveConfig.embedding.model,
+        })
 
-    await db.insert(sources).values({
-      id: sourceId,
-      notebookId,
-      userId,
-      name: fileName,
-      type,
-      r2Key,
-      hash,
-      status: 'processing',
-    })
+        const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${fileName}`
 
-    try {
-      const processedChunks = [...chunks]
-      let embeddedCount = 0
+        await db.insert(sources).values({
+          id: sourceId,
+          notebookId,
+          userId,
+          name: fileName,
+          type,
+          r2Key,
+          hash,
+          status: 'processing',
+        })
 
-      // Automatic OCR processing using Vision LLM if no text chunks were extracted but images exist
-      if (processedChunks.length === 0 && images.length > 0) {
-        const storage = c.get('storage')
-        const sortedImages = [...images].sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0))
-        const ocrProvider = getOcrProvider(c.env as any, effectiveConfig.ocr)
+        const processedChunks = [...chunks]
+        let embeddedCount = 0
 
-        for (const img of sortedImages) {
-          const buffer = await storage.get(img.r2Key)
-          if (!buffer) continue
+        // Automatic OCR processing using Vision LLM if no text chunks were extracted but images exist
+        if (processedChunks.length === 0 && images.length > 0) {
+          writeSSE(writer, 'progress', {
+            stage: 'ocr',
+            current: 0,
+            total: images.length,
+            percent: 0,
+          })
 
-          let pageText = ''
-          try {
-            pageText = await ocrProvider.ocr({
-              model: effectiveConfig.ocr.model,
-              imageBuffer: buffer,
-              prompt:
-                'Transcribe all text from this document image in Japanese. Output only the transcribed text without any conversational preamble or notes.',
-            })
-          } catch (err) {
-            console.error(`Failed to OCR page ${img.pageNumber} using provider ${effectiveConfig.ocr.provider}:`, err)
-          }
+          const storage = c.get('storage')
+          const sortedImages = [...images].sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0))
+          const ocrProvider = getOcrProvider(c.env as any, effectiveConfig.ocr)
 
-          if (pageText) {
-            processedChunks.push({
-              content: pageText,
-              pageNumber: img.pageNumber,
+          for (let i = 0; i < sortedImages.length; i++) {
+            const img = sortedImages[i]
+            const buffer = await storage.get(img.r2Key)
+            if (!buffer) continue
+
+            let pageText = ''
+            try {
+              pageText = await ocrProvider.ocr({
+                model: effectiveConfig.ocr.model,
+                imageBuffer: buffer,
+                prompt:
+                  'Transcribe all text from this document image in Japanese. Output only the transcribed text without any conversational preamble or notes.',
+              })
+            } catch (err) {
+              console.error(
+                `Failed to OCR page ${img.pageNumber} using provider ${effectiveConfig.ocr.provider}:`,
+                err,
+              )
+            }
+
+            if (pageText) {
+              processedChunks.push({
+                content: pageText,
+                pageNumber: img.pageNumber,
+              })
+            }
+
+            writeSSE(writer, 'progress', {
+              stage: 'ocr',
+              current: i + 1,
+              total: sortedImages.length,
+              percent: Math.round(((i + 1) / sortedImages.length) * 75), // scale OCR up to 75%
             })
           }
         }
-      }
 
-      if (processedChunks.length > 0) {
-        const chunkRecords = processedChunks.map((chunk) => ({
-          id: crypto.randomUUID(),
-          content: chunk.content,
-          pageNumber: chunk.pageNumber ?? null,
-        }))
+        if (processedChunks.length > 0) {
+          writeSSE(writer, 'progress', {
+            stage: 'embedding',
+            percent: 85,
+          })
 
-        await db.batch(
-          chunkRecords.map((rec) =>
-            db.insert(sourceChunks).values({
-              id: rec.id,
-              sourceId,
-              notebookId,
-              content: rec.content,
-              pageNumber: rec.pageNumber,
-            }),
-          ) as any,
-        )
+          const chunkRecords = processedChunks.map((chunk) => ({
+            id: crypto.randomUUID(),
+            content: chunk.content,
+            pageNumber: chunk.pageNumber ?? null,
+          }))
 
-        const vectors = await embedChunks(
-          embedProvider,
-          chunkRecords.map((r) => ({ id: r.id, content: r.content })),
-        )
+          await db.batch(
+            chunkRecords.map((rec) =>
+              db.insert(sourceChunks).values({
+                id: rec.id,
+                sourceId,
+                notebookId,
+                content: rec.content,
+                pageNumber: rec.pageNumber,
+              }),
+            ) as any,
+          )
 
-        const vectorsWithMeta = vectors.map((v) => ({
-          ...v,
-          metadata: {
-            ...v.metadata,
-            source_id: sourceId,
-            notebook_id: notebookId,
-          },
-        }))
+          const vectors = await embedChunks(
+            embedProvider,
+            chunkRecords.map((r) => ({ id: r.id, content: r.content })),
+          )
 
-        const mutation = await c.env.VECTORIZE.upsert(vectorsWithMeta)
-        embeddedCount = mutation.count
-      }
+          const vectorsWithMeta = vectors.map((v) => ({
+            ...v,
+            metadata: {
+              ...v.metadata,
+              source_id: sourceId,
+              notebook_id: notebookId,
+            },
+          }))
 
-      if (images.length > 0) {
-        await db.batch(
-          images.map((img) =>
-            db.insert(sourceImages).values({
-              id: crypto.randomUUID(),
-              sourceId,
-              notebookId,
-              r2Key: img.r2Key,
-              pageNumber: img.pageNumber ?? null,
-            }),
-          ) as any,
-        )
-      }
+          const mutation = await c.env.VECTORIZE.upsert(vectorsWithMeta)
+          embeddedCount = mutation.count
+        }
 
-      await db.update(sources).set({ status: 'completed' }).where(eq(sources.id, sourceId))
+        if (images.length > 0) {
+          await db.batch(
+            images.map((img) =>
+              db.insert(sourceImages).values({
+                id: crypto.randomUUID(),
+                sourceId,
+                notebookId,
+                r2Key: img.r2Key,
+                pageNumber: img.pageNumber ?? null,
+              }),
+            ) as any,
+          )
+        }
 
-      return c.json({
-        id: sourceId,
-        status: 'completed',
-        chunks: processedChunks.length,
-        images: images.length,
-        embedded: embeddedCount,
-      })
-    } catch (err) {
-      await db.update(sources).set({ status: 'failed' }).where(eq(sources.id, sourceId))
+        await db.update(sources).set({ status: 'completed' }).where(eq(sources.id, sourceId))
 
-      const message = err instanceof Error ? err.message : String(err)
-      return c.json(
-        {
+        writeSSE(writer, 'done', {
           id: sourceId,
-          status: 'failed',
-          chunks: chunks.length,
+          status: 'completed',
+          chunks: processedChunks.length,
           images: images.length,
-          embedded: 0,
-          error: message,
-        },
-        500,
-      )
-    }
+          embedded: embeddedCount,
+        })
+      } catch (err) {
+        await db
+          .update(sources)
+          .set({ status: 'failed' })
+          .where(eq(sources.id, sourceId))
+          .catch(() => {})
+        const message = err instanceof Error ? err.message : String(err)
+        writeSSE(writer, 'error', { message })
+      } finally {
+        await writer.close().catch(() => {})
+      }
+    })()
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    })
   },
 )
 

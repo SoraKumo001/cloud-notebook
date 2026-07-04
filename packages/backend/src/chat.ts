@@ -4,7 +4,15 @@
 
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { createDb } from './db/client'
-import { chatMessages, chatSessions, notebooks, notes, sourceChunks, sources, userSettings } from './db/schema'
+import {
+  chatMessages,
+  chatSessions,
+  notebooks,
+  notes,
+  sourceChunks,
+  sources,
+  userSettings,
+} from './db/schema'
 import { getEffectiveAiConfig } from './db/settings'
 import { embedChunks, embedQuery, getEmbeddingProvider } from './embeddings'
 import { ErrorCode } from './errors'

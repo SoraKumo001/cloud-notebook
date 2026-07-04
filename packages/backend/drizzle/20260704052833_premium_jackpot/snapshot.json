@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "c69d251d-635a-4705-b99f-ac430fc2c6aa",
-  "prevIds": [
-    "d70ef476-a6a0-4993-b2da-ef3a970f9c06"
-  ],
+  "prevIds": ["d70ef476-a6a0-4993-b2da-ef3a970f9c06"],
   "ddl": [
     {
       "name": "ai_connections",
@@ -999,13 +997,9 @@
       "table": "users"
     },
     {
-      "columns": [
-        "session_id"
-      ],
+      "columns": ["session_id"],
       "tableTo": "chat_sessions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1014,13 +1008,9 @@
       "table": "chat_messages"
     },
     {
-      "columns": [
-        "notebook_id"
-      ],
+      "columns": ["notebook_id"],
       "tableTo": "notebooks",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1029,13 +1019,9 @@
       "table": "chat_sessions"
     },
     {
-      "columns": [
-        "invited_by"
-      ],
+      "columns": ["invited_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1044,13 +1030,9 @@
       "table": "invitations"
     },
     {
-      "columns": [
-        "used_by"
-      ],
+      "columns": ["used_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "SET NULL",
       "nameExplicit": false,
@@ -1059,13 +1041,9 @@
       "table": "invitations"
     },
     {
-      "columns": [
-        "notebook_id"
-      ],
+      "columns": ["notebook_id"],
       "tableTo": "notebooks",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1074,13 +1052,9 @@
       "table": "notes"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1089,13 +1063,9 @@
       "table": "sessions"
     },
     {
-      "columns": [
-        "source_id"
-      ],
+      "columns": ["source_id"],
       "tableTo": "sources",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1104,13 +1074,9 @@
       "table": "source_chunks"
     },
     {
-      "columns": [
-        "notebook_id"
-      ],
+      "columns": ["notebook_id"],
       "tableTo": "notebooks",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1119,13 +1085,9 @@
       "table": "source_chunks"
     },
     {
-      "columns": [
-        "source_id"
-      ],
+      "columns": ["source_id"],
       "tableTo": "sources",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1134,13 +1096,9 @@
       "table": "source_images"
     },
     {
-      "columns": [
-        "notebook_id"
-      ],
+      "columns": ["notebook_id"],
       "tableTo": "notebooks",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1149,13 +1107,9 @@
       "table": "source_images"
     },
     {
-      "columns": [
-        "notebook_id"
-      ],
+      "columns": ["notebook_id"],
       "tableTo": "notebooks",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -1164,117 +1118,91 @@
       "table": "sources"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "ai_connections_pk",
       "table": "ai_connections",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "chat_messages_pk",
       "table": "chat_messages",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "chat_sessions_pk",
       "table": "chat_sessions",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "global_settings_pk",
       "table": "global_settings",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "invitations_pk",
       "table": "invitations",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "notebooks_pk",
       "table": "notebooks",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "notes_pk",
       "table": "notes",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sessions_pk",
       "table": "sessions",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "source_chunks_pk",
       "table": "source_chunks",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "source_images_pk",
       "table": "source_images",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sources_pk",
       "table": "sources",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "nameExplicit": false,
       "name": "user_settings_pk",
       "table": "user_settings",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pk",
       "table": "users",
@@ -1473,9 +1401,7 @@
       "table": "users"
     },
     {
-      "columns": [
-        "token"
-      ],
+      "columns": ["token"],
       "nameExplicit": false,
       "name": "invitations_token_unique",
       "entityType": "uniques",
