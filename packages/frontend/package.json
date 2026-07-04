@@ -38,6 +38,7 @@
     "happy-dom": "20.10.6",
     "mammoth": "^1.12.0",
     "postcss": "^8.5.16",
+    "rollup-plugin-visualizer": "7.0.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
     "vite": "^8.1.3",

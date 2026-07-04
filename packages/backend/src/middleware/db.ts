@@ -1,12 +1,13 @@
 import type { MiddlewareHandler } from 'hono'
-import { createDb, type DB } from '../db/client'
+import { createDb } from '../db/client'
+import type { AppBindings, AppVariables } from '../types'
 
 export const dbMiddleware = (): MiddlewareHandler<{
-  Bindings: { DB: D1Database }
-  Variables: { db: DB }
-}> =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (async (c: any, next: any) => {
+  Bindings: AppBindings
+  Variables: AppVariables
+}> => {
+  return async (c, next) => {
     c.set('db', createDb(c.env.DB))
     await next()
-  }) as any
+  }
+}

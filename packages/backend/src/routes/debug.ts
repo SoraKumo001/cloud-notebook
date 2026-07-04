@@ -3,9 +3,10 @@ import { sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { ErrorCode, errorResponse } from '../errors'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 router.get('/debug/health', async (c) => {
   const results: Record<string, { status: 'ok' | 'error'; message?: string }> = {}
@@ -15,8 +16,8 @@ router.get('/debug/health', async (c) => {
     const db = c.get('db')
     await db.select({ val: sql`1` })
     results.d1 = { status: 'ok' }
-  } catch (err: any) {
-    results.d1 = { status: 'error', message: err.message }
+  } catch (err: unknown) {
+    results.d1 = { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }
 
   // 2. R2 Bucket Check
@@ -24,8 +25,8 @@ router.get('/debug/health', async (c) => {
     const storage = c.get('storage')
     await storage.healthCheck()
     results.r2 = { status: 'ok' }
-  } catch (err: any) {
-    results.r2 = { status: 'error', message: err.message }
+  } catch (err: unknown) {
+    results.r2 = { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }
 
   // 3. Vectorize Check
@@ -37,8 +38,11 @@ router.get('/debug/health', async (c) => {
       },
     )
     results.vectorize = { status: 'ok' }
-  } catch (err: any) {
-    results.vectorize = { status: 'error', message: err.message }
+  } catch (err: unknown) {
+    results.vectorize = {
+      status: 'error',
+      message: err instanceof Error ? err.message : String(err),
+    }
   }
 
   // 4. Workers AI Check
@@ -49,8 +53,8 @@ router.get('/debug/health', async (c) => {
     } else {
       results.ai = { status: 'error', message: 'No output data returned' }
     }
-  } catch (err: any) {
-    results.ai = { status: 'error', message: err.message }
+  } catch (err: unknown) {
+    results.ai = { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }
 
   const overallStatus = Object.values(results).every((r) => r.status === 'ok')

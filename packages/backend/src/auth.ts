@@ -7,25 +7,11 @@
 //   getAuthContext  — extracts user from the signed session cookie.
 //   authMiddleware   — Hono middleware that sets c.get('user') on /api/* routes.
 
-import type { Context, Next } from 'hono'
+import type { Context, MiddlewareHandler } from 'hono'
 import { createDb } from './db/client'
 import { ErrorCode, errorResponse } from './errors'
 import { SESSION_COOKIE_NAME, validateSession } from './session'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface AuthUser {
-  id: string
-  email: string
-  name?: string
-  isAdmin: boolean
-}
-
-interface AuthEnv {
-  SESSION_SECRET?: string
-}
+import type { AppEnv } from './types'
 
 // ---------------------------------------------------------------------------
 // Auth context extraction
@@ -40,9 +26,10 @@ interface AuthEnv {
  * @throws  If the cookie is missing/invalid, the secret is not configured, or
  *          the session has expired.
  */
-export async function getAuthContext(c: Context): Promise<AuthUser> {
-  const env = c.env as AuthEnv
-  const secret = env.SESSION_SECRET
+export async function getAuthContext(
+  c: Context<AppEnv>,
+): Promise<{ id: string; email: string; name?: string; isAdmin: boolean }> {
+  const secret = c.env.SESSION_SECRET
   if (!secret) {
     throw new Error('SESSION_SECRET not configured')
   }
@@ -90,7 +77,7 @@ export async function getAuthContext(c: Context): Promise<AuthUser> {
  *
  * On failure an `{ error: string }` JSON body with status 401 is returned.
  */
-export async function authMiddleware(c: Context, next: Next) {
+export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   const path = new URL(c.req.url).pathname
   if (path === '/api/auth/register' || path === '/api/auth/login') {
     await next()
@@ -110,8 +97,8 @@ export async function authMiddleware(c: Context, next: Next) {
  * Middleware that 403s any request whose `c.get('user').isAdmin` is not true.
  * Must run AFTER `authMiddleware` so `user` is populated.
  */
-export async function requireAdmin(c: Context, next: Next) {
-  const user = c.get('user') as AuthUser | undefined
+export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const user = c.get('user')
   if (!user?.isAdmin) {
     return errorResponse(c, ErrorCode.AuthForbidden, 'Admin only', 403)
   }

@@ -33,7 +33,7 @@ export interface ChatEnv {
   DB: D1Database
   VECTORIZE: VectorizeIndex
   AI: Ai
-  [key: string]: unknown
+  API_KEY_ENCRYPTION_MASTER?: string
 }
 
 interface NotebookRow {
@@ -118,11 +118,8 @@ export async function streamChat(
 // Provider helper
 // ---------------------------------------------------------------------------
 
-function getChatChannel(
-  env: ChatEnv & Record<string, unknown>,
-  nb: NotebookRow,
-): ReturnType<typeof getChatProvider> {
-  return getChatProvider(env as any, {
+function getChatChannel(env: ChatEnv, nb: NotebookRow): ReturnType<typeof getChatProvider> {
+  return getChatProvider(env, {
     ai_provider: nb.ai_provider,
     ai_api_key: nb.ai_api_key,
     ai_base_url: nb.ai_base_url,

@@ -50,7 +50,7 @@ Google NotebookLM-style RAG chat app, optimised for the Cloudflare serverless st
 Backend returns `{ "error": "string" }` for all 4xx/5xx. Frontend reads via `(body as { error?: string }).error || <fallback>`. The shared validation hook (`vHook` in `index.ts`) returns `{ "error": "Validation failed: <first zod issue>" }` with status 400.
 
 ### Authorization (M18)
-Every POST/PATCH/DELETE route that touches a notebook/source/notes/chat checks `notebooks.user_id === c.get('user').id` before any write. The deprecated `/api/sources/upload` returns 410 Gone.
+Every POST/PATCH/DELETE route that touches a notebook/source/notes/chat checks `notebooks.user_id === c.get('user').id` before any write.
 
 ### Vectorize dim guard (M21)
 The Vectorize index is fixed at 1024-dim (bge-large-en-v1.5). PATCH /api/notebooks/:id rejects any `ai_provider` other than `workers-ai` with a clear 400. The `getEmbeddingProvider` factory throws on OpenAI/Google/Anthropic with actionable error messages.

@@ -12,13 +12,13 @@
 // rotation.
 
 import type { MiddlewareHandler } from 'hono'
-import type { DB } from '../db/client'
-import { getObjectStorage, type StorageEnv } from '../storage/factory'
+import { getObjectStorage } from '../storage/factory'
 import type { ObjectStorage } from '../storage/interface'
+import type { AppBindings, AppVariables } from '../types'
 
 export const storageMiddleware = (): MiddlewareHandler<{
-  Bindings: StorageEnv
-  Variables: { db: DB; storage: ObjectStorage }
+  Bindings: AppBindings
+  Variables: AppVariables
 }> => {
   return async (c, next) => {
     // Test override: when tests inject `__storage` into the env, use it

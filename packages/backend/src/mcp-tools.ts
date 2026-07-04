@@ -22,6 +22,7 @@ interface McpEnv {
   DB: D1Database
   VECTORIZE: VectorizeIndex
   AI: Ai
+  API_KEY_ENCRYPTION_MASTER?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ export function registerTools(server: any, env: McpEnv, notebook: McpNotebook): 
       const k = Math.min(Math.max(topK ?? 8, 1), 20)
       // Build a workers-ai embedding provider from the environment
       const { getEmbeddingProvider } = await import('./embeddings')
-      const embedProvider = getEmbeddingProvider(env as any, {
+      const embedProvider = getEmbeddingProvider(env, {
         provider: 'workers-ai',
         apiKey: null,
         baseUrl: null,
@@ -279,7 +280,7 @@ async function chatViaRag(
   citations: { valid: number[]; invalid: number[] }
   chunks: unknown[]
 }> {
-  const response = await streamChat(env as any, notebookId, userId, query, sessionId)
+  const response = await streamChat(env, notebookId, userId, query, sessionId)
 
   const reader = response.body?.getReader()
   const decoder = new TextDecoder()

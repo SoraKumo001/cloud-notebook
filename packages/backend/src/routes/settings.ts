@@ -8,9 +8,10 @@ import { globalSettings, userSettings } from '../db/schema'
 import type { StorageConfigJson } from '../db/schema/globalSettings'
 import { ErrorCode, errorResponse } from '../errors'
 import { storageSettingsInputSchema } from '../storage/schema'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 // Get global user settings
 router.get('/settings', async (c) => {

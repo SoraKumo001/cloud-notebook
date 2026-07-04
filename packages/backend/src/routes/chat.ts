@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { streamChat } from '../chat'
 import { chatMessages, chatSessions, notebooks } from '../db/schema'
 import { ErrorCode, errorResponse } from '../errors'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 // Chat: SSE streaming RAG endpoint
 router.post(

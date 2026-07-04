@@ -6,9 +6,10 @@ import { encryptApiKey, getDecryptedApiKey } from '../crypto'
 import { aiConnections } from '../db/schema'
 import { ErrorCode, errorResponse } from '../errors'
 import { fetchConnectionModels } from '../providers'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 // List AI Connections
 router.get('/connections', async (c) => {

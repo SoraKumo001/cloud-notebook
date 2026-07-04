@@ -21,9 +21,10 @@ import {
   parseSessionCookie,
   SESSION_COOKIE_NAME,
 } from '../session'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 function cookieSecure(c: Context): boolean {
   const url = new URL(c.req.url)

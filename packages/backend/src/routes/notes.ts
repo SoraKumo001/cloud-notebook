@@ -4,9 +4,10 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { notebooks, notes } from '../db/schema'
 import { ErrorCode, errorResponse } from '../errors'
-import { type Bindings, type Variables, vHook } from './common'
+import type { AppEnv } from '../types'
+import { vHook } from './common'
 
-const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const router = new Hono<AppEnv>()
 
 // List notes in a notebook
 router.get(

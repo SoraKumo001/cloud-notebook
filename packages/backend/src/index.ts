@@ -7,8 +7,6 @@ import { dbMiddleware } from './middleware/db'
 import { storageMiddleware } from './middleware/storage'
 import authRouter from './routes/auth'
 import chatRouter from './routes/chat'
-// Import router modules
-import type { Bindings, Variables } from './routes/common'
 import connectionsRouter from './routes/connections'
 import debugRouter from './routes/debug'
 import notebooksRouter from './routes/notebooks'
@@ -16,8 +14,10 @@ import notesRouter from './routes/notes'
 import settingsRouter from './routes/settings'
 import sourcesRouter from './routes/sources'
 import { getObjectStorage } from './storage/factory'
+// Import router modules
+import type { AppEnv } from './types'
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const app = new Hono<AppEnv>()
 
 // Security headers — applied to all responses
 app.use('*', async (c, next) => {
@@ -33,13 +33,11 @@ app.use('*', async (c, next) => {
 app.use('/api/*', authMiddleware)
 
 // DB middleware — creates drizzle instance from D1 binding
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-app.use('/api/*', dbMiddleware() as any)
+app.use('/api/*', dbMiddleware())
 
 // Storage middleware — resolves the active ObjectStorage adapter and
 // attaches it as c.get('storage'). Must come after dbMiddleware.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-app.use('/api/*', storageMiddleware() as any)
+app.use('/api/*', storageMiddleware())
 
 app.onError((err, c) => {
   console.error('[SERVER ERROR]:', err)

@@ -12,29 +12,19 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { mcpAuthMiddleware } from './mcp-auth'
 import { registerTools } from './mcp-tools'
+import type { AppBindings, AppVariables } from './types'
 
 // ---------------------------------------------------------------------------
-// Types (mirror index.ts Bindings + Variables)
+// Types
 // ---------------------------------------------------------------------------
 
-type Bindings = {
-  DB: D1Database
-  VECTORIZE: VectorizeIndex
-  AI: Ai
-  NODE_ENV?: string
-  CF_ENV?: string
-}
-
-type Variables = {
-  user: { id: string; email: string; name?: string }
-  notebook: { id: string; userId: string; title: string }
-}
+type McpVariables = AppVariables & { notebook: { id: string; userId: string; title: string } }
 
 // ---------------------------------------------------------------------------
 // MCP Hono app (mounted at /mcp in index.ts)
 // ---------------------------------------------------------------------------
 
-const mcpApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const mcpApp = new Hono<{ Bindings: AppBindings; Variables: McpVariables }>()
 
 // CORS — open for MCP clients (desktop apps)
 mcpApp.use(

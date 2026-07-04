@@ -58,7 +58,7 @@ zValidator('param' | 'json' | 'query', z.object({...}), vHook)
 - UUID-like path params use `z.string().min(1).max(100)` (not `z.uuid()`) to keep test fixtures (`'nb-1'`, `'user-1'`) valid.
 
 ### Authorization (M18)
-Every POST/PATCH/DELETE on a notebook-scoped resource does `select user_id from notebooks where id = ? and user_id = c.get('user').id` before any write. `/api/sources/upload` is `410 Gone`.
+Every POST/PATCH/DELETE on a notebook-scoped resource does `select user_id from notebooks where id = ? and user_id = c.get('user').id` before any write.
 
 ### Embedding policy (M21)
 Only `ai_provider: 'workers-ai'` accepted. PATCH /api/notebooks/:id rejects others with a clear 400.
