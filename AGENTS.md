@@ -20,7 +20,7 @@ For deep work on a specific folder, also read that folder's `codemap.md`.
 - `packages/backend/codemap.md` — backend package
 - `packages/backend/src/codemap.md` — backend src/
 - `packages/backend/src/db/codemap.md` — drizzle setup
-- `packages/backend/src/db/schema/codemap.md` — D1 tables (8)
+- `packages/backend/src/db/schema/codemap.md` — D1 tables (13)
 - `packages/backend/src/middleware/codemap.md` — Hono middleware
 - `packages/frontend/codemap.md` — frontend package
 - `packages/frontend/src/codemap.md` — frontend src/
@@ -30,8 +30,8 @@ For deep work on a specific folder, also read that folder's `codemap.md`.
 ## Project Conventions
 
 - **Backend**: Hono + Cloudflare Workers + D1 + R2 + Vectorize + Workers AI. All routes zod-validated via `vHook`. Authorization checks `notebooks.user_id === c.get('user').id` before every write.
-- **Frontend**: TanStack Router (CSR, no SSR) + React 19 + Tailwind. Bundled into the Worker via `wrangler deploy`. Dynamic imports for heavy deps (`pdfjs-dist`, `mammoth`, `js-tiktoken`). Error envelope `{ error: string }` matched by `(body as { error?: string }).error`.
-- **Testing**: vitest (backend 250 tests, frontend 98 tests). Use `createTestEnv()` for backend tests (D1 in-memory adapter).
+- **Frontend**: TanStack Router (CSR, no SSR) + React 19 + Tailwind. Bundled into the Worker via `wrangler deploy`. Dynamic imports for heavy deps (`pdfjs-dist`, `mammoth`). `js-tiktoken` is statically imported in `lib/tokenizer.ts`, but the `lib/tokenizer` module itself is dynamically imported by callers. Error envelope `{ error: string }` matched by `(body as { error?: string }).error`.
+- **Testing**: vitest (backend 266 tests, frontend 163 tests). Use `createTestEnv()` for backend tests (D1 in-memory adapter).
 - **Tooling**: Biome for lint/format (NOT ESLint). pnpm workspaces. Default branch is `master`.
 
 ## Common Tasks

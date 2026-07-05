@@ -29,7 +29,7 @@ app.use('*', async (c, next) => {
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 })
 
-// Auth middleware — validates Cloudflare Access JWT or returns dev user
+// Auth middleware — validates HMAC-signed session cookie (bypasses /api/auth/register and /api/auth/login)
 app.use('/api/*', authMiddleware)
 
 // DB middleware — creates drizzle instance from D1 binding

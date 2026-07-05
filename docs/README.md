@@ -21,9 +21,7 @@
 
 ```mermaid
 graph TD
-    Client[ブラウザ / TanStack Router (CSR)] <-->|1. HTTPS / JWT取得| CFAccess[Cloudflare Access / Zero Trust]
-    CFAccess <-->|2. ID連携| IdP[Identity Provider <br> Google / GitHub / OIDC]
-    CFAccess <-->|3. JWT検証 & ルーティング| Worker[Cloudflare Workers / Pages Functions]
+    Client[ブラウザ / TanStack Router (CSR)] <-->|HTTPS / HMAC session cookie| Worker[Cloudflare Workers]
     
     Client -->|PDF解析・画像抽出・チャンキング| Client
     Client -->|テキスト / 抽出画像| R2[(Cloudflare R2 Storage)]

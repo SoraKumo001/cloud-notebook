@@ -1,7 +1,7 @@
 // packages/backend/src/auth.ts
 // Email + password authentication with HMAC-signed session cookies.
 //
-// Replaces the previous Cloudflare Access JWT verification.
+// Email + password authentication with HMAC-signed session cookies (replaces the pre-M18 Cloudflare Access JWT verification).
 //
 // Design:
 //   getAuthContext  — extracts user from the signed session cookie.

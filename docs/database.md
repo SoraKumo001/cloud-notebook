@@ -12,7 +12,7 @@ D1はSQLiteベースのサーバーレスRDBです。以下のテーブルでノ
 -- ノートブック（プロジェクト）単位の管理と用途別AIモデル設定
 CREATE TABLE notebooks (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL, -- 所有ユーザーID (Cloudflare Access JWTの sub または email)
+    user_id TEXT NOT NULL, -- 所有ユーザーID (users.id, HMAC セッション Cookie 認証)
     title TEXT NOT NULL,
     description TEXT,
     
@@ -104,9 +104,11 @@ CREATE TABLE notes (
 
 ## 2. セキュリティ ＆ 認証設計
 
-### 2.1 Cloudflare Accessによるフロント認証
-- **認証保護**: 通常のブラウザ経由のアクセス（フロントエンドおよび内部API）は Cloudflare Access の認証ポリシーを適用し、ログイン必須とします。ログイン成功時に発行される JWT（クッキーまたはヘッダー）を Workers 側で JWKS 公開鍵（CloudflareのAccess用エンドポイント）を用いて署名検証します。
-- **マルチユーザー分離**: JWT の `sub`（被認証者ID）または `email` を Workers 側で抽出し、D1 へのクエリ実行時に `WHERE user_id = ?` による行レベルのアクセス制限を行い、他人のノートブックが閲覧されることを確実に防ぎます。
+### 2.1 Email + Password 認証 (HMAC セッション Cookie)
+- **認証方式**: ブラウザ経由のアクセスは Email + Password で認証します。パスワードは PBKDF2-SHA256 でハッシュ化して保存します（`password.ts`）。
+- **セッション管理**: ログイン成功時に D1 `sessions` テーブルにセッション行を作成し、HMAC-SHA256 で署名した Cookie（`SESSION_SECRET` 使用）をクライアントに発行します。有効期限は 7 日間です（`session.ts`）。
+- **認証検証**: `authMiddleware`（`auth.ts`）がリクエストごとに Cookie の HMAC 署名を検証し、セッションの有効性を確認します。
+- **マルチユーザー分離**: 認証されたユーザー ID を D1 へのクエリ実行時に `WHERE user_id = ?` で行レベル制限し、他人のノートブックが閲覧されることを確実に防ぎます。
 
 ### 2.2 MCP API の Bearer トークン認証
 - **懸念**: Cloudflare Accessでアプリケーション全体を保護すると、Webログインが必要になるため、ブラウザを使用しない外部のAIエージェント（Claude DesktopやCursor等）がMCP API（`/api/mcp`）に接続できなくなります。
@@ -132,7 +134,7 @@ CREATE TABLE notes (
 ### 3.2 Vectorize の次元数制限への対策
 - **懸念**: 
   - `Vectorize` インデックスは作成時にベクトル次元数（Dimensions）を決定する必要があり、後から変更できません。
-  - `Workers AI`（bge-large-en: 1024次元）と外部 `OpenAI`（text-embedding-3-small: 1536次元）では次元数が異なります。
+   - `Workers AI`（@cf/baai/bge-m3: 1024次元）。外部 OpenAI / Google / Anthropic は 1024-dim の Vectorize インデックスと互換性がないため、`getEmbedProvider` で例外をスローする。
 - **対策**:
   - ノートブック作成時に、使用するEmbeddingプロバイダーを選択させます。
   - バックエンドでは、プロバイダーごとに異なる Vectorize インデックス（例: `vector-index-workers-ai` と `vector-index-openai`）にルーティングするか、またはノートブックごとに対応する次元数を固定した個別のネームスペースを利用します。

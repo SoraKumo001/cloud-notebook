@@ -6,7 +6,7 @@ import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { encryptApiKey } from '../../crypto'
+import { hashToken } from '../../crypto'
 import { chatSessions, notebooks, sources } from '../../db/schema'
 import { ErrorCode, errorResponse } from '../../errors'
 import type { AppEnv } from '../../types'
@@ -188,11 +188,12 @@ router.post(
       .replace(/\//g, '_')
       .replace(/=+$/, '')
 
-    const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
-    if (!masterKey) throw new Error('API_KEY_ENCRYPTION_MASTER is not configured')
-    const encrypted = await encryptApiKey(masterKey, token)
+    // Store only the SHA-256 digest so a DB dump does not reveal usable
+    // tokens. The plaintext token is returned to the user exactly once.
+    // Deterministic hash → the auth middleware can look it up via SQL eq().
+    const tokenHash = await hashToken(token)
 
-    await db.update(notebooks).set({ mcpToken: encrypted }).where(eq(notebooks.id, id))
+    await db.update(notebooks).set({ mcpToken: tokenHash }).where(eq(notebooks.id, id))
 
     return c.json({ token })
   },

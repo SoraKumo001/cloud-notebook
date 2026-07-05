@@ -1,7 +1,7 @@
 // packages/backend/src/auth.test.ts
 // Tests for email + password authentication and session-cookie auth middleware.
 //
-// Replaces the previous Cloudflare Access JWT tests.
+// Tests for email + password authentication and HMAC session cookie middleware (replaces the pre-M18 Cloudflare Access JWT tests).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware, getAuthContext } from './auth'

@@ -6,6 +6,7 @@ import type { Context, Next } from 'hono'
 import { createDb } from './db/client'
 import { notebooks } from './db/schema'
 import { ErrorCode } from './errors'
+import { hashToken } from './crypto'
 
 export interface McpNotebook {
   id: string
@@ -41,6 +42,9 @@ export async function mcpAuthMiddleware(c: Context, next: Next) {
   }
 
   const db = createDb(c.env.DB)
+  // Hash the incoming bearer token and compare against the stored digest.
+  // Tokens are stored as SHA-256 hashes (see routes/notebooks/settings.ts).
+  const tokenHash = await hashToken(token)
   const [notebook] = await db
     .select({
       id: notebooks.id,
@@ -48,7 +52,7 @@ export async function mcpAuthMiddleware(c: Context, next: Next) {
       title: notebooks.title,
     })
     .from(notebooks)
-    .where(eq(notebooks.mcpToken, token))
+    .where(eq(notebooks.mcpToken, tokenHash))
     .limit(1)
 
   if (!notebook) {

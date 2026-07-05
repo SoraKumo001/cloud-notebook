@@ -36,8 +36,9 @@ They are NOT stored in `wrangler.jsonc` — doing so would leak credentials.
 
 The D1 `database_id` is also sensitive / account-specific: do **not** commit it directly.
 The repository ships `wrangler.jsonc` as a local-dev template with a placeholder.
-For production CI, `deploy.yml` generates `packages/backend/wrangler.production.jsonc`
-from the `CF_D1_DATABASE_ID` GitHub secret and deploys with `--config`.
+For production deployment, `scripts/setup-production.mjs` generates
+`packages/backend/wrangler.production.jsonc` from the `CF_D1_DATABASE_ID`
+environment variable and deploys with `--config`.
 For manual production deploys, copy `wrangler.jsonc` to `wrangler.production.jsonc`,
 replace `YOUR_D1_DATABASE_ID_HERE` with the real ID, and run:
 
@@ -138,9 +139,9 @@ If deploying via GitHub Actions, configure the following repository secrets:
 | `SESSION_SECRET` | → `wrangler secret put SESSION_SECRET` | `openssl rand -base64 32` |
 | `API_KEY_ENCRYPTION_MASTER` | → `wrangler secret put API_KEY_ENCRYPTION_MASTER` | `openssl rand -base64 32` |
 
-The deploy workflow (`.github/workflows/deploy.yml`) generates
+The `scripts/setup-production.mjs` script generates
 `wrangler.production.jsonc` from the template and the `CF_D1_DATABASE_ID`
-secret, then deploys using `--config` so the real database ID is never committed.
+environment variable, then deploys using `--config` so the real database ID is never committed.
 
 ---
 

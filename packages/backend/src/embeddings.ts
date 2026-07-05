@@ -1,5 +1,5 @@
 // packages/backend/src/embeddings.ts
-// Embedding utilities: Workers AI (bge-large-en-v1.5) and OpenAI-compatible provider abstraction.
+// Embedding utilities: Workers AI (default @cf/baai/bge-m3) and OpenAI-compatible provider abstraction.
 
 import type { Ai } from '@cloudflare/workers-types'
 

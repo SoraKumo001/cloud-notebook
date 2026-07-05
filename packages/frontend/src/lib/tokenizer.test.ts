@@ -174,7 +174,7 @@ describe('tokenizer tests', () => {
 
     expect(chunks.length).toBeGreaterThanOrEqual(1)
     chunks.forEach((chunk) => {
-      // Must stay within bge-large-en-v1.5's 512-token limit
+      // Must stay within bge-m3's 8192-token limit
       expect(chunk.tokenCount).toBeLessThanOrEqual(512)
     })
   })

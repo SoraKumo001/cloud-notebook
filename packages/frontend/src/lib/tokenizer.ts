@@ -33,7 +33,7 @@ function findSemanticBoundary(text: string, minPos: number, maxPos: number): num
  * Split text into semantic chunks based on token counts.
  *
  * - Aligns chunk boundaries to paragraph/sentence breaks when possible.
- * - Default maxTokens (500) is within bge-large-en-v1.5's 512-token limit.
+ * - Default maxTokens (500) is well within bge-m3's 8192-token limit.
  * - Overlap is increased to 100 tokens for better retrieval context.
  *
  * @param text Original source text

@@ -9,6 +9,7 @@ import { notebooks } from './db/schema'
 import app from './index'
 import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
+import { hashToken } from './crypto'
 
 // ---------------------------------------------------------------------------
 // MCP auth middleware
@@ -18,12 +19,14 @@ describe('MCP auth middleware', () => {
   async function seedEnvWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
     const { userId } = await createAuthedRequest(testEnv.env)
+    // Store the SHA-256 digest, mirroring the production POST route.
+    const storedHash = token === null ? null : await hashToken(token)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
       userId,
       title: 'Test',
       description: '',
-      mcpToken: token,
+      mcpToken: storedHash,
     })
     return { env: testEnv.env, userId }
   }
@@ -218,12 +221,13 @@ describe('POST /mcp — JSON-RPC dispatch', () => {
   async function seedEnvWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
     const { userId } = await createAuthedRequest(testEnv.env)
+    const storedHash = token === null ? null : await hashToken(token)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
       userId,
       title: 'Test',
       description: '',
-      mcpToken: token,
+      mcpToken: storedHash,
     })
     return testEnv.env
   }
@@ -336,12 +340,13 @@ describe('DELETE /api/notebooks/:id/mcp-token', () => {
   async function seedNotebookWithToken(token: string | null, notebookId = 'nb-1') {
     const testEnv = createTestEnv()
     const { cookie, userId } = await createAuthedRequest(testEnv.env)
+    const storedHash = token === null ? null : await hashToken(token)
     await testEnv.db.insert(notebooks).values({
       id: notebookId,
       userId,
       title: 'Test',
       description: '',
-      mcpToken: token,
+      mcpToken: storedHash,
     })
     return { ...testEnv, cookie, userId }
   }

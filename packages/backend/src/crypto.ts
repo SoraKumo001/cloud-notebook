@@ -172,3 +172,27 @@ export async function decryptApiKey(masterKeyB64: string, encryptedData: string)
     )
   }
 }
+
+// ---- token hashing (deterministic lookup) -----------------------------------
+
+/**
+ * Hash a bearer token with SHA-256 for safe storage and SQL `eq()` lookup.
+ *
+ * Unlike `encryptApiKey` (AES-GCM with a random IV, non-deterministic), this
+ * produces a stable digest so the auth middleware can hash the incoming
+ * Bearer token and find the matching row via an indexed equality scan.
+ *
+ * Used for `notebooks.mcp_token`. The token itself is a 256-bit
+ * server-generated random secret; we store only its SHA-256 digest so a DB
+ * dump does not reveal usable tokens. No master key is required.
+ *
+ * @param token  Plaintext bearer token.
+ * @returns       Lowercase hex SHA-256 digest (64 chars).
+ */
+export async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}

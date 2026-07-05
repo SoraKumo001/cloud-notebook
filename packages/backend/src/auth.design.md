@@ -1,3 +1,5 @@
+> ⚠️ **STALE DESIGN DOCUMENT** — This file describes the pre-M18 Cloudflare Access / RS256 / JWKS architecture that was **replaced** by the current email + password + HMAC-signed session cookie model. Do not use this as a reference for the current auth implementation. See `auth.ts`, `session.ts`, `password.ts`, and `routes/auth.ts` for the live implementation.
+
 # Auth Module 設計ガイドライン
 
 > **ファイル**: `packages/backend/src/auth.ts` (L1 実装済み)  

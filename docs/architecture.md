@@ -39,7 +39,7 @@ sequenceDiagram
     Client->>Worker: 6. チャンクテキストと画像メタデータを送信
     Worker->>Worker: 7. ノートブックに紐づくEmbedding設定を取得
     alt 内蔵AI (Workers AI)
-        Worker->>Workers AI: 各チャンクをベクトル化 (bge-large-en-v1.5)
+        Worker->>Workers AI: 各チャンクをベクトル化 (@cf/baai/bge-m3)
         Workers AI-->>Worker: 埋め込みベクトル
     else 外部AI (OpenAI互換)
         Worker->>OpenAI: 各チャンクをベクトル化 (text-embedding-3-smallなど)

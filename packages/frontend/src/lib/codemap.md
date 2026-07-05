@@ -11,10 +11,10 @@ Browser-only utilities for content extraction (PDF, DOCX, text/Markdown), tokeni
   - `'pdf'` → dynamically imports `./pdfParser` → `parsePDF`.
   - `'text'` → dynamically imports `./textParser` → `parseTextFile`.
   - `'docx'` → dynamically imports `./docxParser` → `parseDocxFile`.
-  - `'webpage'` — not routed here; use `parseWebpageUrl(url)` from `webpageParser.ts` directly.
+  - `'webpage'` — routed via `parseWebpage(url)` in `sourceParser.ts:71-74`, which dynamically imports `parseWebpageUrl` from `./webpageParser`. `useIngestPipeline.ts:354` calls `parseWebpage(url)`.
 
 ### pdfParser.ts
-- Lazy-loads `pdfjs-dist` via `getPdfjsLib()`. Sets `GlobalWorkerOptions.workerSrc` to the matching `pdf.worker.min.js` on CDN.
+- Lazy-loads `pdfjs-dist` via `getPdfjsLib()`. Sets `GlobalWorkerOptions.workerSrc` to a same-origin `pdf.worker.min.mjs` bundled via Vite `?url` import from the local `pdfjs-dist` package (`pdfParser.ts:21, 30`). This avoids the cross-origin CDN 404 that occurred with pdfjs-dist 6.x. Local copies also exist in `public/pdfjs/build/`.
 - `parsePDF(arrayBuffer: ArrayBuffer, extractImages = true): Promise<PDFParseResult>` — extracts per-page text via `page.getTextContent()` and renders each page to a JPEG Blob (`canvas.toBlob('image/jpeg', 0.8)`, viewport scale 1.5). Renders are best-effort: image extraction failures are logged but don't fail the parse.
 - Consumed by: `useIngestPipeline` (PDF ingestion).
 
@@ -34,7 +34,7 @@ Browser-only utilities for content extraction (PDF, DOCX, text/Markdown), tokeni
 ### tokenizer.ts
 - Initializes `cl100k_base` via `js-tiktoken:getEncoding` at module load.
 - `chunkText(text, maxTokens = 500, overlapTokens = 100): TextChunk[]` — token-based chunking that aligns boundaries to paragraph (`\n\n`) or sentence (`. `) breaks via `findSemanticBoundary`. Guarantees forward progress (avoid infinite loops on pathological input).
-- `countTokens(text: number)` — convenience wrapper.
+- `countTokens(text: string): number` — convenience wrapper.
 - Consumed by: `useIngestPipeline` (chunking step after PDF/text/docx/webpage parsing).
 
 ## Patterns
@@ -43,7 +43,7 @@ Browser-only utilities for content extraction (PDF, DOCX, text/Markdown), tokeni
 All modules export pure functions. No React state, no module-level caches (except `pdfjs-dist` itself, which is cached in `getPdfjsLib()`).
 
 ### Dynamic imports
-Each heavy dep (`pdfjs-dist`, `mammoth`, `js-tiktoken`) is loaded via `await import(...)` on first use. This keeps the initial Vite bundle small — `pdfjs-dist` alone is hundreds of KB.
+`pdfjs-dist` (via `getPdfjsLib` in `pdfParser.ts:29`) and `mammoth` (in `docxParser.ts:15`) are loaded via `await import(...)`. `js-tiktoken` uses a static import in `tokenizer.ts:1`, but the `lib/tokenizer` module itself is dynamically imported by callers (e.g. `useIngestPipeline.ts:252`), so the heavy encoding work is still deferred.
 
 ### `ParsedSource` is the universal return shape
 Every parser returns the same `ParsedSource` interface so downstream code (`useIngestPipeline`) can consume them uniformly.

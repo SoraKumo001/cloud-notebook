@@ -64,7 +64,7 @@
   - Workers AI / OpenAI 互換 API による Embedding・Vectorize 登録処理の実装。
   - `Vectorize` によるコサイン類似度検索と、LLMによる回答のストリーミング生成 API の実装。
   - 用途別LLMモデル選択（Chat / Summarize）ロジックのバックエンド・UI実装。
-  - Cloudflare Access (JWKS公開鍵検証) を用いた JWT 認証の実装、および D1 での所有権認可（`user_id`）の導入。
+   - Email + Password 認証 + HMAC セッション Cookie 認証 (L1 実装, M18 移行済み), および D1 での所有権認可（`user_id`）の導入。
    - Workers上での MCP（Model Context Protocol）SSEサーバー実装と、ローカル接続時の Bearer 認証設定。
    - TanStack Router (CSR) と Tailwind CSS によるメイン画面および設定 UI の構築。
 
