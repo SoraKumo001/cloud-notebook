@@ -238,6 +238,15 @@ router.patch(
 
     await db.update(notebooks).set(updates).where(eq(notebooks.id, id))
 
+    // Invalidate notebook cache so chat uses the new settings immediately
+    if (typeof caches !== 'undefined' && caches.default) {
+      try {
+        await caches.default.delete(new Request(`https://cache.internal/notebook/${id}`))
+      } catch {
+        // cache invalidation is best-effort
+      }
+    }
+
     const [updated] = await db
       .select({
         id: notebooks.id,
@@ -383,12 +392,16 @@ router.get(
       ai_base_url: effectiveConfig.chat.baseUrl,
     })
 
-    const model = notebook.model_chat || '@cf/meta/llama-3.1-8b-instruct-fast'
+    const model = effectiveConfig.chat.model
 
     const aiStream = await provider.streamChat({
       model,
       messages: [
-        { role: 'system', content: 'You are a helpful research assistant.' },
+        {
+          role: 'system',
+          content:
+            'You are a helpful research assistant. Generate the questions in the same language as the document excerpts.',
+        },
         { role: 'user', content: prompt },
       ],
     })

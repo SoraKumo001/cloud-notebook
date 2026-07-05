@@ -127,6 +127,7 @@ export function buildRagPrompt(
 
 export const GENERAL_SYSTEM_PROMPT = [
   'You are a helpful assistant.',
+  "Respond in the same language as the user's question (e.g., answer in Japanese if the question is in Japanese, in English if the question is in English).",
   'If there are notes available, treat them as context.',
   'If the user is asking a question and there are no relevant documents or no documents at all, answer to the best of your ability using your general knowledge.',
   'However, you MUST politely mention at the beginning of your response that you could not find any relevant documents in their notebook.',

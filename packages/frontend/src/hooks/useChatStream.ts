@@ -6,6 +6,7 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  reasoning?: string
   citations?: { valid: number[]; invalid: number[] }
   risk?: 'low' | 'medium' | 'high'
   reasons?: string[]
@@ -33,6 +34,7 @@ interface StoredSessionMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  reasoning?: string
   created_at: string
 }
 
@@ -148,6 +150,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
             id: m.id,
             role: m.role,
             content: m.content,
+            reasoning: m.reasoning,
           })),
         )
         setActiveSessionId(sessionId)
@@ -245,6 +248,21 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
               break
             }
 
+            case 'reasoning': {
+              const data = JSON.parse(dataStr) as { text?: string }
+              if (data.text) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsgId
+                      ? // biome-ignore lint/style/noNonNullAssertion: guarded by `if (data.text)` above
+                        { ...m, reasoning: (m.reasoning ?? '') + data.text! }
+                      : m,
+                  ),
+                )
+              }
+              break
+            }
+
             case 'delta': {
               const data = JSON.parse(dataStr) as { text?: string }
               if (data.text) {
@@ -263,6 +281,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
             case 'done': {
               const data = JSON.parse(dataStr) as {
                 finalText?: string
+                finalReasoning?: string
                 citations?: ChatMessage['citations']
                 risk?: { risk: ChatMessage['risk']; reasons: string[] }
               }
@@ -272,6 +291,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
                     ? {
                         ...m,
                         content: data.finalText ?? m.content,
+                        reasoning: data.finalReasoning ?? m.reasoning,
                         citations: data.citations,
                         risk: data.risk?.risk,
                         reasons: data.risk?.reasons,

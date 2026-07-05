@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAdmin } from '../auth'
 import { encryptApiKey } from '../crypto'
-import { globalSettings, userSettings } from '../db/schema'
+import { globalSettings, notebooks, userSettings } from '../db/schema'
 import type { StorageConfigJson } from '../db/schema/globalSettings'
 import { ErrorCode, errorResponse } from '../errors'
 import { storageSettingsInputSchema } from '../storage/schema'
@@ -88,6 +88,23 @@ router.put(
         modelOcr: updates.modelOcr,
         systemPrompt: updates.systemPrompt,
       })
+    }
+
+    // Invalidate cached notebook configs for this user
+    if (typeof caches !== 'undefined' && caches.default) {
+      try {
+        const userNotebooks = await db
+          .select({ id: notebooks.id })
+          .from(notebooks)
+          .where(eq(notebooks.userId, userId))
+        await Promise.all(
+          userNotebooks.map((nb) =>
+            caches.default.delete(new Request(`https://cache.internal/notebook/${nb.id}`)),
+          ),
+        )
+      } catch {
+        // cache invalidation is best-effort
+      }
     }
 
     return c.json({ success: true })

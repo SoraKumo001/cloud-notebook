@@ -200,6 +200,53 @@ function TypingIndicator() {
   return <span className='loading loading-dots loading-sm text-base-content/50' />
 }
 
+function ReasoningCollapse({
+  reasoning,
+  isStreaming,
+  t,
+}: {
+  reasoning: string
+  isStreaming: boolean
+  t: (key: string) => string
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <div className='mb-2 rounded-md bg-base-300/50 border-l-2 border-primary/40 overflow-hidden'>
+      <button
+        type='button'
+        onClick={() => setOpen((prev) => !prev)}
+        className='btn btn-ghost btn-xs w-full justify-between px-2 py-1.5 h-auto min-h-0 text-xs font-medium text-base-content/80 hover:bg-base-300/70'
+      >
+        <span className='flex items-center gap-1.5'>
+          {isStreaming && (
+            <span className='loading loading-spinner loading-xs text-base-content/50' />
+          )}
+          {t('chat.reasoning')}
+        </span>
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          aria-hidden='true'
+        />
+      </button>
+
+      {open && (
+        <div className='px-2.5 pb-2 pt-0.5 text-xs leading-relaxed text-base-content/70'>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw, rehypeHighlight]}
+            components={chatMarkdownComponents}
+          >
+            {reasoning}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ChatMessageItem({
   message,
   isStreaming,
@@ -221,6 +268,10 @@ function ChatMessageItem({
       >
         {!isUser && message.risk && (message.risk === 'medium' || message.risk === 'high') && (
           <RiskBanner risk={message.risk} reasons={message.reasons} t={t} />
+        )}
+
+        {!isUser && message.reasoning && message.reasoning.trim() !== '' && (
+          <ReasoningCollapse reasoning={message.reasoning} isStreaming={isStreaming} t={t} />
         )}
 
         <div className='text-sm leading-relaxed'>

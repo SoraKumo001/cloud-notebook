@@ -11,6 +11,7 @@ export const chatMessages = sqliteTable(
       .references(() => chatSessions.id, { onDelete: 'cascade' }),
     role: text('role').notNull(),
     content: text('content').notNull(),
+    reasoning: text('reasoning'),
     createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
   },
   (t) => [index('idx_chat_messages_session_created').on(t.sessionId, t.createdAt)],

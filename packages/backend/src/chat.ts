@@ -233,6 +233,60 @@ async function getNotebookCached(env: ChatEnv, notebookId: string): Promise<Note
 // Pipeline implementation
 // ---------------------------------------------------------------------------
 
+/**
+ * Stateful splitter that separates a reasoning model's  thinking... response trace
+ * from the clean answer content, across chunk boundaries.
+ *
+ * Usage: call `splitChunk(text)` for each chunk's text. Returns `{ reasoning, content }`
+ * where `reasoning` is the trace text accumulated this call (may be empty) and
+ * `content` is the clean text accumulated this call (may be empty).
+ * State (`inThinkBlock`) is preserved across calls within one pipeline run.
+ */
+function createReasoningSplitter() {
+  let inThinkBlock = false
+  return function splitChunk(text: string): { reasoning: string; content: string } {
+    if (!text) return { reasoning: '', content: '' }
+    let reasoning = ''
+    let content = ''
+    let rest = text
+
+    // If we were inside a  thinking block from a prior chunk, drop until we see  response
+    if (inThinkBlock) {
+      const end = rest.search(/<\/think>/i)
+      if (end === -1) {
+        // whole chunk is reasoning
+        return { reasoning: rest, content: '' }
+      }
+      reasoning += rest.slice(0, end)
+      rest = rest.slice(end + ' response'.length)
+      inThinkBlock = false
+    }
+
+    // Process sequential closed  thinking... response blocks
+    const re = / thinking([\s\S]*?)<\/think>/gi
+    let lastEnd = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(rest)) !== null) {
+      content += rest.slice(lastEnd, m.index)
+      reasoning += m[1]
+      lastEnd = m.index + m[0].length
+    }
+    rest = rest.slice(lastEnd)
+
+    // Detect an unclosed  thinking at the end
+    const lastOpen = rest.lastIndexOf(' thinking')
+    if (lastOpen !== -1) {
+      content += rest.slice(0, lastOpen)
+      reasoning += rest.slice(lastOpen + ' thinking'.length)
+      inThinkBlock = true
+    } else {
+      content += rest
+    }
+
+    return { reasoning, content }
+  }
+}
+
 async function runPipeline(
   env: ChatEnv,
   notebookId: string,
@@ -482,7 +536,9 @@ async function runPipeline(
 
   const aiReader = aiStream.getReader()
   const decoder = new TextDecoder()
+  const splitChunk = createReasoningSplitter()
   let fullText = ''
+  let fullReasoning = ''
 
   let buffer = ''
   try {
@@ -516,8 +572,15 @@ async function runPipeline(
         }
 
         if (text) {
-          writeSSE(writer, 'delta', { text })
-          fullText += text
+          const { reasoning, content } = splitChunk(text)
+          if (reasoning) {
+            writeSSE(writer, 'reasoning', { text: reasoning })
+            fullReasoning += reasoning
+          }
+          if (content) {
+            writeSSE(writer, 'delta', { text: content })
+            fullText += content
+          }
         }
       }
     }
@@ -540,8 +603,15 @@ async function runPipeline(
         }
 
         if (text) {
-          writeSSE(writer, 'delta', { text })
-          fullText += text
+          const { reasoning, content } = splitChunk(text)
+          if (reasoning) {
+            writeSSE(writer, 'reasoning', { text: reasoning })
+            fullReasoning += reasoning
+          }
+          if (content) {
+            writeSSE(writer, 'delta', { text: content })
+            fullText += content
+          }
         }
       }
     }
@@ -555,6 +625,7 @@ async function runPipeline(
     sessionId: activeSessionId,
     role: 'assistant',
     content: fullText,
+    reasoning: fullReasoning || null,
   })
 
   // ---- Compute post-streaming analysis -------------------------------------
@@ -573,6 +644,7 @@ async function runPipeline(
 
   writeSSE(writer, 'done', {
     finalText: fullText,
+    finalReasoning: fullReasoning || undefined,
     citations: citationResult,
     risk: finalRisk,
   })

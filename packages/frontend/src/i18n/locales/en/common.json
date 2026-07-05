@@ -303,6 +303,7 @@
     "inputPlaceholder": "Ask a question...",
     "sendAria": "Send",
     "sendHint": "Enter to send · Shift+Enter for new line",
+    "reasoning": "Reasoning",
     "highRiskBadge": "High risk response",
     "potentialUnreliable": "Potentially unreliable",
     "suggestedQuestions": {
