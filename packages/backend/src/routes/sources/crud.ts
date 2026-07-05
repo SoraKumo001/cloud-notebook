@@ -4,6 +4,7 @@
 import { zValidator } from '@hono/zod-validator'
 import { eq } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
+import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { notebooks, sourceChunks, sourceImages, sources } from '../../db/schema'
@@ -26,7 +27,7 @@ const contentChunkSchema = z.object({
 
 // Shared ownership check: returns the source row or sends an error response.
 async function getOwnedSource(
-  c: Parameters<AppEnv['Bindings']>[0] & { get: (k: string) => unknown },
+  c: Context<AppEnv>,
   sourceId: string,
 ): Promise<{ type: string; r2Key: string | null; notebookId: string; name: string } | Response> {
   const userId = c.get('user').id
@@ -62,6 +63,84 @@ async function getOwnedSource(
     name: source.name,
   }
 }
+
+// POST /api/notebooks/:id/sources — create a new empty text/markdown source
+router.post(
+  '/notebooks/:id/sources',
+  zValidator('param', z.object({ id: z.string().min(1).max(100) }), vHook),
+  zValidator(
+    'json',
+    z.object({
+      type: z.enum(['text', 'markdown']),
+      name: z
+        .string()
+        .min(1)
+        .max(255)
+        .refine((s) => !s.includes('..') && !s.includes('/') && !s.includes('\\'), 'Invalid name')
+        .optional(),
+    }),
+    vHook,
+  ),
+  async (c) => {
+    const { id: notebookId } = c.req.valid('param')
+    const { type, name: rawName } = c.req.valid('json')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    const [notebook] = await db
+      .select({ user_id: notebooks.userId })
+      .from(notebooks)
+      .where(eq(notebooks.id, notebookId))
+      .limit(1)
+
+    if (!notebook || notebook.user_id !== userId) {
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
+    }
+
+    const sourceId = crypto.randomUUID()
+    const name = rawName ?? (type === 'markdown' ? 'untitled.md' : 'untitled.txt')
+    const r2Key = `notebooks/${notebookId}/sources/${sourceId}/${name}`
+    const contentType = type === 'markdown' ? 'text/markdown' : 'text/plain'
+
+    // Put empty content to R2
+    const storage = c.get('storage')
+    await storage.put(r2Key, new TextEncoder().encode('').buffer as ArrayBuffer, contentType)
+
+    // Compute hash of empty string
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(''))
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const newHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+    // Insert into sources table
+    await db.insert(sources).values({
+      id: sourceId,
+      notebookId,
+      userId,
+      name,
+      type,
+      r2Key,
+      hash: newHash,
+      status: 'completed',
+    })
+
+    // Select and return the created source
+    const [created] = await db
+      .select({
+        id: sources.id,
+        notebook_id: sources.notebookId,
+        name: sources.name,
+        type: sources.type,
+        status: sources.status,
+        r2_key: sources.r2Key,
+        created_at: sources.createdAt,
+      })
+      .from(sources)
+      .where(eq(sources.id, sourceId))
+      .limit(1)
+
+    return c.json(created, 201)
+  },
+)
 
 // GET /api/sources/:id/content — retrieve editable source content
 router.get('/sources/:id/content', zValidator('param', paramSchema, vHook), async (c) => {
@@ -139,7 +218,11 @@ router.put(
 
     // Update R2 storage
     const storage = c.get('storage')
-    await storage.put(owned.r2Key, new TextEncoder().encode(content), contentType)
+    await storage.put(
+      owned.r2Key,
+      new TextEncoder().encode(content).buffer as ArrayBuffer,
+      contentType,
+    )
 
     // Compute new hash
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))

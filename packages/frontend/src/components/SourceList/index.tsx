@@ -1,6 +1,6 @@
 import { closestCenter, DndContext } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Check, File, Plus, X } from 'lucide-react'
+import { Check, File, FilePlus, Plus, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNotebookStats } from '../../hooks/useNotebookStats'
@@ -18,6 +18,7 @@ export function SourceList({
   onDelete,
   onRename,
   onEdit,
+  onCreateSource,
   onReorder,
   onFilesSelected,
   uploadProgress,
@@ -29,7 +30,32 @@ export function SourceList({
   const { sensors, handleDragEnd } = useSourceReorder(sources, onReorder)
 
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const createMenuRef = React.useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = React.useState(false)
+  const [showCreateMenu, setShowCreateMenu] = React.useState(false)
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setShowCreateMenu(false)
+      }
+    }
+
+    if (showCreateMenu) {
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside)
+      }, 0)
+      return () => {
+        clearTimeout(timer)
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showCreateMenu])
+
+  async function handleCreateSource(type: 'text' | 'markdown') {
+    await onCreateSource?.(type)
+    setShowCreateMenu(false)
+  }
 
   // Track which uploadProgress entries have already been seen as "done" so
   // we refresh stats exactly once per completion (and never on every render
@@ -133,91 +159,6 @@ export function SourceList({
       </div>
     ) : null
 
-  const hasActiveProgress = uploadProgress && uploadProgress.length > 0
-
-  // ── Empty state with progress ───────────────────────────────────────────
-  if (sources.length === 0) {
-    if (hasActiveProgress) {
-      return (
-        <section
-          role='region'
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
-            isDragging
-              ? 'border-teal-400 bg-teal-500/10 shadow-lg shadow-teal-500/10'
-              : 'border-base-300 bg-base-100/30'
-          }`}
-        >
-          <input
-            ref={inputRef}
-            type='file'
-            accept='.pdf,.txt,.md,.docx,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            multiple
-            onChange={handleInputChange}
-            className='hidden'
-          />
-          {progressBlock}
-          {onFilesSelected && (
-            <div className='mt-4'>
-              <button
-                type='button'
-                onClick={() => inputRef.current?.click()}
-                className='btn btn-neutral btn-sm'
-                aria-label={t('sourceList.addMore')}
-              >
-                <Plus size={16} strokeWidth={2} aria-hidden='true' />
-                {t('sourceList.addMore')}
-              </button>
-            </div>
-          )}
-        </section>
-      )
-    }
-
-    return (
-      <section
-        role='region'
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-300 ${
-          isDragging
-            ? 'border-teal-400 bg-teal-500/10 shadow-lg shadow-teal-500/10'
-            : 'border-base-300 bg-base-100/30'
-        }`}
-      >
-        <input
-          ref={inputRef}
-          type='file'
-          accept='.pdf,.txt,.md,.docx,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-          multiple
-          onChange={handleInputChange}
-          className='hidden'
-        />
-        <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-base-300 text-base-content/50'>
-          <File size={24} strokeWidth={2} aria-hidden='true' />
-        </div>
-        <h3 className='text-base font-medium text-base-content/70'>{t('sourceList.empty')}</h3>
-        <p className='mt-1 text-sm text-base-content/50'>
-          {onFilesSelected ? t('sourceList.emptyWithDrop') : t('sourceList.emptyWithWeb')}
-        </p>
-        {onFilesSelected && (
-          <button
-            type='button'
-            onClick={() => inputRef.current?.click()}
-            className='mt-4 btn btn-neutral'
-            aria-label={t('sourceList.addFiles')}
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden='true' />
-            {t('sourceList.clickToAdd')}
-          </button>
-        )}
-      </section>
-    )
-  }
-
   // ── List content ────────────────────────────────────────────────────────
   const list = (
     <section
@@ -244,6 +185,41 @@ export function SourceList({
               <Plus size={16} strokeWidth={2} aria-hidden='true' />
             </button>
           )}
+          {onCreateSource && (
+            <div ref={createMenuRef} className='relative'>
+              <button
+                type='button'
+                onClick={() => setShowCreateMenu((prev) => !prev)}
+                className='btn btn-ghost btn-sm btn-circle'
+                aria-label={t('sourceList.newFileAria')}
+                title={t('sourceList.newFile')}
+              >
+                <FilePlus size={16} strokeWidth={2} aria-hidden='true' />
+              </button>
+              {showCreateMenu && (
+                <ul className='absolute left-0 top-full mt-2 w-40 bg-base-100 border border-base-300 rounded-xl shadow-xl shadow-black/40 py-2 z-50 text-sm'>
+                  <li>
+                    <button
+                      type='button'
+                      onClick={() => void handleCreateSource('markdown')}
+                      className='w-full text-left px-4 py-2 text-base-content hover:bg-base-200 transition-colors'
+                    >
+                      {t('sourceList.newMarkdown')}
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type='button'
+                      onClick={() => void handleCreateSource('text')}
+                      className='w-full text-left px-4 py-2 text-base-content hover:bg-base-200 transition-colors'
+                    >
+                      {t('sourceList.newText')}
+                    </button>
+                  </li>
+                </ul>
+              )}
+            </div>
+          )}
         </div>
         <div className='flex items-center gap-3'>
           {hasErrors && onClearErrors && (
@@ -268,34 +244,64 @@ export function SourceList({
         onChange={handleInputChange}
         className='hidden'
       />
-      {progressBlock}
-      <ul className='divide-y divide-base-300'>
-        {sources.map((source) =>
-          onReorder ? (
-            <SortableSourceItem
-              key={source.id}
-              source={source}
-              onDelete={onDelete}
-              onRename={onRename}
-              onEdit={onEdit}
-              refreshStats={refreshStats}
-              t={t}
-              locale={locale}
-            />
-          ) : (
-            <StaticSourceItem
-              key={source.id}
-              source={source}
-              onDelete={onDelete}
-              onRename={onRename}
-              onEdit={onEdit}
-              refreshStats={refreshStats}
-              t={t}
-              locale={locale}
-            />
-          ),
-        )}
-      </ul>
+      {sources.length === 0 ? (
+        <div
+          className={`flex-1 flex flex-col items-center justify-center p-10 text-center transition-all duration-300 ${
+            isDragging ? 'bg-teal-500/5' : ''
+          }`}
+        >
+          {progressBlock}
+          <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-base-300 text-base-content/50'>
+            <File size={24} strokeWidth={2} aria-hidden='true' />
+          </div>
+          <h3 className='text-base font-medium text-base-content/70'>{t('sourceList.empty')}</h3>
+          <p className='mt-1 text-sm text-base-content/50'>
+            {onFilesSelected ? t('sourceList.emptyWithDrop') : t('sourceList.emptyWithWeb')}
+          </p>
+          {onFilesSelected && (
+            <button
+              type='button'
+              onClick={() => inputRef.current?.click()}
+              className='mt-4 btn btn-neutral'
+              aria-label={t('sourceList.addFiles')}
+            >
+              <Plus size={16} strokeWidth={2} aria-hidden='true' />
+              {t('sourceList.clickToAdd')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {progressBlock}
+          <ul className='divide-y divide-base-300'>
+            {sources.map((source) =>
+              onReorder ? (
+                <SortableSourceItem
+                  key={source.id}
+                  source={source}
+                  onDelete={onDelete}
+                  onRename={onRename}
+                  onEdit={onEdit}
+                  refreshStats={refreshStats}
+                  t={t}
+                  locale={locale}
+                />
+              ) : (
+                <StaticSourceItem
+                  key={source.id}
+                  source={source}
+                  onDelete={onDelete}
+                  onRename={onRename}
+                  onEdit={onEdit}
+                  refreshStats={refreshStats}
+                  t={t}
+                  locale={locale}
+                />
+              ),
+            )}
+          </ul>
+        </>
+      )}
     </section>
   )
 

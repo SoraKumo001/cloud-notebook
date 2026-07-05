@@ -2,6 +2,10 @@ import { AlertCircle, FileEdit, Save, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
+import { markdownComponents } from './markdownComponents'
 import type { Source } from './SourceList'
 import { Button } from './ui/Button'
 
@@ -148,9 +152,15 @@ export function SourceEditor({ source, onClose, onSave, getSourceContent }: Sour
               <div className='px-3 py-2 bg-base-200/60 border-b border-base-300 text-xs font-medium text-base-content/50 flex items-center gap-2 flex-shrink-0'>
                 {t('sourceEditor.preview')}
               </div>
-              <div className='flex-1 overflow-y-auto p-4 text-sm leading-relaxed text-base-content/90 prose prose-sm max-w-none prose-invert'>
+              <div className='flex-1 overflow-y-auto p-4 text-sm leading-relaxed text-base-content/90'>
                 {content.trim() ? (
-                  <ReactMarkdown>{content}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight, rehypeRaw]}
+                    components={markdownComponents}
+                  >
+                    {content}
+                  </ReactMarkdown>
                 ) : (
                   <p className='text-base-content/40 italic'>{t('sourceEditor.emptyContent')}</p>
                 )}

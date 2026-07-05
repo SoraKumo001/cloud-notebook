@@ -2,6 +2,10 @@ import { Eye, Pencil, Save, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
+import { markdownComponents } from './markdownComponents'
 import { Button } from './ui/Button'
 
 export interface Note {
@@ -89,10 +93,7 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
 
   return (
     <div className='card card-border bg-base-100 overflow-hidden'>
-      <div className='px-5 py-4 border-b border-base-300 bg-base-200 flex items-center justify-between gap-4'>
-        <h3 className='text-sm font-semibold text-base-content/90'>
-          {isNew ? t('note.editor.newNote') : t('note.editor.editNote')}
-        </h3>
+      <div className='px-5 py-4 border-b border-base-300 bg-base-200 flex items-center gap-4'>
         <div role='tablist' className='tabs tabs-box bg-base-200 border border-base-300'>
           <Button
             type='button'
@@ -150,52 +151,9 @@ export function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
           ) : (
             <div className='min-h-[20rem] px-4 py-3 rounded-md bg-base-200 border border-base-300 text-base-content/70 overflow-auto'>
               <ReactMarkdown
-                components={{
-                  h1: ({ children }) => (
-                    <h1 className='text-2xl font-bold text-base-content mb-4'>{children}</h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className='text-xl font-semibold text-base-content mt-6 mb-3'>
-                      {children}
-                    </h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className='text-lg font-semibold text-base-content/90 mt-4 mb-2'>
-                      {children}
-                    </h3>
-                  ),
-                  p: ({ children }) => <p className='mb-4 leading-relaxed'>{children}</p>,
-                  ul: ({ children }) => (
-                    <ul className='list-disc list-inside mb-4 space-y-1'>{children}</ul>
-                  ),
-                  ol: ({ children }) => (
-                    <ol className='list-decimal list-inside mb-4 space-y-1'>{children}</ol>
-                  ),
-                  li: ({ children }) => <li className='text-base-content/70'>{children}</li>,
-                  code: ({ children }) => (
-                    <code className='px-1.5 py-0.5 rounded bg-base-100 text-base-content/90 text-sm font-mono'>
-                      {children}
-                    </code>
-                  ),
-                  pre: ({ children }) => (
-                    <pre className='p-3 rounded-md bg-base-100 border border-base-300 overflow-auto mb-4'>
-                      {children}
-                    </pre>
-                  ),
-                  strong: ({ children }) => (
-                    <strong className='font-semibold text-base-content'>{children}</strong>
-                  ),
-                  a: ({ children, href }) => (
-                    <a
-                      href={href}
-                      className='text-primary hover:text-primary/80 underline'
-                      target='_blank'
-                      rel='noreferrer'
-                    >
-                      {children}
-                    </a>
-                  ),
-                }}
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight, rehypeRaw]}
+                components={markdownComponents}
               >
                 {content || t('note.editor.previewEmpty')}
               </ReactMarkdown>

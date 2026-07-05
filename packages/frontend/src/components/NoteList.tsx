@@ -1,4 +1,4 @@
-import { FileText, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { FileText, MoreVertical, PanelRightClose, Pencil, Plus, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatShortDate } from '../i18n/formatters'
@@ -20,6 +20,7 @@ interface NoteListProps {
   onCreate: () => void
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, title: string) => void | Promise<void>
+  onCollapse?: () => void
 }
 
 function relativeTime(
@@ -253,6 +254,7 @@ export function NoteList({
   onCreate,
   onDelete,
   onRename,
+  onCollapse,
 }: NoteListProps) {
   const { t } = useTranslation('common')
   const { locale } = useLocale()
@@ -266,9 +268,22 @@ export function NoteList({
             {t('note.listCount', { count: notes.length })}
           </p>
         </div>
-        <Button type='button' size='sm' variant='primary' iconLeft={Plus} onClick={onCreate}>
-          {t('note.newNote')}
-        </Button>
+        <div className='flex items-center gap-2'>
+          <Button type='button' size='sm' variant='primary' iconLeft={Plus} onClick={onCreate}>
+            {t('note.newNote')}
+          </Button>
+          {onCollapse && (
+            <button
+              type='button'
+              onClick={onCollapse}
+              className='btn btn-ghost btn-sm btn-circle'
+              aria-label={t('notebookDetail.collapseNotes')}
+              title={t('notebookDetail.collapseNotes')}
+            >
+              <PanelRightClose size={16} strokeWidth={2} aria-hidden='true' />
+            </button>
+          )}
+        </div>
       </div>
 
       {notes.length === 0 ? (

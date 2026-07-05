@@ -200,9 +200,11 @@
       "body": "This will permanently delete \"{title}\" and all its sources. This cannot be undone."
     },
     "studio": {
-      "title": "Notes & Studio",
-      "subtitle": "Write notes or generate study guides."
-    }
+      "title": "Notes",
+      "subtitle": "Write notes for this notebook."
+    },
+    "collapseNotes": "Collapse notes",
+    "expandNotes": "Expand notes"
   },
   "createNotebook": {
     "title": "Create New Notebook",
@@ -248,7 +250,11 @@
     "renameLabel": "Rename",
     "deleteConfirm": "Delete",
     "editAria": "Edit source content",
-    "editLabel": "Edit"
+    "editLabel": "Edit",
+    "newFile": "New file",
+    "newMarkdown": "Markdown",
+    "newText": "Text",
+    "newFileAria": "Create new file"
   },
   "sourceEditor": {
     "title": "Edit Source",

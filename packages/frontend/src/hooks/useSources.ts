@@ -80,6 +80,7 @@ interface UseSourcesReturn {
   refresh: () => Promise<void>
   deleteSource: (id: string) => Promise<void>
   renameSource: (id: string, name: string) => Promise<void>
+  createSource: (type: 'text' | 'markdown', name?: string) => Promise<Source>
   reorderSources: (sourceIds: string[]) => Promise<void>
   updateNotebook: (id: string, update: NotebookUpdate) => Promise<void>
   deleteNotebook: (id: string) => Promise<void>
@@ -183,6 +184,50 @@ export function useSources(notebookId: string): UseSourcesReturn {
       }
     },
     [refresh],
+  )
+
+  const createSource = useCallback(
+    async (type: 'text' | 'markdown', name?: string) => {
+      try {
+        setError(null)
+        const body: { type: 'text' | 'markdown'; name?: string } = { type }
+        if (name) body.name = name
+        const data = await fetchJson<{
+          id: string
+          notebook_id: string
+          name: string
+          type: string
+          status: string
+          r2_key: string | null
+          created_at: string
+        }>(`/api/notebooks/${encodeURIComponent(notebookId)}/sources`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+
+        const source: Source = {
+          id: data.id,
+          fileName: data.name,
+          type: data.type,
+          status: mapSourceStatus(data.status),
+          updatedAt: data.created_at,
+          size: undefined,
+        }
+
+        await refresh()
+        return source
+      } catch (err) {
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
+        throw err
+      }
+    },
+    [notebookId, refresh],
   )
 
   const reorderSources = useCallback(
@@ -314,6 +359,7 @@ export function useSources(notebookId: string): UseSourcesReturn {
     refresh,
     deleteSource,
     renameSource,
+    createSource,
     reorderSources,
     updateNotebook,
     deleteNotebook,

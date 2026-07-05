@@ -909,7 +909,7 @@ describe('PUT /api/sources/:id/content', () => {
     // R2 put called with the r2Key and new content
     expect(mockPut).toHaveBeenCalledWith(
       'notebooks/nb-1/sources/src-2/notes.txt',
-      expect.any(Uint8Array),
+      expect.any(ArrayBuffer),
       'text/plain',
     )
 
@@ -1019,6 +1019,158 @@ describe('PUT /api/sources/:id/content', () => {
     )
 
     expect(res.status).toBe(404)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/notebooks/:id/sources
+// ---------------------------------------------------------------------------
+
+describe('POST /api/notebooks/:id/sources', () => {
+  it('creates a markdown source with default name', async () => {
+    const mockPut = vi.fn().mockResolvedValue({ etag: 'etag', size: 0 })
+
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    env.__storage = { ...noopStorage(), put: mockPut } as any
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'markdown' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.id).toBeDefined()
+    expect(typeof body.id).toBe('string')
+    expect(body.notebook_id).toBe('nb-1')
+    expect(body.name).toBe('untitled.md')
+    expect(body.type).toBe('markdown')
+    expect(body.status).toBe('completed')
+    expect(body.r2_key).toMatch(/^notebooks\/nb-1\/sources\//)
+    expect(body.created_at).toBeDefined()
+
+    // storage.put called with the right key and empty content
+    expect(mockPut).toHaveBeenCalledTimes(1)
+    const putKey = mockPut.mock.calls[0][0] as string
+    expect(putKey).toMatch(/^notebooks\/nb-1\/sources\/[^/]+\/untitled\.md$/)
+    expect(mockPut.mock.calls[0][1]).toBeInstanceOf(ArrayBuffer)
+    expect((mockPut.mock.calls[0][1] as ArrayBuffer).byteLength).toBe(0)
+    expect(mockPut.mock.calls[0][2]).toBe('text/markdown')
+
+    // D1: row exists
+    const [row] = await db
+      .select()
+      .from(sources)
+      .where(eq(sources.id, body.id as string))
+      .limit(1)
+    expect(row).toBeDefined()
+    expect(row.name).toBe('untitled.md')
+    expect(row.type).toBe('markdown')
+  })
+
+  it('creates a text source with custom name', async () => {
+    const mockPut = vi.fn().mockResolvedValue({ etag: 'etag', size: 0 })
+
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+    env.__storage = { ...noopStorage(), put: mockPut } as any
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'text', name: 'my-notes.txt' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.name).toBe('my-notes.txt')
+    expect(body.type).toBe('text')
+    expect(body.r2_key).toMatch(/\/my-notes\.txt$/)
+    expect(body.status).toBe('completed')
+  })
+
+  it('returns 404 when notebook does not exist', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nonexistent/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'text' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(404)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.error).toBe('Notebook not found')
+  })
+
+  it('returns 404 when notebook belongs to another user', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-2/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'text' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(404)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.error).toBe('Notebook not found')
+  })
+
+  it('returns 400 when type is invalid', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'pdf' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when name contains path traversal', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/notebooks/nb-1/sources', cookie, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'text', name: '../evil.txt' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(400)
   })
 })
 

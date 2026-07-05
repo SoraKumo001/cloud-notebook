@@ -200,9 +200,11 @@
       "body": "「{title}」とすべてのソースが完全に削除されます。この操作は取り消せません。"
     },
     "studio": {
-      "title": "メモ & スタジオ",
-      "subtitle": "メモを書いたり、スタディガイドを生成したりできます。"
-    }
+      "title": "メモ",
+      "subtitle": "このノートブックのメモを書けます。"
+    },
+    "collapseNotes": "メモを折りたたむ",
+    "expandNotes": "メモを展開"
   },
   "createNotebook": {
     "title": "新しいノートブックを作成",
@@ -248,7 +250,11 @@
     "renameLabel": "名前を変更",
     "deleteConfirm": "削除",
     "editAria": "ソースを編集",
-    "editLabel": "編集"
+    "editLabel": "編集",
+    "newFile": "新規ファイル",
+    "newMarkdown": "Markdown",
+    "newText": "テキスト",
+    "newFileAria": "新規ファイルを作成"
   },
   "sourceEditor": {
     "title": "ソースを編集",

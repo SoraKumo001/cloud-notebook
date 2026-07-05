@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, MoreVertical, Pencil, Settings, Trash2, X } from 'lucide-react'
+import { ArrowLeft, MoreVertical, PanelRightOpen, Pencil, Settings, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { SourceList } from '../../components/SourceList'
@@ -75,6 +75,7 @@ function NotebookDetailPage() {
     refresh,
     deleteSource,
     renameSource,
+    createSource,
     reorderSources,
     updateNotebook,
     deleteNotebook,
@@ -91,8 +92,17 @@ function NotebookDetailPage() {
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = React.useState(false)
   const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null)
   const [editingSourceId, setEditingSourceId] = React.useState<string | null>(null)
+  const [isNotesCollapsed, setIsNotesCollapsed] = React.useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('cloud-notebook:notes-collapsed') === 'true'
+  })
   const titleInputRef = React.useRef<HTMLInputElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('cloud-notebook:notes-collapsed', String(isNotesCollapsed))
+  }, [isNotesCollapsed])
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
@@ -273,6 +283,11 @@ function NotebookDetailPage() {
 
   async function handleEditSource(id: string) {
     setEditingSourceId(id)
+  }
+
+  async function handleCreateSource(type: 'text' | 'markdown') {
+    const source = await createSource(type)
+    setEditingSourceId(source.id)
   }
 
   async function handleSaveSourceContent(id: string, content: string) {
@@ -511,6 +526,7 @@ function NotebookDetailPage() {
                     onDelete={deleteSource}
                     onRename={renameSource}
                     onEdit={handleEditSource}
+                    onCreateSource={handleCreateSource}
                     onReorder={reorderSources}
                     onFilesSelected={handleFilesSelected}
                     uploadProgress={uploadProgress}
@@ -537,37 +553,48 @@ function NotebookDetailPage() {
               </React.Suspense>
             </div>
 
-            {/* Column 3: Notes & Studio (Width: w-96, Scrollable) */}
-            <div className='w-96 flex-shrink-0 flex flex-col h-full bg-base-100/10 overflow-hidden'>
-              <div className='flex-1 overflow-y-auto p-5 space-y-6'>
-                <section className='space-y-4'>
-                  <div>
-                    <h2 className='text-sm font-semibold text-base-content/90 uppercase tracking-wider'>
-                      {t('notebookDetail.studio.title')}
-                    </h2>
-                    <p className='text-xs text-base-content/50'>
-                      {t('notebookDetail.studio.subtitle')}
-                    </p>
-                  </div>
-                  <React.Suspense fallback={<div className='skeleton h-48 w-full rounded-2xl' />}>
-                    <NoteList
-                      notes={notes}
-                      activeNoteId={activeNoteId}
-                      onSelect={setActiveNoteId}
-                      onCreate={handleCreateNote}
-                      onDelete={handleDeleteNote}
-                      onRename={handleRenameNote}
-                    />
-                  </React.Suspense>
-                  <React.Suspense fallback={<div className='skeleton h-64 w-full rounded-2xl' />}>
-                    <NoteEditor
-                      note={activeNote}
-                      onSave={handleSaveNote}
-                      onCancel={handleCancelEditor}
-                    />
-                  </React.Suspense>
-                </section>
-              </div>
+            {/* Column 3: Notes & Studio (collapsible) */}
+            <div
+              className={`flex-shrink-0 flex flex-col h-full bg-base-100/10 overflow-hidden transition-all duration-300 ${
+                isNotesCollapsed ? 'w-12' : 'w-96'
+              }`}
+            >
+              {isNotesCollapsed ? (
+                <div className='flex-1 flex flex-col items-center pt-4'>
+                  <button
+                    type='button'
+                    onClick={() => setIsNotesCollapsed(false)}
+                    className='btn btn-ghost btn-sm btn-circle'
+                    aria-label={t('notebookDetail.expandNotes')}
+                    title={t('notebookDetail.expandNotes')}
+                  >
+                    <PanelRightOpen size={16} strokeWidth={2} aria-hidden='true' />
+                  </button>
+                </div>
+              ) : (
+                <div className='flex-1 overflow-y-auto p-5 space-y-6'>
+                  <section className='space-y-4'>
+                    <React.Suspense fallback={<div className='skeleton h-48 w-full rounded-2xl' />}>
+                      <NoteList
+                        notes={notes}
+                        activeNoteId={activeNoteId}
+                        onSelect={setActiveNoteId}
+                        onCreate={handleCreateNote}
+                        onDelete={handleDeleteNote}
+                        onRename={handleRenameNote}
+                        onCollapse={() => setIsNotesCollapsed(true)}
+                      />
+                    </React.Suspense>
+                    <React.Suspense fallback={<div className='skeleton h-64 w-full rounded-2xl' />}>
+                      <NoteEditor
+                        note={activeNote}
+                        onSave={handleSaveNote}
+                        onCancel={handleCancelEditor}
+                      />
+                    </React.Suspense>
+                  </section>
+                </div>
+              )}
             </div>
           </div>
         )}
