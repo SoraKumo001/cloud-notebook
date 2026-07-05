@@ -1,16 +1,242 @@
 // packages/backend/src/routes/sources/crud.ts
-// Source CRUD: delete and rename.
+// Source CRUD: delete, rename, get content, and update content.
 
 import { zValidator } from '@hono/zod-validator'
 import { eq } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { notebooks, sourceChunks, sourceImages, sources } from '../../db/schema'
+import { getEffectiveAiConfig } from '../../db/settings'
+import { embedChunks, getEmbeddingProvider } from '../../embeddings'
 import { ErrorCode, errorResponse } from '../../errors'
 import type { AppEnv } from '../../types'
 import { vHook } from '../common'
 
 const router = new Hono<AppEnv>()
+
+const EDITABLE_TYPES = new Set(['text', 'markdown', 'webpage'])
+
+const paramSchema = z.object({ id: z.string().min(1).max(100) })
+
+const contentChunkSchema = z.object({
+  content: z.string().max(10000),
+  pageNumber: z.number().int().optional(),
+})
+
+// Shared ownership check: returns the source row or sends an error response.
+async function getOwnedSource(
+  c: Parameters<AppEnv['Bindings']>[0] & { get: (k: string) => unknown },
+  sourceId: string,
+): Promise<{ type: string; r2Key: string | null; notebookId: string; name: string } | Response> {
+  const userId = c.get('user').id
+  const db = c.get('db')
+
+  const [source] = await db
+    .select({
+      notebook_id: sources.notebookId,
+      type: sources.type,
+      r2_key: sources.r2Key,
+      name: sources.name,
+    })
+    .from(sources)
+    .where(eq(sources.id, sourceId))
+    .limit(1)
+
+  if (!source) return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
+
+  const [notebook] = await db
+    .select({ user_id: notebooks.userId })
+    .from(notebooks)
+    .where(eq(notebooks.id, source.notebook_id))
+    .limit(1)
+
+  if (!notebook || notebook.user_id !== userId) {
+    return errorResponse(c, ErrorCode.SourceNotFound, 'Source not found', 404)
+  }
+
+  return {
+    type: source.type,
+    r2Key: source.r2_key,
+    notebookId: source.notebook_id,
+    name: source.name,
+  }
+}
+
+// GET /api/sources/:id/content — retrieve editable source content
+router.get('/sources/:id/content', zValidator('param', paramSchema, vHook), async (c) => {
+  const { id: sourceId } = c.req.valid('param')
+  const db = c.get('db')
+
+  const owned = await getOwnedSource(c, sourceId)
+  if (owned instanceof Response) return owned
+
+  if (!EDITABLE_TYPES.has(owned.type)) {
+    return errorResponse(c, ErrorCode.ValidationFailed, 'This source type cannot be edited', 400)
+  }
+
+  let content: string
+
+  if (owned.r2Key) {
+    const storage = c.get('storage')
+    const buffer = await storage.get(owned.r2Key)
+    if (buffer) {
+      content = new TextDecoder().decode(buffer)
+    } else {
+      // Fallback: concatenate chunks
+      const rows = await db
+        .select({ content: sourceChunks.content })
+        .from(sourceChunks)
+        .where(eq(sourceChunks.sourceId, sourceId))
+        .orderBy(sourceChunks.pageNumber, sourceChunks.id)
+
+      content = rows.map((r) => r.content).join('\n\n')
+    }
+  } else {
+    // No R2 key — fallback to chunks
+    const rows = await db
+      .select({ content: sourceChunks.content })
+      .from(sourceChunks)
+      .where(eq(sourceChunks.sourceId, sourceId))
+      .orderBy(sourceChunks.pageNumber, sourceChunks.id)
+
+    content = rows.map((r) => r.content).join('\n\n')
+  }
+
+  return c.json({ content, type: owned.type, name: owned.name })
+})
+
+// PUT /api/sources/:id/content — update editable source content
+router.put(
+  '/sources/:id/content',
+  zValidator('param', paramSchema, vHook),
+  zValidator(
+    'json',
+    z.object({
+      content: z.string().min(1).max(100000),
+      chunks: z.array(contentChunkSchema).max(500).optional().default([]),
+    }),
+    vHook,
+  ),
+  async (c) => {
+    const { id: sourceId } = c.req.valid('param')
+    const { content, chunks } = c.req.valid('json')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    const owned = await getOwnedSource(c, sourceId)
+    if (owned instanceof Response) return owned
+
+    if (!EDITABLE_TYPES.has(owned.type)) {
+      return errorResponse(c, ErrorCode.ValidationFailed, 'This source type cannot be edited', 400)
+    }
+
+    if (!owned.r2Key) {
+      return errorResponse(c, ErrorCode.SourceNotFound, 'Source storage key missing', 404)
+    }
+
+    const contentType = owned.type === 'markdown' ? 'text/markdown' : 'text/plain'
+
+    // Update R2 storage
+    const storage = c.get('storage')
+    await storage.put(owned.r2Key, new TextEncoder().encode(content), contentType)
+
+    // Compute new hash
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const newHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+    // If no chunks provided, just update the file + hash and return
+    if (!chunks || chunks.length === 0) {
+      await db
+        .update(sources)
+        .set({ hash: newHash, status: 'completed' })
+        .where(eq(sources.id, sourceId))
+      return c.json({ id: sourceId, status: 'completed', chunks: 0, embedded: 0, hash: newHash })
+    }
+
+    // Delete existing chunks from D1
+    const existingChunkRows = await db
+      .select({ id: sourceChunks.id })
+      .from(sourceChunks)
+      .where(eq(sourceChunks.sourceId, sourceId))
+
+    const existingChunkIds = existingChunkRows.map((r) => r.id)
+
+    // Delete existing vectors (before deleting D1 rows)
+    if (existingChunkIds.length > 0) {
+      await c.env.VECTORIZE.deleteByIds(existingChunkIds).catch((err: unknown) => {
+        console.error(
+          `[update] failed to delete ${existingChunkIds.length} vectors for source=${sourceId}:`,
+          err instanceof Error ? err.message : err,
+        )
+      })
+    }
+
+    await db.delete(sourceChunks).where(eq(sourceChunks.sourceId, sourceId))
+
+    // Insert new chunks
+    const chunkRecords = chunks.map((chunk) => ({
+      id: crypto.randomUUID(),
+      content: chunk.content,
+      pageNumber: chunk.pageNumber ?? null,
+    }))
+
+    const chunkQueries: BatchItem<'sqlite'>[] = chunkRecords.map((rec) =>
+      db.insert(sourceChunks).values({
+        id: rec.id,
+        sourceId,
+        notebookId: owned.notebookId,
+        content: rec.content,
+        pageNumber: rec.pageNumber,
+      }),
+    )
+    await db.batch(chunkQueries as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+
+    // Embed chunks
+    const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
+    const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
+      aiEmbeddingModel: undefined,
+    })
+
+    const embedProvider = getEmbeddingProvider(c.env, {
+      provider: effectiveConfig.embedding.provider,
+      apiKey: effectiveConfig.embedding.apiKey,
+      baseUrl: effectiveConfig.embedding.baseUrl,
+      model: effectiveConfig.embedding.model,
+    })
+
+    const vectors = await embedChunks(
+      embedProvider,
+      chunkRecords.map((r) => ({ id: r.id, content: r.content })),
+    )
+
+    const vectorsWithMeta = vectors.map((v) => ({
+      ...v,
+      metadata: {
+        ...v.metadata,
+        source_id: sourceId,
+        notebook_id: owned.notebookId,
+      },
+    }))
+
+    const mutation = await c.env.VECTORIZE.upsert(vectorsWithMeta)
+
+    // Update source row
+    await db
+      .update(sources)
+      .set({ hash: newHash, status: 'completed' })
+      .where(eq(sources.id, sourceId))
+
+    return c.json({
+      id: sourceId,
+      status: 'completed',
+      chunks: chunkRecords.length,
+      embedded: mutation.count,
+      hash: newHash,
+    })
+  },
+)
 
 // Delete a source
 router.delete(

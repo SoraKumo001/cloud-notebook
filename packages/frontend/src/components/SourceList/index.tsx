@@ -17,6 +17,7 @@ export function SourceList({
   notebookId,
   onDelete,
   onRename,
+  onEdit,
   onReorder,
   onFilesSelected,
   uploadProgress,
@@ -276,6 +277,7 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              onEdit={onEdit}
               refreshStats={refreshStats}
               t={t}
               locale={locale}
@@ -286,6 +288,7 @@ export function SourceList({
               source={source}
               onDelete={onDelete}
               onRename={onRename}
+              onEdit={onEdit}
               refreshStats={refreshStats}
               t={t}
               locale={locale}

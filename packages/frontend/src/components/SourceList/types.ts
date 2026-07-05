@@ -14,6 +14,7 @@ export interface SourceListProps {
   notebookId?: string
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  onEdit?: (id: string) => void | Promise<void>
   onReorder?: (sourceIds: string[]) => void | Promise<void>
   onFilesSelected?: (files: File[]) => void | Promise<void>
   uploadProgress?: IngestProgressItem[]

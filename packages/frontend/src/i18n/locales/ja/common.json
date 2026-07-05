@@ -246,7 +246,20 @@
     "renameAria": "ソース名を変更",
     "deleteAria": "ソースを削除",
     "renameLabel": "名前を変更",
-    "deleteConfirm": "削除"
+    "deleteConfirm": "削除",
+    "editAria": "ソースを編集",
+    "editLabel": "編集"
+  },
+  "sourceEditor": {
+    "title": "ソースを編集",
+    "save": "保存",
+    "saving": "保存中...",
+    "close": "閉じる",
+    "saveHint": "保存するとソースの再チャンクと再埋め込みが行われます。",
+    "loadError": "ソースの内容を読み込めませんでした",
+    "saveError": "ソースの内容を保存できませんでした",
+    "preview": "プレビュー",
+    "emptyContent": "内容が空です"
   },
   "chat": {
     "title": "チャット",

@@ -62,6 +62,17 @@ interface NotebookUpdate {
   description?: string
 }
 
+interface SourceContent {
+  content: string
+  type: string
+  name: string
+}
+
+interface UpdateSourceContentBody {
+  content: string
+  chunks?: Array<{ content: string; pageNumber?: number }>
+}
+
 interface UseSourcesReturn {
   sources: Source[]
   loading: boolean
@@ -72,6 +83,12 @@ interface UseSourcesReturn {
   reorderSources: (sourceIds: string[]) => Promise<void>
   updateNotebook: (id: string, update: NotebookUpdate) => Promise<void>
   deleteNotebook: (id: string) => Promise<void>
+  getSourceContent: (id: string) => Promise<SourceContent>
+  updateSourceContent: (
+    id: string,
+    content: string,
+    chunks?: Array<{ content: string; pageNumber?: number }>,
+  ) => Promise<void>
 }
 
 export function useSources(notebookId: string): UseSourcesReturn {
@@ -243,6 +260,49 @@ export function useSources(notebookId: string): UseSourcesReturn {
     }
   }, [])
 
+  const getSourceContent = useCallback(async (id: string) => {
+    try {
+      setError(null)
+      return await fetchJson<SourceContent>(`/api/sources/${encodeURIComponent(id)}/content`)
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.code && apiErr.status !== undefined) {
+        setError(`${apiErr.code}:${apiErr.status}`)
+      } else {
+        setError('generic')
+      }
+      throw err
+    }
+  }, [])
+
+  const updateSourceContent = useCallback(
+    async (
+      id: string,
+      content: string,
+      chunks?: Array<{ content: string; pageNumber?: number }>,
+    ) => {
+      try {
+        setError(null)
+        const body: UpdateSourceContentBody = { content, chunks }
+        await fetchJson<unknown>(`/api/sources/${encodeURIComponent(id)}/content`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        await refresh()
+      } catch (err) {
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
+        throw err
+      }
+    },
+    [refresh],
+  )
+
   useEffect(() => {
     refresh()
   }, [refresh])
@@ -257,5 +317,7 @@ export function useSources(notebookId: string): UseSourcesReturn {
     reorderSources,
     updateNotebook,
     deleteNotebook,
+    getSourceContent,
+    updateSourceContent,
   }
 }

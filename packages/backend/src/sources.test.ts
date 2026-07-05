@@ -1,6 +1,7 @@
 // packages/backend/src/sources.test.ts
 // Tests for source CRUD + notebook deletion (sources/notebooks endpoints).
 
+import { eq } from 'drizzle-orm'
 import { describe, expect, it, vi } from 'vitest'
 import { notebooks, sourceChunks, sourceImages, sources } from './db/schema'
 import app from './index'
@@ -714,6 +715,305 @@ describe('PATCH /api/sources/:id', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'new.pdf' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(404)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// GET /api/sources/:id/content
+// ---------------------------------------------------------------------------
+
+describe('GET /api/sources/:id/content', () => {
+  it('returns content from R2 for text source', async () => {
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const mockGet = vi.fn().mockResolvedValue(new TextEncoder().encode('hello world').buffer)
+    env.__storage = { ...noopStorage(), get: mockGet } as any
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-2/content', cookie),
+      env,
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.content).toBe('hello world')
+    expect(body.type).toBe('text')
+    expect(body.name).toBe('notes.txt')
+    expect(mockGet).toHaveBeenCalledWith('notebooks/nb-1/sources/src-2/notes.txt')
+  })
+
+  it('falls back to chunks when R2 returns null', async () => {
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const mockGet = vi.fn().mockResolvedValue(null)
+    env.__storage = { ...noopStorage(), get: mockGet } as any
+
+    await db.insert(sourceChunks).values([
+      {
+        id: 'chunk-a',
+        sourceId: 'src-2',
+        notebookId: 'nb-1',
+        content: 'first chunk',
+        pageNumber: 1,
+      },
+      {
+        id: 'chunk-b',
+        sourceId: 'src-2',
+        notebookId: 'nb-1',
+        content: 'second chunk',
+        pageNumber: 2,
+      },
+    ])
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-2/content', cookie),
+      env,
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.content).toBe('first chunk\n\nsecond chunk')
+    expect(body.type).toBe('text')
+    expect(body.name).toBe('notes.txt')
+  })
+
+  it('returns 400 for pdf source', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-1/content', cookie),
+      env,
+    )
+
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.error).toMatch(/cannot be edited/i)
+  })
+
+  it('returns 404 when source does not exist', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/nonexistent/content', cookie),
+      env,
+    )
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 404 when source belongs to another user', async () => {
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    // Seed a source under nb-2 (owned by otherUserId)
+    await db.insert(sources).values({
+      id: 'src-other',
+      notebookId: 'nb-2',
+      userId: 'other-user-id',
+      name: 'other.txt',
+      type: 'text',
+      status: 'completed',
+      r2Key: 'notebooks/nb-2/sources/src-other/other.txt',
+      hash: 'hash-other',
+    })
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-other/content', cookie),
+      env,
+    )
+
+    expect(res.status).toBe(404)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PUT /api/sources/:id/content
+// ---------------------------------------------------------------------------
+
+describe('PUT /api/sources/:id/content', () => {
+  it('updates content in R2 and re-chunks/re-embeds', async () => {
+    const mockAiRun = vi.fn().mockImplementation((_model: string, inputs: unknown) => {
+      const { text } = inputs as { text: string[] }
+      return Promise.resolve({
+        shape: [text.length, 1024],
+        data: text.map(() => mockEmbeddingVector()),
+      })
+    })
+    const mockUpsert = vi.fn().mockResolvedValue({ count: 1, ids: ['vec-1'] })
+    const mockDeleteVec = vi.fn().mockResolvedValue({ count: 2, ids: ['old-1', 'old-2'] })
+    const mockPut = vi.fn().mockResolvedValue({ etag: 'new-etag', size: 11 })
+
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    // Seed existing chunks for src-2
+    await db.insert(sourceChunks).values([
+      {
+        id: 'old-chunk-1',
+        sourceId: 'src-2',
+        notebookId: 'nb-1',
+        content: 'old content one',
+        pageNumber: 1,
+      },
+      {
+        id: 'old-chunk-2',
+        sourceId: 'src-2',
+        notebookId: 'nb-1',
+        content: 'old content two',
+        pageNumber: 2,
+      },
+    ])
+
+    env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.AI = { run: mockAiRun } as any
+    env.VECTORIZE = { upsert: mockUpsert, deleteByIds: mockDeleteVec } as any
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-2/content', cookie, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'new content here',
+          chunks: [{ content: 'new content here' }],
+        }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.status).toBe('completed')
+    expect(body.chunks).toBe(1)
+    expect(body.embedded).toBe(1)
+    expect(body.hash).toMatch(/^[0-9a-f]{64}$/)
+
+    // R2 put called with the r2Key and new content
+    expect(mockPut).toHaveBeenCalledWith(
+      'notebooks/nb-1/sources/src-2/notes.txt',
+      expect.any(Uint8Array),
+      'text/plain',
+    )
+
+    // Vectorize deleteByIds called with old chunk ids
+    expect(mockDeleteVec).toHaveBeenCalledWith(['old-chunk-1', 'old-chunk-2'])
+
+    // Vectorize upsert called with 1 vector
+    expect(mockUpsert).toHaveBeenCalledTimes(1)
+    const upsertArg = mockUpsert.mock.calls[0][0] as Array<Record<string, unknown>>
+    expect(upsertArg).toHaveLength(1)
+    expect(upsertArg[0]).toHaveProperty('id')
+    expect(upsertArg[0]).toHaveProperty('values')
+    expect((upsertArg[0].values as number[]).length).toBe(1024)
+
+    // D1: old chunks deleted, new chunk inserted
+    const remaining = await db.select().from(sourceChunks).where(eq(sourceChunks.sourceId, 'src-2'))
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].content).toBe('new content here')
+  })
+
+  it('updates content without chunks (just file + hash)', async () => {
+    const mockPut = vi.fn().mockResolvedValue({ etag: 'new-etag', size: 8 })
+    const mockUpsert = vi.fn()
+    const mockDeleteVec = vi.fn()
+
+    const { env: rawEnv, db } = createTestEnv()
+    const env = rawEnv as any
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    env.__storage = { ...noopStorage(), put: mockPut } as any
+    env.AI = { run: vi.fn() } as any
+    env.VECTORIZE = { upsert: mockUpsert, deleteByIds: mockDeleteVec } as any
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-2/content', cookie, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: 'just text' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.status).toBe('completed')
+    expect(body.chunks).toBe(0)
+    expect(body.embedded).toBe(0)
+    expect(body.hash).toMatch(/^[0-9a-f]{64}$/)
+
+    // R2 put called
+    expect(mockPut).toHaveBeenCalledTimes(1)
+
+    // No Vectorize calls
+    expect(mockUpsert).not.toHaveBeenCalled()
+    expect(mockDeleteVec).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for pdf source', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-1/content', cookie, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: 'x' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.error).toMatch(/cannot be edited/i)
+  })
+
+  it('returns 400 when content is empty', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/src-2/content', cookie, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '' }),
+      }),
+      env,
+    )
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 when source does not exist', async () => {
+    const { env, db } = createTestEnv()
+    const { cookie, userId } = await createAuthedRequest(env)
+    await seedEnv(db, userId, 'other-user-id')
+
+    const res = await app.fetch(
+      authedRequest('http://localhost/api/sources/nonexistent/content', cookie, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: 'valid content' }),
       }),
       env,
     )

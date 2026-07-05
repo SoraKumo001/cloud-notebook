@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { File, FileText, GripVertical, Pencil, Trash2, X } from 'lucide-react'
+import { File, FileEdit, FileText, GripVertical, Pencil, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { formatBytes, formatNumber, formatShortDate } from '../../i18n/formatters'
 import { Button } from '../ui/Button'
@@ -47,10 +47,16 @@ function typeIcon(type: string) {
   return <File size={18} strokeWidth={2} aria-hidden='true' />
 }
 
+function isEditableSourceType(type: string): boolean {
+  const normalized = type.toLowerCase()
+  return normalized === 'text' || normalized === 'markdown' || normalized === 'webpage'
+}
+
 function SourceActions({
   source,
   onDelete,
   onRename,
+  onEdit,
   isConfirmingDelete,
   setIsConfirmingDelete,
   onRenameStart,
@@ -60,6 +66,7 @@ function SourceActions({
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  onEdit?: (id: string) => void | Promise<void>
   isConfirmingDelete: boolean
   setIsConfirmingDelete: (val: boolean) => void
   onRenameStart: () => void
@@ -95,10 +102,23 @@ function SourceActions({
     )
   }
 
-  if (!onDelete && !onRename) return null
+  if (!onDelete && !onRename && !onEdit) return null
 
   return (
     <div className='flex items-center gap-1'>
+      {onEdit && isEditableSourceType(source.type) && (
+        <Button
+          type='button'
+          size='xs'
+          shape='circle'
+          variant='ghost'
+          iconLeft={FileEdit}
+          iconOnlyAriaLabel={t('sourceList.editAria')}
+          title={t('sourceList.editLabel')}
+          className='text-base-content/60 hover:text-primary'
+          onClick={() => onEdit(source.id)}
+        />
+      )}
       {onRename && (
         <Button
           type='button'
@@ -133,6 +153,7 @@ export function SortableSourceItem({
   source,
   onDelete,
   onRename,
+  onEdit,
   refreshStats,
   t,
   locale,
@@ -140,6 +161,7 @@ export function SortableSourceItem({
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  onEdit?: (id: string) => void | Promise<void>
   refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
@@ -246,6 +268,7 @@ export function SortableSourceItem({
             source={source}
             onDelete={onDelete}
             onRename={onRename}
+            onEdit={onEdit}
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}
@@ -262,6 +285,7 @@ export function StaticSourceItem({
   source,
   onDelete,
   onRename,
+  onEdit,
   refreshStats,
   t,
   locale,
@@ -269,6 +293,7 @@ export function StaticSourceItem({
   source: Source
   onDelete?: (id: string) => void | Promise<void>
   onRename?: (id: string, name: string) => void | Promise<void>
+  onEdit?: (id: string) => void | Promise<void>
   refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
@@ -347,6 +372,7 @@ export function StaticSourceItem({
             source={source}
             onDelete={onDelete}
             onRename={onRename}
+            onEdit={onEdit}
             isConfirmingDelete={isConfirmingDelete}
             setIsConfirmingDelete={setIsConfirmingDelete}
             onRenameStart={() => setIsEditing(true)}

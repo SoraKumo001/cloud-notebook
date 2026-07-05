@@ -34,6 +34,9 @@ const NoteList = React.lazy(() =>
 const NoteEditor = React.lazy(() =>
   import('../../components/NoteEditor').then((m) => ({ default: m.NoteEditor })),
 )
+const SourceEditor = React.lazy(() =>
+  import('../../components/SourceEditor').then((m) => ({ default: m.SourceEditor })),
+)
 
 // NotebookSettingsNotebook type is erased at runtime — only static type import needed
 import type { NotebookSettingsNotebook } from '../../components/NotebookSettingsModal'
@@ -75,6 +78,8 @@ function NotebookDetailPage() {
     reorderSources,
     updateNotebook,
     deleteNotebook,
+    getSourceContent,
+    updateSourceContent,
   } = useSources(notebookId)
   const { notes, createNote, updateNote, deleteNote } = useNotes(notebookId)
 
@@ -85,6 +90,7 @@ function NotebookDetailPage() {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = React.useState(false)
   const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null)
+  const [editingSourceId, setEditingSourceId] = React.useState<string | null>(null)
   const titleInputRef = React.useRef<HTMLInputElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -234,6 +240,17 @@ function NotebookDetailPage() {
     [notes, activeNoteId],
   )
 
+  const editingSource = React.useMemo(
+    () => sources.find((s) => s.id === editingSourceId) ?? null,
+    [sources, editingSourceId],
+  )
+
+  React.useEffect(() => {
+    if (editingSourceId && !editingSource) {
+      setEditingSourceId(null)
+    }
+  }, [editingSourceId, editingSource])
+
   async function handleSaveNote(id: string | null, data: { title: string; content: string }) {
     if (id) {
       await updateNote(id, data)
@@ -252,6 +269,21 @@ function NotebookDetailPage() {
 
   async function handleRenameNote(id: string, title: string) {
     await updateNote(id, { title })
+  }
+
+  async function handleEditSource(id: string) {
+    setEditingSourceId(id)
+  }
+
+  async function handleSaveSourceContent(id: string, content: string) {
+    const { chunkText } = await import('../../lib/tokenizer')
+    const chunks = chunkText(content).map((chunk) => ({ content: chunk.content }))
+    await updateSourceContent(id, content, chunks)
+    setEditingSourceId(null)
+  }
+
+  function handleCloseSourceEditor() {
+    setEditingSourceId(null)
   }
 
   function handleCreateNote() {
@@ -478,6 +510,7 @@ function NotebookDetailPage() {
                     notebookId={notebookId}
                     onDelete={deleteSource}
                     onRename={renameSource}
+                    onEdit={handleEditSource}
                     onReorder={reorderSources}
                     onFilesSelected={handleFilesSelected}
                     uploadProgress={uploadProgress}
@@ -487,10 +520,20 @@ function NotebookDetailPage() {
               </div>
             </div>
 
-            {/* Column 2: Chat (Width: flex-1, Fixed scroll inside ChatPanel) */}
+            {/* Column 2: Chat or Source Editor (Width: flex-1, Fixed scroll inside) */}
             <div className='flex-1 flex flex-col h-full bg-base-200/20 p-5 overflow-hidden'>
               <React.Suspense fallback={<div className='skeleton h-full w-full rounded-2xl' />}>
-                <ChatPanel notebookId={notebookId} userId={user?.id ?? ''} />
+                {editingSource ? (
+                  <SourceEditor
+                    source={editingSource}
+                    notebookId={notebookId}
+                    onClose={handleCloseSourceEditor}
+                    onSave={handleSaveSourceContent}
+                    getSourceContent={getSourceContent}
+                  />
+                ) : (
+                  <ChatPanel notebookId={notebookId} userId={user?.id ?? ''} />
+                )}
               </React.Suspense>
             </div>
 

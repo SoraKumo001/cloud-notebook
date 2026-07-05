@@ -246,7 +246,20 @@
     "renameAria": "Rename source",
     "deleteAria": "Delete source",
     "renameLabel": "Rename",
-    "deleteConfirm": "Delete"
+    "deleteConfirm": "Delete",
+    "editAria": "Edit source content",
+    "editLabel": "Edit"
+  },
+  "sourceEditor": {
+    "title": "Edit Source",
+    "save": "Save",
+    "saving": "Saving...",
+    "close": "Close",
+    "saveHint": "Saving will re-chunk and re-embed the source.",
+    "loadError": "Failed to load source content",
+    "saveError": "Failed to save source content",
+    "preview": "Preview",
+    "emptyContent": "Content is empty"
   },
   "chat": {
     "title": "Chat",
