@@ -7,8 +7,17 @@ import type { SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { encryptApiKey } from '../../crypto'
-import { notebooks, sources } from '../../db/schema'
+import {
+  chatMessages,
+  chatSessions,
+  notebooks,
+  notes,
+  sourceChunks,
+  sources,
+} from '../../db/schema'
+import { getEffectiveAiConfig } from '../../db/settings'
 import { ErrorCode, errorResponse } from '../../errors'
+import { getChatProvider } from '../../providers'
 import type { AppEnv } from '../../types'
 import { vHook } from '../common'
 
@@ -297,6 +306,292 @@ router.delete(
     await db.delete(notebooks).where(eq(notebooks.id, id))
 
     return c.newResponse(null, 204)
+  },
+)
+
+// Feature #1: Suggested Questions
+router.get(
+  '/:id/suggested-questions',
+  zValidator('param', z.object({ id: z.string().min(1).max(100) }), vHook),
+  async (c) => {
+    const { id: notebookId } = c.req.valid('param')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    // Ownership check
+    const [notebook] = await db
+      .select({ user_id: notebooks.userId, model_chat: notebooks.modelChat })
+      .from(notebooks)
+      .where(eq(notebooks.id, notebookId))
+      .limit(1)
+
+    if (!notebook || notebook.user_id !== userId) {
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
+    }
+
+    // 5-min cache
+    const cacheKey = `https://cache.internal/suggested-questions/${notebookId}`
+    if (typeof caches !== 'undefined' && caches.default) {
+      try {
+        const cached = await caches.default.match(new Request(cacheKey))
+        if (cached) {
+          return c.json(await cached.json())
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    // Sample up to 5 random chunks
+    const chunkRows = await db
+      .select({ content: sourceChunks.content })
+      .from(sourceChunks)
+      .where(eq(sourceChunks.notebookId, notebookId))
+      .orderBy(sql`RANDOM()`)
+      .limit(5)
+
+    if (chunkRows.length === 0) {
+      const response = { questions: [] }
+      if (typeof caches !== 'undefined' && caches.default) {
+        try {
+          await caches.default.put(
+            new Request(cacheKey),
+            new Response(JSON.stringify(response), {
+              headers: { 'Cache-Control': 'max-age=300' },
+            }),
+          )
+        } catch {
+          // ignore
+        }
+      }
+      return c.json(response)
+    }
+
+    // Build prompt
+    const excerpts = chunkRows.map((r, i) => `[${i + 1}] ${r.content}`).join('\n')
+    const prompt = `Based on the following document excerpts, generate 5 diverse questions a researcher might ask. Return ONLY a JSON array of question strings, no other text.\n\nExcerpts:\n${excerpts}`
+
+    // Resolve effective config for chat
+    const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
+    const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
+      modelChat: notebook.model_chat,
+    })
+
+    const provider = getChatProvider(c.env, {
+      ai_provider: effectiveConfig.chat.provider,
+      ai_api_key: effectiveConfig.chat.apiKey,
+      ai_base_url: effectiveConfig.chat.baseUrl,
+    })
+
+    const model = notebook.model_chat || '@cf/meta/llama-3.1-8b-instruct-fast'
+
+    const aiStream = await provider.streamChat({
+      model,
+      messages: [
+        { role: 'system', content: 'You are a helpful research assistant.' },
+        { role: 'user', content: prompt },
+      ],
+    })
+
+    const reader = aiStream.getReader()
+    const decoder = new TextDecoder()
+    let fullText = ''
+    let buffer = ''
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          const rawJson = trimmed.startsWith('data: ') ? trimmed.slice(6) : trimmed
+          if (rawJson === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(rawJson)
+            if (parsed.choices?.[0]?.delta?.content !== undefined) {
+              fullText += parsed.choices[0].delta.content
+            } else if (parsed.response !== undefined) {
+              fullText += parsed.response
+            }
+          } catch {
+            fullText += rawJson
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    // Parse response as JSON array
+    let questions: string[] = []
+    try {
+      const parsed = JSON.parse(fullText.trim())
+      if (Array.isArray(parsed)) {
+        questions = parsed.map((q) => String(q).slice(0, 200)).filter(Boolean)
+      }
+    } catch {
+      // Fallback: split by newlines
+      questions = fullText
+        .split('\n')
+        .map((l) => l.replace(/^\d+[.)]\s*/, '').trim())
+        .filter((l) => l.length > 0 && l.length <= 200)
+    }
+
+    questions = questions.slice(0, 5)
+
+    const response = { questions }
+    if (typeof caches !== 'undefined' && caches.default) {
+      try {
+        await caches.default.put(
+          new Request(cacheKey),
+          new Response(JSON.stringify(response), {
+            headers: { 'Cache-Control': 'max-age=300' },
+          }),
+        )
+      } catch {
+        // ignore
+      }
+    }
+
+    return c.json(response)
+  },
+)
+
+// Feature #6: Notebook Export (Markdown)
+router.get(
+  '/:id/export',
+  zValidator('param', z.object({ id: z.string().min(1).max(100) }), vHook),
+  async (c) => {
+    const { id: notebookId } = c.req.valid('param')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    // Ownership check
+    const [notebook] = await db
+      .select({
+        user_id: notebooks.userId,
+        title: notebooks.title,
+        description: notebooks.description,
+        created_at: notebooks.createdAt,
+      })
+      .from(notebooks)
+      .where(eq(notebooks.id, notebookId))
+      .limit(1)
+
+    if (!notebook || notebook.user_id !== userId) {
+      return errorResponse(c, ErrorCode.NotebookNotFound, 'Notebook not found', 404)
+    }
+
+    // Build markdown via streaming
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
+    const encoder = new TextEncoder()
+
+    ;(async () => {
+      try {
+        // Header
+        await writer.write(encoder.encode(`# ${notebook.title}\n`))
+        if (notebook.description) {
+          await writer.write(encoder.encode(`${notebook.description}\n`))
+        }
+        await writer.write(encoder.encode(`\n_Created: ${notebook.created_at}_\n\n`))
+
+        // Sources
+        const sourceRows = await db
+          .select({
+            id: sources.id,
+            name: sources.name,
+            type: sources.type,
+            created_at: sources.createdAt,
+          })
+          .from(sources)
+          .where(eq(sources.notebookId, notebookId))
+          .orderBy(asc(sources.createdAt))
+
+        if (sourceRows.length > 0) {
+          await writer.write(encoder.encode('## Sources\n\n'))
+          for (const src of sourceRows) {
+            await writer.write(encoder.encode(`### ${src.name} (${src.type})\n\n`))
+            const chunkRows = await db
+              .select({ content: sourceChunks.content })
+              .from(sourceChunks)
+              .where(eq(sourceChunks.sourceId, src.id))
+              .orderBy(asc(sourceChunks.pageNumber), asc(sourceChunks.id))
+            for (const ch of chunkRows) {
+              await writer.write(encoder.encode(`${ch.content}\n\n`))
+            }
+          }
+        }
+
+        // Notes
+        const noteRows = await db
+          .select({ title: notes.title, content: notes.content, created_at: notes.createdAt })
+          .from(notes)
+          .where(eq(notes.notebookId, notebookId))
+          .orderBy(asc(notes.createdAt))
+
+        if (noteRows.length > 0) {
+          await writer.write(encoder.encode('## Notes\n\n'))
+          for (const note of noteRows) {
+            await writer.write(encoder.encode(`### ${note.title}\n\n`))
+            await writer.write(encoder.encode(`${note.content}\n\n`))
+          }
+        }
+
+        // Chat History
+        const sessionRows = await db
+          .select({
+            id: chatSessions.id,
+            title: chatSessions.title,
+            created_at: chatSessions.createdAt,
+          })
+          .from(chatSessions)
+          .where(eq(chatSessions.notebookId, notebookId))
+          .orderBy(asc(chatSessions.createdAt))
+
+        if (sessionRows.length > 0) {
+          await writer.write(encoder.encode('## Chat History\n\n'))
+          for (const session of sessionRows) {
+            await writer.write(encoder.encode(`### ${session.title}\n\n`))
+            const msgRows = await db
+              .select({
+                role: chatMessages.role,
+                content: chatMessages.content,
+                created_at: chatMessages.createdAt,
+              })
+              .from(chatMessages)
+              .where(eq(chatMessages.sessionId, session.id))
+              .orderBy(asc(chatMessages.createdAt))
+            for (const msg of msgRows) {
+              const label = msg.role === 'user' ? 'User' : 'Assistant'
+              await writer.write(encoder.encode(`**${label}:** ${msg.content}\n\n`))
+            }
+          }
+        }
+
+        await writer.close()
+      } catch (_err) {
+        await writer.close().catch(() => {})
+      }
+    })()
+
+    // Slugify title for filename
+    const slug =
+      notebook.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 100) || 'export'
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/markdown; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${slug}.md"`,
+      },
+    })
   },
 )
 

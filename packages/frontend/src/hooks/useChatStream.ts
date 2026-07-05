@@ -22,9 +22,11 @@ interface UseChatStreamReturn {
   isStreaming: boolean
   error: string | null
   activeSessionId: string | null
-  sendQuery(query: string): Promise<void>
+  sendQuery(query: string, sourceId?: string): Promise<void>
   reset(): void
   loadSession(sessionId: string): Promise<void>
+  selectedSourceId: string | null
+  setSelectedSourceId: (id: string | null) => void
 }
 
 interface StoredSessionMessage {
@@ -121,6 +123,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
     getStoredSessionId(notebookId),
   )
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
 
   const streamingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -171,7 +174,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
   // sendQuery
   // ------------------------------------------------------------------
   const sendQuery = useCallback(
-    async (query: string) => {
+    async (query: string, sourceId?: string) => {
       const trimmed = query.trim()
       if (!trimmed || streamingRef.current || abortRef.current) return
 
@@ -208,6 +211,7 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
             userId,
             query: trimmed,
             ...(activeSessionId ? { sessionId: activeSessionId } : {}),
+            ...(sourceId ? { sourceId } : {}),
           }),
           signal: abortController.signal,
         })
@@ -316,5 +320,15 @@ export function useChatStream(notebookId: string, userId: string): UseChatStream
     setStoredSessionId(notebookId, null)
   }, [notebookId])
 
-  return { messages, isStreaming, error, activeSessionId, sendQuery, reset, loadSession }
+  return {
+    messages,
+    isStreaming,
+    error,
+    activeSessionId,
+    sendQuery,
+    reset,
+    loadSession,
+    selectedSourceId,
+    setSelectedSourceId,
+  }
 }

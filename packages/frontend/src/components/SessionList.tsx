@@ -1,4 +1,4 @@
-import { MoreVertical, Pencil, Trash2, X } from 'lucide-react'
+import { MoreVertical, Pencil, Search, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatShortDate } from '../i18n/formatters'
@@ -11,12 +11,21 @@ export interface ChatSession {
   created_at: string
 }
 
+export interface SearchResultItem {
+  session: ChatSession
+  messages: Array<{ id: string; role: 'user' | 'assistant'; content: string }>
+}
+
 interface SessionListProps {
   sessions: ChatSession[]
   activeSessionId: string | null
   onSelect: (id: string) => void
   onDelete?: (id: string) => void
   onRename?: (id: string, title: string) => void
+  onSearch?: (query: string) => void
+  searchResults?: SearchResultItem[]
+  isSearching?: boolean
+  onClearSearch?: () => void
 }
 
 function SessionItem({
@@ -203,32 +212,139 @@ export function SessionList({
   onSelect,
   onDelete,
   onRename,
+  onSearch,
+  searchResults,
+  isSearching,
+  onClearSearch,
 }: SessionListProps) {
   const { t } = useTranslation('common')
   const { locale } = useLocale()
+  const [searchQuery, setSearchQuery] = React.useState('')
 
-  if (sessions.length === 0) {
-    return (
-      <div className='card card-border bg-base-100 p-4 text-center'>
-        <p className='text-sm text-base-content/50'>{t('sessionList.empty')}</p>
-      </div>
-    )
+  function handleSearch() {
+    if (searchQuery.trim() && onSearch) {
+      onSearch(searchQuery.trim())
+    }
   }
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleSearch()
+    }
+  }
+
+  function handleClearSearch() {
+    setSearchQuery('')
+    onClearSearch?.()
+  }
+
+  const showSearchResults = searchResults !== undefined && searchResults.length > 0
+  const showNoResults = searchResults !== undefined && searchResults.length === 0 && !isSearching
+
   return (
-    <div className='card card-border bg-base-100 rounded-2xl'>
-      {sessions.map((session) => (
-        <SessionItem
-          key={session.id}
-          session={session}
-          isActive={session.id === activeSessionId}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onRename={onRename}
-          t={t}
-          locale={locale}
-        />
-      ))}
+    <div className='space-y-3'>
+      {/* Search input */}
+      {onSearch && (
+        <div className='flex items-center gap-2'>
+          <input
+            type='text'
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t('sessionList.search.placeholder')}
+            className='input input-bordered input-sm flex-1'
+          />
+          <button
+            type='button'
+            onClick={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            className='btn btn-primary btn-sm'
+          >
+            {isSearching ? (
+              <span className='loading loading-spinner loading-xs' />
+            ) : (
+              <Search size={14} strokeWidth={2} aria-hidden='true' />
+            )}
+            {t('sessionList.search.button')}
+          </button>
+        </div>
+      )}
+
+      {/* Search results header */}
+      {showSearchResults && (
+        <div className='flex items-center justify-between'>
+          <p className='text-xs text-base-content/60'>
+            {t('sessionList.search.results', { count: searchResults.length })}
+          </p>
+          <button type='button' onClick={handleClearSearch} className='btn btn-ghost btn-xs'>
+            {t('sessionList.search.clear')}
+          </button>
+        </div>
+      )}
+
+      {showNoResults && (
+        <div className='card card-border bg-base-100 p-4 text-center'>
+          <p className='text-sm text-base-content/50'>
+            {t('sessionList.search.noResults', { query: searchQuery })}
+          </p>
+        </div>
+      )}
+
+      {/* Search results list */}
+      {showSearchResults && (
+        <div className='card card-border bg-base-100 rounded-2xl'>
+          {searchResults.map((item) => (
+            <div key={item.session.id} className='border-b border-base-300 last:border-b-0'>
+              <SessionItem
+                session={item.session}
+                isActive={item.session.id === activeSessionId}
+                onSelect={onSelect}
+                onDelete={onDelete}
+                onRename={onRename}
+                t={t}
+                locale={locale}
+              />
+              {item.messages.length > 0 && (
+                <div className='px-4 pb-3 space-y-1'>
+                  {item.messages.slice(0, 3).map((msg) => (
+                    <p key={msg.id} className='text-xs text-base-content/50 truncate'>
+                      {t('sessionList.search.messagePreview', {
+                        role: msg.role,
+                        content: msg.content,
+                      })}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Normal session list (hidden when showing search results) */}
+      {!showSearchResults &&
+        !showNoResults &&
+        (sessions.length === 0 ? (
+          <div className='card card-border bg-base-100 p-4 text-center'>
+            <p className='text-sm text-base-content/50'>{t('sessionList.empty')}</p>
+          </div>
+        ) : (
+          <div className='card card-border bg-base-100 rounded-2xl'>
+            {sessions.map((session) => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                isActive={session.id === activeSessionId}
+                onSelect={onSelect}
+                onDelete={onDelete}
+                onRename={onRename}
+                t={t}
+                locale={locale}
+              />
+            ))}
+          </div>
+        ))}
     </div>
   )
 }

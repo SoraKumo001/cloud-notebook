@@ -40,6 +40,7 @@ router.post(
         ),
       type: z.string().min(1).max(50),
       hash: z.string().min(1).max(100),
+      url: z.string().max(2000).optional(),
       chunks: z
         .array(
           z.object({ content: z.string().max(10000), pageNumber: z.number().int().optional() }),
@@ -58,7 +59,7 @@ router.post(
     vHook,
   ),
   async (c) => {
-    const { notebookId, sourceId, fileName, type, hash, chunks, images } = c.req.valid('json')
+    const { notebookId, sourceId, fileName, type, hash, chunks, images, url } = c.req.valid('json')
     const userId = c.get('user').id
     const db = c.get('db')
 
@@ -104,6 +105,7 @@ router.post(
           type,
           r2Key,
           hash,
+          url: url ?? null,
           status: 'processing',
         })
 

@@ -204,7 +204,12 @@
       "subtitle": "このノートブックのメモを書けます。"
     },
     "collapseNotes": "メモを折りたたむ",
-    "expandNotes": "メモを展開"
+    "expandNotes": "メモを展開",
+    "export": {
+      "menu": "Markdownでエクスポート",
+      "downloading": "エクスポート中...",
+      "failed": "エクスポートに失敗しました"
+    }
   },
   "createNotebook": {
     "title": "新しいノートブックを作成",
@@ -254,7 +259,27 @@
     "newFile": "新規ファイル",
     "newMarkdown": "Markdown",
     "newText": "テキスト",
-    "newFileAria": "新規ファイルを作成"
+    "newFileAria": "新規ファイルを作成",
+    "bulk": {
+      "select": "選択",
+      "selectAll": "すべて選択",
+      "deselectAll": "選択解除",
+      "selected": "{count}件選択中",
+      "deleteSelected": "選択項目を削除",
+      "deleteConfirmTitle": "{count}件のソースを削除しますか?",
+      "deleteConfirmBody": "{count}件のソースとすべてのチャンクが完全に削除されます。この操作は取り消せません。",
+      "deleteSuccess": "{count}件のソースを削除しました",
+      "deletePartial": "{total}件中{deleted}件のソースを削除しました"
+    },
+    "refresh": {
+      "button": "更新",
+      "refreshing": "更新中...",
+      "success": "ソースを更新しました",
+      "failed": "更新に失敗しました",
+      "webpageOnly": "ウェブページソースのみ更新できます",
+      "confirmTitle": "ウェブページを更新しますか?",
+      "confirmBody": "URLを再取得し、コンテンツを再インデックスします。既存のチャンクは置き換えられます。"
+    }
   },
   "sourceEditor": {
     "title": "ソースを編集",
@@ -277,7 +302,19 @@
     "sendAria": "送信",
     "sendHint": "Enterで送信 · Shift+Enterで改行",
     "highRiskBadge": "高リスク回答",
-    "potentialUnreliable": "信頼性が低い可能性"
+    "potentialUnreliable": "信頼性が低い可能性",
+    "suggestedQuestions": {
+      "title": "おすすめの質問",
+      "loading": "質問を生成中...",
+      "error": "質問の生成に失敗しました",
+      "retry": "再試行"
+    },
+    "scope": {
+      "all": "すべてのソース",
+      "specific": "質問: {name}",
+      "selectorAria": "ソーススコープを選択",
+      "clear": "ソースフィルターをクリア"
+    }
   },
   "sessionList": {
     "deleteDialog": {
@@ -285,7 +322,15 @@
       "body": "この会話とすべてのメッセージが完全に削除されます。"
     },
     "actionsAria": "セッションの操作",
-    "empty": "まだ会話がありません"
+    "empty": "まだ会話がありません",
+    "search": {
+      "placeholder": "会話を検索...",
+      "button": "検索",
+      "results": "{count}件の会話が見つかりました",
+      "noResults": "「{query}」に一致する会話はありません",
+      "clear": "検索をクリア",
+      "messagePreview": "{role}: {content}"
+    }
   },
   "note": {
     "listTitle": "メモ",

@@ -204,7 +204,12 @@
       "subtitle": "Write notes for this notebook."
     },
     "collapseNotes": "Collapse notes",
-    "expandNotes": "Expand notes"
+    "expandNotes": "Expand notes",
+    "export": {
+      "menu": "Export as Markdown",
+      "downloading": "Exporting...",
+      "failed": "Export failed"
+    }
   },
   "createNotebook": {
     "title": "Create New Notebook",
@@ -254,7 +259,27 @@
     "newFile": "New file",
     "newMarkdown": "Markdown",
     "newText": "Text",
-    "newFileAria": "Create new file"
+    "newFileAria": "Create new file",
+    "bulk": {
+      "select": "Select",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "selected": "{count} selected",
+      "deleteSelected": "Delete selected",
+      "deleteConfirmTitle": "Delete {count} sources?",
+      "deleteConfirmBody": "This will permanently delete {count} sources and all their chunks. This cannot be undone.",
+      "deleteSuccess": "Deleted {count} sources",
+      "deletePartial": "Deleted {deleted} of {total} sources"
+    },
+    "refresh": {
+      "button": "Refresh",
+      "refreshing": "Refreshing...",
+      "success": "Source refreshed",
+      "failed": "Refresh failed",
+      "webpageOnly": "Only webpage sources can be refreshed",
+      "confirmTitle": "Refresh webpage?",
+      "confirmBody": "This will re-fetch the URL and re-index the content. Existing chunks will be replaced."
+    }
   },
   "sourceEditor": {
     "title": "Edit Source",
@@ -277,7 +302,19 @@
     "sendAria": "Send",
     "sendHint": "Enter to send · Shift+Enter for new line",
     "highRiskBadge": "High risk response",
-    "potentialUnreliable": "Potentially unreliable"
+    "potentialUnreliable": "Potentially unreliable",
+    "suggestedQuestions": {
+      "title": "Suggested questions",
+      "loading": "Generating questions...",
+      "error": "Failed to generate questions",
+      "retry": "Retry"
+    },
+    "scope": {
+      "all": "All sources",
+      "specific": "Ask: {name}",
+      "selectorAria": "Select source scope",
+      "clear": "Clear source filter"
+    }
   },
   "sessionList": {
     "deleteDialog": {
@@ -285,7 +322,15 @@
       "body": "This will permanently delete the conversation and all of its messages."
     },
     "actionsAria": "Session actions",
-    "empty": "No conversations yet"
+    "empty": "No conversations yet",
+    "search": {
+      "placeholder": "Search conversations...",
+      "button": "Search",
+      "results": "{count} conversations found",
+      "noResults": "No conversations match \"{query}\"",
+      "clear": "Clear search",
+      "messagePreview": "{role}: {content}"
+    }
   },
   "note": {
     "listTitle": "Notes",

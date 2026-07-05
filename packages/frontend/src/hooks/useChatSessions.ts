@@ -45,6 +45,11 @@ export interface ChatSession {
   created_at: string
 }
 
+export interface SearchResultItem {
+  session: ChatSession
+  messages: Array<{ id: string; role: 'user' | 'assistant'; content: string }>
+}
+
 interface UseChatSessionsReturn {
   sessions: ChatSession[]
   loading: boolean
@@ -52,6 +57,11 @@ interface UseChatSessionsReturn {
   refresh: () => Promise<void>
   deleteSession: (id: string) => Promise<void>
   renameSession: (id: string, title: string) => Promise<void>
+  searchSessions: (query: string) => Promise<void>
+  searchResults: SearchResultItem[]
+  isSearching: boolean
+  searchError: string | null
+  clearSearch: () => void
 }
 
 export function useChatSessions(notebookId: string): UseChatSessionsReturn {
@@ -123,9 +133,61 @@ export function useChatSessions(notebookId: string): UseChatSessionsReturn {
     [refresh],
   )
 
+  // ── Search ──────────────────────────────────────────────────────────────────
+
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  const searchSessions = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim()
+      if (!trimmed) {
+        setSearchResults([])
+        return
+      }
+
+      try {
+        setIsSearching(true)
+        setSearchError(null)
+        const data = await fetchJson<{ results: SearchResultItem[] }>(
+          `/api/notebooks/${encodeURIComponent(notebookId)}/sessions/search?q=${encodeURIComponent(trimmed)}`,
+        )
+        setSearchResults(data.results)
+      } catch (err) {
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setSearchError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setSearchError('generic')
+        }
+      } finally {
+        setIsSearching(false)
+      }
+    },
+    [notebookId],
+  )
+
+  const clearSearch = useCallback(() => {
+    setSearchResults([])
+    setSearchError(null)
+  }, [])
+
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  return { sessions, loading, error, refresh, deleteSession, renameSession }
+  return {
+    sessions,
+    loading,
+    error,
+    refresh,
+    deleteSession,
+    renameSession,
+    searchSessions,
+    searchResults,
+    isSearching,
+    searchError,
+    clearSearch,
+  }
 }

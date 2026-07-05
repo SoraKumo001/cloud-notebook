@@ -1,8 +1,11 @@
-import { AlertTriangle, ChevronDown, MessageSquare, Send } from 'lucide-react'
+import { AlertTriangle, ChevronDown, MessageSquare, Send, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import type { Source } from '../components/SourceList'
 import { useChatSessions } from '../hooks/useChatSessions'
 import { type ChatMessage, useChatStream } from '../hooks/useChatStream'
+import { useSources } from '../hooks/useSources'
+import { useSuggestedQuestions } from '../hooks/useSuggestedQuestions'
 import { CitationChip, type CitationChunk } from './CitationChip'
 import { SessionList } from './SessionList'
 import { Button } from './ui/Button'
@@ -10,6 +13,7 @@ import { Button } from './ui/Button'
 interface ChatPanelProps {
   notebookId: string
   userId?: string
+  sources?: Source[]
 }
 
 function renderMessageContent(
@@ -113,17 +117,39 @@ function ChatMessageItem({
   )
 }
 
-export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
+export function ChatPanel({ notebookId, userId, sources: propSources }: ChatPanelProps) {
   const { t } = useTranslation('common')
-  const { messages, isStreaming, error, activeSessionId, sendQuery, reset, loadSession } =
-    useChatStream(notebookId, userId)
+  const {
+    messages,
+    isStreaming,
+    error,
+    activeSessionId,
+    sendQuery,
+    reset,
+    loadSession,
+    selectedSourceId,
+    setSelectedSourceId,
+  } = useChatStream(notebookId, userId)
   const {
     sessions,
     error: sessionsError,
     refresh,
     deleteSession,
     renameSession,
+    searchSessions,
+    searchResults,
+    isSearching,
+    searchError: sessionsSearchError,
+    clearSearch,
   } = useChatSessions(notebookId)
+  const {
+    questions,
+    loading: questionsLoading,
+    error: questionsError,
+    refresh: refreshQuestions,
+  } = useSuggestedQuestions(notebookId)
+  const { sources: hookSources } = useSources(notebookId)
+  const sources = propSources ?? hookSources
   const [input, setInput] = React.useState('')
   const [sessionsExpanded, setSessionsExpanded] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -148,7 +174,7 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
       textareaRef.current.style.height = 'auto'
       textareaRef.current.style.overflowY = 'hidden'
     }
-    await sendQuery(query)
+    await sendQuery(query, selectedSourceId || undefined)
     // Refresh session list so a new session appears after first message
     await refresh()
   }
@@ -190,6 +216,10 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
     await renameSession(id, title)
   }
 
+  function handleSuggestedClick(question: string) {
+    void sendQuery(question, selectedSourceId || undefined)
+  }
+
   return (
     <div className='card card-border bg-base-100 h-full overflow-hidden'>
       {/* Header */}
@@ -229,14 +259,48 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
         {sessionsExpanded && (
           <div className='px-4 pb-4 space-y-3'>
             {sessionsError && <div className='alert alert-error text-xs'>{sessionsError}</div>}
+            {sessionsSearchError && (
+              <div className='alert alert-error text-xs'>{sessionsSearchError}</div>
+            )}
             <SessionList
               sessions={sessions}
               activeSessionId={activeSessionId}
               onSelect={handleSelectSession}
               onDelete={handleDeleteSession}
               onRename={handleRenameSession}
+              onSearch={searchSessions}
+              searchResults={searchResults}
+              isSearching={isSearching}
+              onClearSearch={clearSearch}
             />
           </div>
+        )}
+      </div>
+
+      {/* Source scope selector */}
+      <div className='border-b border-base-300 bg-base-100/30 px-5 py-2.5 flex items-center gap-2'>
+        <select
+          value={selectedSourceId ?? ''}
+          onChange={(e) => setSelectedSourceId(e.target.value || null)}
+          className='select select-bordered select-sm flex-1'
+          aria-label={t('chat.scope.selectorAria')}
+        >
+          <option value=''>{t('chat.scope.all')}</option>
+          {sources.map((source) => (
+            <option key={source.id} value={source.id}>
+              {source.fileName}
+            </option>
+          ))}
+        </select>
+        {selectedSourceId && (
+          <button
+            type='button'
+            onClick={() => setSelectedSourceId(null)}
+            className='btn btn-ghost btn-xs btn-square'
+            title={t('chat.scope.clear')}
+          >
+            <X size={14} strokeWidth={2} aria-hidden='true' />
+          </button>
         )}
       </div>
 
@@ -248,7 +312,43 @@ export function ChatPanel({ notebookId, userId }: ChatPanelProps) {
               <MessageSquare size={24} strokeWidth={2} aria-hidden='true' />
             </div>
             <p className='text-base-content/90 font-medium mb-1'>{t('chat.emptyTitle')}</p>
-            <p className='text-sm text-base-content/50 max-w-xs'>{t('chat.emptyBody')}</p>
+            <p className='text-sm text-base-content/50 max-w-xs mb-4'>{t('chat.emptyBody')}</p>
+
+            {/* Suggested questions */}
+            {questions.length > 0 && (
+              <div className='w-full max-w-md'>
+                <p className='text-xs text-base-content/50 mb-2 text-center'>
+                  {t('chat.suggestedQuestions.title')}
+                </p>
+                <div className='flex flex-wrap justify-center gap-2'>
+                  {questions.map((question) => (
+                    <button
+                      key={question}
+                      type='button'
+                      onClick={() => handleSuggestedClick(question)}
+                      className='btn btn-outline btn-sm'
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {questionsLoading && (
+              <div className='flex items-center gap-2 text-sm text-base-content/50'>
+                <span className='loading loading-spinner loading-xs' />
+                {t('chat.suggestedQuestions.loading')}
+              </div>
+            )}
+            {questionsError && (
+              <button
+                type='button'
+                onClick={refreshQuestions}
+                className='btn btn-ghost btn-xs text-error'
+              >
+                {t('chat.suggestedQuestions.retry')}
+              </button>
+            )}
           </div>
         ) : (
           messages.map((message) => (

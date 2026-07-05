@@ -90,6 +90,8 @@ interface UseSourcesReturn {
     content: string,
     chunks?: Array<{ content: string; pageNumber?: number }>,
   ) => Promise<void>
+  bulkDeleteSources: (ids: string[]) => Promise<{ deleted: number; skipped: number }>
+  refreshSource: (id: string) => Promise<void>
 }
 
 export function useSources(notebookId: string): UseSourcesReturn {
@@ -348,6 +350,68 @@ export function useSources(notebookId: string): UseSourcesReturn {
     [refresh],
   )
 
+  const bulkDeleteSources = useCallback(
+    async (ids: string[]) => {
+      try {
+        setError(null)
+        // Optimistic: remove all ids from local state
+        const idSet = new Set(ids)
+        setSources((prev) => prev.filter((s) => !idSet.has(s.id)))
+
+        const result = await fetchJson<{ deleted: number; skipped: number }>('/api/sources', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        })
+
+        // Sync state from server
+        await refresh()
+        return result
+      } catch (err) {
+        // Rollback by refreshing from server
+        await refresh()
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
+        throw err
+      }
+    },
+    [refresh],
+  )
+
+  const refreshSource = useCallback(
+    async (id: string) => {
+      try {
+        setError(null)
+        // Optimistic: set status to 'processing'
+        setSources((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, status: 'processing' as const } : s)),
+        )
+
+        await fetchJson<{ id: string; status: string; chunks: number; embedded: number }>(
+          `/api/sources/${encodeURIComponent(id)}/refresh`,
+          { method: 'POST' },
+        )
+
+        await refresh()
+      } catch (err) {
+        // Rollback by refreshing from server
+        await refresh()
+        const apiErr = err as ApiError
+        if (apiErr.code && apiErr.status !== undefined) {
+          setError(`${apiErr.code}:${apiErr.status}`)
+        } else {
+          setError('generic')
+        }
+        throw err
+      }
+    },
+    [refresh],
+  )
+
   useEffect(() => {
     refresh()
   }, [refresh])
@@ -365,5 +429,7 @@ export function useSources(notebookId: string): UseSourcesReturn {
     deleteNotebook,
     getSourceContent,
     updateSourceContent,
+    bulkDeleteSources,
+    refreshSource,
   }
 }

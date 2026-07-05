@@ -1,5 +1,14 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, MoreVertical, PanelRightOpen, Pencil, Settings, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Download,
+  MoreVertical,
+  PanelRightOpen,
+  Pencil,
+  Settings,
+  Trash2,
+  X,
+} from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { SourceList } from '../../components/SourceList'
@@ -88,6 +97,7 @@ function NotebookDetailPage() {
   const [titleInput, setTitleInput] = React.useState('')
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [isConfirmingDelete, setIsConfirmingDelete] = React.useState(false)
+  const [isExporting, setIsExporting] = React.useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = React.useState(false)
   const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null)
@@ -277,6 +287,36 @@ function NotebookDetailPage() {
     }
   }
 
+  async function handleExport() {
+    if (!notebook) return
+    setIsExporting(true)
+    try {
+      const res = await fetch(`/api/notebooks/${encodeURIComponent(notebookId)}/export`)
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const contentDisposition = res.headers.get('Content-Disposition')
+      let filename = 'export.md'
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/)
+        if (match) filename = match[1]
+      }
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   async function handleRenameNote(id: string, title: string) {
     await updateNote(id, { title })
   }
@@ -411,6 +451,24 @@ function NotebookDetailPage() {
                       }}
                     >
                       {t('notebookDetail.globalSettingsMenu')}
+                    </Button>
+                  </li>
+                  <li>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      iconLeft={Download}
+                      className='w-full justify-start px-4 py-2 text-base-content'
+                      disabled={isExporting}
+                      onClick={() => {
+                        void handleExport()
+                        setMenuOpen(false)
+                      }}
+                    >
+                      {isExporting
+                        ? t('notebookDetail.export.downloading')
+                        : t('notebookDetail.export.menu')}
                     </Button>
                   </li>
                   <li>

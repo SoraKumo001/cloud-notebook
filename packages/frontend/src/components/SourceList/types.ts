@@ -20,4 +20,6 @@ export interface SourceListProps {
   onFilesSelected?: (files: File[]) => void | Promise<void>
   uploadProgress?: IngestProgressItem[]
   onClearErrors?: () => void
+  onBulkDelete?: (ids: string[]) => void | Promise<void>
+  onRefresh?: (id: string) => void | Promise<void>
 }

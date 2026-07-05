@@ -2,7 +2,7 @@
 // Source CRUD: delete, rename, get content, and update content.
 
 import { zValidator } from '@hono/zod-validator'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
@@ -11,6 +11,7 @@ import { notebooks, sourceChunks, sourceImages, sources } from '../../db/schema'
 import { getEffectiveAiConfig } from '../../db/settings'
 import { embedChunks, getEmbeddingProvider } from '../../embeddings'
 import { ErrorCode, errorResponse } from '../../errors'
+import { chunkText } from '../../lib/chunker'
 import type { AppEnv } from '../../types'
 import { vHook } from '../common'
 
@@ -443,5 +444,317 @@ router.patch(
     return c.json(updated)
   },
 )
+
+// Feature #3: Bulk Source Delete
+router.delete(
+  '/sources',
+  zValidator('json', z.object({ ids: z.array(z.string().min(1).max(100)).min(1).max(50) }), vHook),
+  async (c) => {
+    const { ids } = c.req.valid('json')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    // Verify ownership for each source, collect valid IDs
+    const validIds: string[] = []
+    for (const sourceId of ids) {
+      const [source] = await db
+        .select({ notebook_id: sources.notebookId })
+        .from(sources)
+        .where(eq(sources.id, sourceId))
+        .limit(1)
+
+      if (!source) continue
+
+      const [notebook] = await db
+        .select({ user_id: notebooks.userId })
+        .from(notebooks)
+        .where(eq(notebooks.id, source.notebook_id))
+        .limit(1)
+
+      if (notebook && notebook.user_id === userId) {
+        validIds.push(sourceId)
+      }
+    }
+
+    if (validIds.length === 0) {
+      return c.json({ deleted: 0, skipped: ids.length })
+    }
+
+    // Collect all R2 keys and chunk IDs for valid sources
+    const r2Keys: string[] = []
+    const chunkIds: string[] = []
+
+    for (const sourceId of validIds) {
+      const [srcRow] = await db
+        .select({ r2_key: sources.r2Key })
+        .from(sources)
+        .where(eq(sources.id, sourceId))
+        .limit(1)
+
+      if (srcRow?.r2_key) r2Keys.push(srcRow.r2_key)
+
+      const imgRows = await db
+        .select({ r2_key: sourceImages.r2Key })
+        .from(sourceImages)
+        .where(eq(sourceImages.sourceId, sourceId))
+
+      for (const row of imgRows) r2Keys.push(row.r2_key)
+
+      const chunkRows = await db
+        .select({ id: sourceChunks.id })
+        .from(sourceChunks)
+        .where(eq(sourceChunks.sourceId, sourceId))
+
+      for (const row of chunkRows) chunkIds.push(row.id)
+    }
+
+    // Batch cleanup
+    if (r2Keys.length > 0) {
+      await c.get('storage').delete(r2Keys)
+    }
+
+    if (chunkIds.length > 0) {
+      await c.env.VECTORIZE.deleteByIds(chunkIds).catch((err: unknown) => {
+        console.error(
+          `[bulk-delete] failed to delete ${chunkIds.length} vectors:`,
+          err instanceof Error ? err.message : err,
+        )
+      })
+    }
+
+    await db.delete(sources).where(inArray(sources.id, validIds))
+
+    return c.json({
+      deleted: validIds.length,
+      skipped: ids.length - validIds.length,
+    })
+  },
+)
+
+// Feature #5: Webpage Manual Refresh
+router.post(
+  '/sources/:id/refresh',
+  zValidator('param', z.object({ id: z.string().min(1).max(100) }), vHook),
+  async (c) => {
+    const { id: sourceId } = c.req.valid('param')
+    const userId = c.get('user').id
+    const db = c.get('db')
+
+    const owned = await getOwnedSource(c, sourceId)
+    if (owned instanceof Response) return owned
+
+    if (owned.type !== 'webpage') {
+      return errorResponse(
+        c,
+        ErrorCode.ValidationFailed,
+        'Only webpage sources can be refreshed',
+        400,
+      )
+    }
+
+    // Fetch the full source row to get the URL
+    const [sourceRow] = await db
+      .select({ url: sources.url, r2Key: sources.r2Key, name: sources.name })
+      .from(sources)
+      .where(eq(sources.id, sourceId))
+      .limit(1)
+
+    if (!sourceRow?.url) {
+      return errorResponse(c, ErrorCode.ValidationFailed, 'Source has no URL stored', 400)
+    }
+
+    // SSRF-safe URL validation
+    const safeUrl = isValidFetchUrl(sourceRow.url)
+    if (!safeUrl) {
+      return errorResponse(c, ErrorCode.RequestInvalidUrl, 'Invalid or disallowed URL', 400)
+    }
+
+    // Fetch the webpage
+    let html: string
+    try {
+      const response = await fetch(safeUrl)
+      if (!response.ok) {
+        return errorResponse(
+          c,
+          ErrorCode.ProxyUpstreamError,
+          `Upstream returned ${response.status}`,
+          502,
+        )
+      }
+      html = await response.text()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return errorResponse(c, ErrorCode.ProxyUpstreamError, `Failed to fetch URL: ${message}`, 502)
+    }
+
+    // Extract text using HTMLRewriter-like logic (server-side)
+    const extractedText = extractTextFromHtml(html)
+
+    if (!extractedText.trim()) {
+      return errorResponse(c, ErrorCode.ValidationFailed, 'No text content found on the page', 400)
+    }
+
+    // Chunk the text
+    const newChunks = chunkText(extractedText)
+
+    // Compute new hash
+    const hashBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(extractedText),
+    )
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const newHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+    // Delete old chunks + vectors
+    const existingChunkRows = await db
+      .select({ id: sourceChunks.id })
+      .from(sourceChunks)
+      .where(eq(sourceChunks.sourceId, sourceId))
+
+    const existingChunkIds = existingChunkRows.map((r) => r.id)
+
+    if (existingChunkIds.length > 0) {
+      await c.env.VECTORIZE.deleteByIds(existingChunkIds).catch((err: unknown) => {
+        console.error(
+          `[refresh] failed to delete ${existingChunkIds.length} vectors for source=${sourceId}:`,
+          err instanceof Error ? err.message : err,
+        )
+      })
+    }
+
+    await db.delete(sourceChunks).where(eq(sourceChunks.sourceId, sourceId))
+
+    // Insert new chunks
+    const chunkRecords = newChunks.map((chunk) => ({
+      id: crypto.randomUUID(),
+      content: chunk.content,
+    }))
+
+    if (chunkRecords.length > 0) {
+      const chunkQueries: BatchItem<'sqlite'>[] = chunkRecords.map((rec) =>
+        db.insert(sourceChunks).values({
+          id: rec.id,
+          sourceId,
+          notebookId: owned.notebookId,
+          content: rec.content,
+        }),
+      )
+      await db.batch(chunkQueries as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+
+      // Embed chunks
+      const masterKey = c.env.API_KEY_ENCRYPTION_MASTER as string | undefined
+      const effectiveConfig = await getEffectiveAiConfig(db, userId, masterKey, {
+        aiEmbeddingModel: undefined,
+      })
+
+      const embedProvider = getEmbeddingProvider(c.env, {
+        provider: effectiveConfig.embedding.provider,
+        apiKey: effectiveConfig.embedding.apiKey,
+        baseUrl: effectiveConfig.embedding.baseUrl,
+        model: effectiveConfig.embedding.model,
+      })
+
+      const vectors = await embedChunks(
+        embedProvider,
+        chunkRecords.map((r) => ({ id: r.id, content: r.content })),
+      )
+
+      const vectorsWithMeta = vectors.map((v) => ({
+        ...v,
+        metadata: {
+          ...v.metadata,
+          source_id: sourceId,
+          notebook_id: owned.notebookId,
+        },
+      }))
+
+      const mutation = await c.env.VECTORIZE.upsert(vectorsWithMeta)
+
+      // Update R2 content
+      if (sourceRow.r2Key) {
+        const storage = c.get('storage')
+        await storage.put(
+          sourceRow.r2Key,
+          new TextEncoder().encode(extractedText).buffer as ArrayBuffer,
+          'text/plain',
+        )
+      }
+
+      // Update source row
+      await db
+        .update(sources)
+        .set({ hash: newHash, status: 'completed' })
+        .where(eq(sources.id, sourceId))
+
+      return c.json({
+        id: sourceId,
+        status: 'completed',
+        chunks: chunkRecords.length,
+        embedded: mutation.count,
+      })
+    }
+
+    // No chunks - still update hash and status
+    await db
+      .update(sources)
+      .set({ hash: newHash, status: 'completed' })
+      .where(eq(sources.id, sourceId))
+
+    return c.json({
+      id: sourceId,
+      status: 'completed',
+      chunks: 0,
+      embedded: 0,
+    })
+  },
+)
+
+// SSRF guard (copied from debug.ts)
+const PRIVATE_ORIGINS = [
+  /^https?:\/\/localhost/i,
+  /^https?:\/\/127\./,
+  /^https?:\/\/10\./,
+  /^https?:\/\/172\.1[6-9]\./,
+  /^https?:\/\/172\.2[0-9]\./,
+  /^https?:\/\/172\.3[0-1]\./,
+  /^https?:\/\/192\.168\./,
+  /^https?:\/\/(?:0:)?0:0:0:0:0:0:1/i,
+]
+
+function isValidFetchUrl(raw: string): string | null {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+  const href = url.href
+  if (PRIVATE_ORIGINS.some((re) => re.test(href))) return null
+  url.hash = ''
+  return url.href
+}
+
+// Server-side HTML text extraction (replaces browser-side DOMParser)
+function extractTextFromHtml(html: string): string {
+  // Remove script, style, nav, footer, header, noscript, iframe, svg, canvas tags and their content
+  let text = html.replace(
+    /<(script|style|nav|footer|header|noscript|iframe|svg|canvas)[^>]*>[\s\S]*?<\/\1>/gi,
+    '',
+  )
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]*>/g, ' ')
+  // Decode common HTML entities
+  text = text.replace(/&nbsp;/g, ' ')
+  text = text.replace(/&amp;/g, '&')
+  text = text.replace(/&lt;/g, '<')
+  text = text.replace(/&gt;/g, '>')
+  text = text.replace(/&quot;/g, '"')
+  text = text.replace(/&#x27;/g, "'")
+  text = text.replace(/&#x2F;/g, '/')
+  // Collapse whitespace
+  text = text.replace(/\s+/g, ' ').trim()
+  return text
+}
 
 export default router

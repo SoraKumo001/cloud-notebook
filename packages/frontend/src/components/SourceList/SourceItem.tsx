@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { File, FileEdit, FileText, GripVertical, Pencil, Trash2, X } from 'lucide-react'
+import { File, FileEdit, FileText, GripVertical, Pencil, RefreshCw, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { formatBytes, formatNumber, formatShortDate } from '../../i18n/formatters'
 import { Button } from '../ui/Button'
@@ -149,6 +149,69 @@ function SourceActions({
   )
 }
 
+function RefreshButton({
+  source,
+  onRefresh,
+  t,
+}: {
+  source: Source
+  onRefresh: (id: string) => void | Promise<void>
+  t: (key: string) => string
+}) {
+  const [isConfirmingRefresh, setIsConfirmingRefresh] = React.useState(false)
+
+  if (source.status === 'processing') {
+    return (
+      <span className='text-xs text-base-content/50 flex items-center gap-1'>
+        <span className='loading loading-spinner loading-xs text-secondary' />
+        {t('sourceList.refresh.refreshing')}
+      </span>
+    )
+  }
+
+  if (isConfirmingRefresh) {
+    return (
+      <div className='flex items-center gap-2'>
+        <Button
+          type='button'
+          size='xs'
+          variant='primary'
+          iconLeft={RefreshCw}
+          onClick={async () => {
+            setIsConfirmingRefresh(false)
+            await onRefresh(source.id)
+          }}
+        >
+          {t('common.yes')}
+        </Button>
+        <Button
+          type='button'
+          size='xs'
+          variant='ghost'
+          iconLeft={X}
+          onClick={() => setIsConfirmingRefresh(false)}
+        >
+          {t('common.cancel')}
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <Button
+      type='button'
+      size='xs'
+      shape='circle'
+      variant='ghost'
+      iconLeft={RefreshCw}
+      iconOnlyAriaLabel={t('sourceList.refresh.button')}
+      title={t('sourceList.refresh.button')}
+      className='text-base-content/60 hover:text-primary'
+      onClick={() => setIsConfirmingRefresh(true)}
+    />
+  )
+}
+
 export function SortableSourceItem({
   source,
   onDelete,
@@ -157,6 +220,9 @@ export function SortableSourceItem({
   refreshStats,
   t,
   locale,
+  isSelected,
+  onToggleSelect,
+  onRefresh,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
@@ -165,6 +231,9 @@ export function SortableSourceItem({
   refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
+  isSelected?: boolean
+  onToggleSelect?: (id: string) => void
+  onRefresh?: (id: string) => void | Promise<void>
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: source.id,
@@ -218,6 +287,24 @@ export function SortableSourceItem({
       }`}
     >
       <div className='flex items-center gap-3 min-w-0 flex-1'>
+        <label
+          className='flex-shrink-0 flex items-center cursor-pointer'
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              onToggleSelect?.(source.id)
+            }
+          }}
+        >
+          <input
+            type='checkbox'
+            className='checkbox checkbox-sm'
+            checked={isSelected ?? false}
+            onChange={() => onToggleSelect?.(source.id)}
+          />
+        </label>
         <Button
           type='button'
           size='xs'
@@ -264,17 +351,22 @@ export function SortableSourceItem({
       <div className='flex items-center gap-3 flex-shrink-0'>
         {statusBadge(source.status, t)}
         {!isEditing && (
-          <SourceActions
-            source={source}
-            onDelete={onDelete}
-            onRename={onRename}
-            onEdit={onEdit}
-            isConfirmingDelete={isConfirmingDelete}
-            setIsConfirmingDelete={setIsConfirmingDelete}
-            onRenameStart={() => setIsEditing(true)}
-            refreshStats={refreshStats}
-            t={t}
-          />
+          <>
+            {onRefresh && source.type === 'webpage' && (
+              <RefreshButton source={source} onRefresh={onRefresh} t={t} />
+            )}
+            <SourceActions
+              source={source}
+              onDelete={onDelete}
+              onRename={onRename}
+              onEdit={onEdit}
+              isConfirmingDelete={isConfirmingDelete}
+              setIsConfirmingDelete={setIsConfirmingDelete}
+              onRenameStart={() => setIsEditing(true)}
+              refreshStats={refreshStats}
+              t={t}
+            />
+          </>
         )}
       </div>
     </li>
@@ -289,6 +381,9 @@ export function StaticSourceItem({
   refreshStats,
   t,
   locale,
+  isSelected,
+  onToggleSelect,
+  onRefresh,
 }: {
   source: Source
   onDelete?: (id: string) => void | Promise<void>
@@ -297,6 +392,9 @@ export function StaticSourceItem({
   refreshStats: () => Promise<void>
   t: (key: string) => string
   locale: string
+  isSelected?: boolean
+  onToggleSelect?: (id: string) => void
+  onRefresh?: (id: string) => void | Promise<void>
 }) {
   const [isEditing, setIsEditing] = React.useState(false)
   const [editName, setEditName] = React.useState(source.fileName)
@@ -333,6 +431,24 @@ export function StaticSourceItem({
   return (
     <li className='px-3 py-3 flex items-center justify-between gap-4 hover:bg-base-100/40 transition-colors last:rounded-b-2xl'>
       <div className='flex items-center gap-3 min-w-0 flex-1'>
+        <label
+          className='flex-shrink-0 flex items-center cursor-pointer'
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              onToggleSelect?.(source.id)
+            }
+          }}
+        >
+          <input
+            type='checkbox'
+            className='checkbox checkbox-sm'
+            checked={isSelected ?? false}
+            onChange={() => onToggleSelect?.(source.id)}
+          />
+        </label>
         <div className='flex-shrink-0 w-9 h-9 rounded-lg bg-base-300 text-base-content/60 flex items-center justify-center'>
           {typeIcon(source.type)}
         </div>
@@ -368,17 +484,22 @@ export function StaticSourceItem({
       <div className='flex items-center gap-3 flex-shrink-0'>
         {statusBadge(source.status, t)}
         {!isEditing && (
-          <SourceActions
-            source={source}
-            onDelete={onDelete}
-            onRename={onRename}
-            onEdit={onEdit}
-            isConfirmingDelete={isConfirmingDelete}
-            setIsConfirmingDelete={setIsConfirmingDelete}
-            onRenameStart={() => setIsEditing(true)}
-            refreshStats={refreshStats}
-            t={t}
-          />
+          <>
+            {onRefresh && source.type === 'webpage' && (
+              <RefreshButton source={source} onRefresh={onRefresh} t={t} />
+            )}
+            <SourceActions
+              source={source}
+              onDelete={onDelete}
+              onRename={onRename}
+              onEdit={onEdit}
+              isConfirmingDelete={isConfirmingDelete}
+              setIsConfirmingDelete={setIsConfirmingDelete}
+              onRenameStart={() => setIsEditing(true)}
+              refreshStats={refreshStats}
+              t={t}
+            />
+          </>
         )}
       </div>
     </li>

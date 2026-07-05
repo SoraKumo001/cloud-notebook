@@ -15,6 +15,7 @@ export const sources = sqliteTable(
     r2Key: text('r2_key'),
     hash: text('hash'),
     status: text('status').notNull(),
+    url: text('url'),
     displayOrder: integer('display_order').notNull().default(0),
     createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
   },

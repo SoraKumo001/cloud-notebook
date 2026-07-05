@@ -1,6 +1,6 @@
 import { closestCenter, DndContext } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Check, File, FilePlus, Plus, X } from 'lucide-react'
+import { Check, File, FilePlus, Plus, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNotebookStats } from '../../hooks/useNotebookStats'
@@ -23,6 +23,8 @@ export function SourceList({
   onFilesSelected,
   uploadProgress,
   onClearErrors,
+  onBulkDelete,
+  onRefresh,
 }: SourceListProps) {
   const { t } = useTranslation('common')
   const { locale } = useLocale()
@@ -33,6 +35,12 @@ export function SourceList({
   const createMenuRef = React.useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = React.useState(false)
   const [showCreateMenu, setShowCreateMenu] = React.useState(false)
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+  const [isConfirmingBulkDelete, setIsConfirmingBulkDelete] = React.useState(false)
+  const [bulkDeleteResult, setBulkDeleteResult] = React.useState<{
+    deleted: number
+    total: number
+  } | null>(null)
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,6 +64,50 @@ export function SourceList({
     await onCreateSource?.(type)
     setShowCreateMenu(false)
   }
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function handleSelectAll() {
+    setSelectedIds(new Set(sources.map((s) => s.id)))
+  }
+
+  function handleDeselectAll() {
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkDelete(ids: string[]) {
+    if (!onBulkDelete) return
+    setIsConfirmingBulkDelete(false)
+    try {
+      const result = await onBulkDelete(ids)
+      setSelectedIds(new Set())
+      if (typeof result === 'object' && result !== null && 'deleted' in result) {
+        const r = result as { deleted: number; skipped?: number }
+        setBulkDeleteResult({ deleted: r.deleted, total: ids.length })
+      } else {
+        setBulkDeleteResult({ deleted: ids.length, total: ids.length })
+      }
+    } catch {
+      setBulkDeleteResult(null)
+    }
+  }
+
+  // Clear bulk delete result toast after 4 seconds
+  React.useEffect(() => {
+    if (!bulkDeleteResult) return
+    const timer = setTimeout(() => setBulkDeleteResult(null), 4000)
+    return () => clearTimeout(timer)
+  }, [bulkDeleteResult])
 
   // Track which uploadProgress entries have already been seen as "done" so
   // we refresh stats exactly once per completion (and never on every render
@@ -236,6 +288,78 @@ export function SourceList({
           </span>
         </div>
       </div>
+
+      {/* ── Bulk action bar ─────────────────────────────────────────────── */}
+      {selectedIds.size > 0 && onBulkDelete && (
+        <div className='px-5 py-2 border-b border-base-300 bg-primary/5 flex items-center justify-between gap-3'>
+          <span className='text-sm font-medium text-base-content/80'>
+            {t('sourceList.bulk.selected', { count: selectedIds.size })}
+          </span>
+          <div className='flex items-center gap-2'>
+            <Button type='button' size='xs' variant='ghost' onClick={handleSelectAll}>
+              {t('sourceList.bulk.selectAll')}
+            </Button>
+            <Button type='button' size='xs' variant='ghost' onClick={handleDeselectAll}>
+              {t('sourceList.bulk.deselectAll')}
+            </Button>
+            <Button
+              type='button'
+              size='xs'
+              variant='error'
+              iconLeft={Trash2}
+              onClick={() => setIsConfirmingBulkDelete(true)}
+            >
+              {t('sourceList.bulk.deleteSelected')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk delete confirm modal ─────────────────────────────────── */}
+      {isConfirmingBulkDelete && (
+        <div className='modal modal-open'>
+          <div className='modal-box'>
+            <h3 className='font-bold text-lg'>
+              {t('sourceList.bulk.deleteConfirmTitle', { count: selectedIds.size })}
+            </h3>
+            <p className='py-4 text-sm text-base-content/70'>
+              {t('sourceList.bulk.deleteConfirmBody', { count: selectedIds.size })}
+            </p>
+            <div className='modal-action'>
+              <Button
+                type='button'
+                variant='ghost'
+                onClick={() => setIsConfirmingBulkDelete(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type='button'
+                variant='error'
+                iconLeft={Trash2}
+                onClick={() => void handleBulkDelete(Array.from(selectedIds))}
+              >
+                {t('sourceList.bulk.deleteSelected')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk delete result toast ──────────────────────────────────── */}
+      {bulkDeleteResult && (
+        <div className='px-5 py-3 border-b border-base-300 bg-accent/10'>
+          <p className='text-sm font-medium text-accent'>
+            {bulkDeleteResult.deleted === bulkDeleteResult.total
+              ? t('sourceList.bulk.deleteSuccess', { count: bulkDeleteResult.deleted })
+              : t('sourceList.bulk.deletePartial', {
+                  deleted: bulkDeleteResult.deleted,
+                  total: bulkDeleteResult.total,
+                })}
+          </p>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type='file'
@@ -285,6 +409,9 @@ export function SourceList({
                   refreshStats={refreshStats}
                   t={t}
                   locale={locale}
+                  isSelected={selectedIds.has(source.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onRefresh={onRefresh}
                 />
               ) : (
                 <StaticSourceItem
@@ -296,6 +423,9 @@ export function SourceList({
                   refreshStats={refreshStats}
                   t={t}
                   locale={locale}
+                  isSelected={selectedIds.has(source.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onRefresh={onRefresh}
                 />
               ),
             )}

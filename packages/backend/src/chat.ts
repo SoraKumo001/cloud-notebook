@@ -90,13 +90,14 @@ export async function streamChat(
   userId: string,
   query: string,
   sessionId?: string,
+  sourceId?: string,
 ): Promise<Response> {
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
 
   ;(async () => {
     try {
-      await runPipeline(env, notebookId, userId, query, sessionId, writer)
+      await runPipeline(env, notebookId, userId, query, sessionId, writer, sourceId)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       writeSSE(writer, 'error', { message, code: ErrorCode.ServerInternalError })
@@ -239,6 +240,7 @@ async function runPipeline(
   query: string,
   sessionId: string | undefined,
   writer: WritableStreamDefaultWriter<Uint8Array>,
+  sourceId?: string,
 ): Promise<void> {
   const db = createDb(env.DB)
 
@@ -278,7 +280,10 @@ async function runPipeline(
     let vectorMatches = await env.VECTORIZE.query(queryVector, {
       topK: VECTORIZE_TOP_K,
       returnMetadata: 'all',
-      filter: { notebook_id: { $eq: notebookId } },
+      filter: {
+        notebook_id: { $eq: notebookId },
+        ...(sourceId ? { source_id: { $eq: sourceId } } : {}),
+      },
     })
 
     let matches = vectorMatches.matches as VectorizeMatchResult[]
@@ -295,7 +300,12 @@ async function runPipeline(
           sourceId: sourceChunks.sourceId,
         })
         .from(sourceChunks)
-        .where(eq(sourceChunks.notebookId, notebookId))
+        .where(
+          and(
+            eq(sourceChunks.notebookId, notebookId),
+            ...(sourceId ? [eq(sourceChunks.sourceId, sourceId)] : []),
+          ),
+        )
 
       if (allChunks.length > 0) {
         const vectors = await embedChunks(
@@ -321,7 +331,10 @@ async function runPipeline(
         vectorMatches = await env.VECTORIZE.query(queryVector, {
           topK: VECTORIZE_TOP_K,
           returnMetadata: 'all',
-          filter: { notebook_id: { $eq: notebookId } },
+          filter: {
+            notebook_id: { $eq: notebookId },
+            ...(sourceId ? { source_id: { $eq: sourceId } } : {}),
+          },
         })
         matches = vectorMatches.matches as VectorizeMatchResult[]
       }
