@@ -47,9 +47,7 @@ export function getEmbedProvider(env: ProviderEnv, notebook: NotebookAiConfig): 
     case 'workers-ai':
       return new WorkersAIEmbedProvider(env)
     case 'anthropic':
-      throw new Error(
-        'Anthropic does not provide embedding APIs. Use Workers AI (bge-m3) instead.',
-      )
+      throw new Error('Anthropic does not provide embedding APIs. Use Workers AI (bge-m3) instead.')
     case 'openai':
       throw new Error(
         'OpenAI embedding is not supported: the Vectorize index is 1024-dim, but OpenAI text-embedding-3-small produces 1536-dim vectors. ' +

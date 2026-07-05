@@ -5,11 +5,11 @@
 
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
+import { hashToken } from './crypto'
 import { notebooks } from './db/schema'
 import app from './index'
 import { authedRequest, createAuthedRequest } from './test/auth-helper'
 import { createTestEnv } from './test/d1-adapter'
-import { hashToken } from './crypto'
 
 // ---------------------------------------------------------------------------
 // MCP auth middleware

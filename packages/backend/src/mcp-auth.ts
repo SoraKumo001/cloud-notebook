@@ -3,10 +3,10 @@
 
 import { eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
+import { hashToken } from './crypto'
 import { createDb } from './db/client'
 import { notebooks } from './db/schema'
 import { ErrorCode } from './errors'
-import { hashToken } from './crypto'
 
 export interface McpNotebook {
   id: string
