@@ -90,6 +90,8 @@ function NotebookDetailPage() {
     deleteNotebook,
     getSourceContent,
     updateSourceContent,
+    bulkDeleteSources,
+    refreshSource,
   } = useSources(notebookId)
   const { notes, createNote, updateNote, deleteNote } = useNotes(notebookId)
 
@@ -589,6 +591,8 @@ function NotebookDetailPage() {
                     onFilesSelected={handleFilesSelected}
                     uploadProgress={uploadProgress}
                     onClearErrors={clearAllErrors}
+                    onBulkDelete={bulkDeleteSources}
+                    onRefresh={refreshSource}
                   />
                 </section>
               </div>

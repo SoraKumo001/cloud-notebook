@@ -291,11 +291,11 @@ export function SourceList({
 
       {/* ── Bulk action bar ─────────────────────────────────────────────── */}
       {selectedIds.size > 0 && onBulkDelete && (
-        <div className='px-5 py-2 border-b border-base-300 bg-primary/5 flex items-center justify-between gap-3'>
-          <span className='text-sm font-medium text-base-content/80'>
+        <div className='px-5 py-2 border-b border-base-300 bg-primary/5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0'>
+          <span className='text-sm font-medium text-base-content/80 whitespace-nowrap flex-shrink-0'>
             {t('sourceList.bulk.selected', { count: selectedIds.size })}
           </span>
-          <div className='flex items-center gap-2'>
+          <div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
             <Button type='button' size='xs' variant='ghost' onClick={handleSelectAll}>
               {t('sourceList.bulk.selectAll')}
             </Button>

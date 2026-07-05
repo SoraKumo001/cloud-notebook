@@ -254,6 +254,8 @@
     "deleteAria": "ソースを削除",
     "renameLabel": "名前を変更",
     "deleteConfirm": "削除",
+    "deleteConfirmPrompt": "このソースを削除しますか？",
+    "deleteConfirmHint": "この操作は取り消せません。",
     "editAria": "ソースを編集",
     "editLabel": "編集",
     "newFile": "新規ファイル",

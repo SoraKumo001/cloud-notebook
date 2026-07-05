@@ -254,6 +254,8 @@
     "deleteAria": "Delete source",
     "renameLabel": "Rename",
     "deleteConfirm": "Delete",
+    "deleteConfirmPrompt": "Delete this source?",
+    "deleteConfirmHint": "This action cannot be undone.",
     "editAria": "Edit source content",
     "editLabel": "Edit",
     "newFile": "New file",

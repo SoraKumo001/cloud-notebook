@@ -60,7 +60,6 @@ function SourceActions({
   isConfirmingDelete,
   setIsConfirmingDelete,
   onRenameStart,
-  refreshStats,
   t,
 }: {
   source: Source
@@ -70,37 +69,9 @@ function SourceActions({
   isConfirmingDelete: boolean
   setIsConfirmingDelete: (val: boolean) => void
   onRenameStart: () => void
-  refreshStats: () => Promise<void>
   t: (key: string) => string
 }) {
-  async function confirmDelete() {
-    await onDelete?.(source.id)
-    setIsConfirmingDelete(false)
-    // Trigger stats refresh after delete completes; the parent already
-    // optimistically updates the list, but `useNotebookStats` only watches
-    // its `sourcesVersion` prop, so we ask for an explicit refresh to make
-    // sure the new server-side vector count is reflected.
-    await refreshStats()
-  }
-
-  if (isConfirmingDelete) {
-    return (
-      <div className='flex items-center gap-2'>
-        <Button type='button' size='xs' variant='error' iconLeft={Trash2} onClick={confirmDelete}>
-          {t('sourceList.deleteConfirm')}
-        </Button>
-        <Button
-          type='button'
-          size='xs'
-          variant='ghost'
-          iconLeft={X}
-          onClick={() => setIsConfirmingDelete(false)}
-        >
-          {t('common.cancel')}
-        </Button>
-      </div>
-    )
-  }
+  if (isConfirmingDelete) return null
 
   if (!onDelete && !onRename && !onEdit) return null
 
@@ -145,6 +116,47 @@ function SourceActions({
           onClick={() => setIsConfirmingDelete(true)}
         />
       )}
+    </div>
+  )
+}
+
+function DeleteConfirmation({
+  source,
+  onDelete,
+  onCancel,
+  refreshStats,
+  t,
+}: {
+  source: Source
+  onDelete: (id: string) => void | Promise<void>
+  onCancel: () => void
+  refreshStats: () => Promise<void>
+  t: (key: string) => string
+}) {
+  async function confirmDelete() {
+    await onDelete(source.id)
+    onCancel()
+    // Trigger stats refresh after delete completes; the parent already
+    // optimistically updates the list, but `useNotebookStats` only watches
+    // its `sourcesVersion` prop, so we ask for an explicit refresh to make
+    // sure the new server-side vector count is reflected.
+    await refreshStats()
+  }
+
+  return (
+    <div className='w-full bg-error/10 border border-error/30 rounded-lg p-3 flex items-center justify-between gap-3'>
+      <div className='text-sm text-error min-w-0 flex-1'>
+        <p className='font-medium'>{t('sourceList.deleteConfirmPrompt')}</p>
+        <p className='text-xs opacity-90 mt-0.5'>{t('sourceList.deleteConfirmHint')}</p>
+      </div>
+      <div className='flex items-center gap-2 flex-shrink-0'>
+        <Button type='button' size='sm' variant='error' iconLeft={Trash2} onClick={confirmDelete}>
+          {t('sourceList.deleteConfirm')}
+        </Button>
+        <Button type='button' size='sm' variant='ghost' iconLeft={X} onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+      </div>
     </div>
   )
 }
@@ -282,7 +294,7 @@ export function SortableSourceItem({
     <li
       ref={setNodeRef}
       style={style}
-      className={`px-3 py-3 flex items-center justify-between gap-4 hover:bg-base-100/40 transition-colors last:rounded-b-2xl ${
+      className={`px-3 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 hover:bg-base-100/40 transition-colors last:rounded-b-2xl ${
         isDragging ? 'opacity-50 bg-base-300/50 z-10' : ''
       }`}
     >
@@ -363,12 +375,22 @@ export function SortableSourceItem({
               isConfirmingDelete={isConfirmingDelete}
               setIsConfirmingDelete={setIsConfirmingDelete}
               onRenameStart={() => setIsEditing(true)}
-              refreshStats={refreshStats}
               t={t}
             />
           </>
         )}
       </div>
+      {isConfirmingDelete && onDelete && (
+        <div className='w-full basis-full border-t border-base-300 pt-2'>
+          <DeleteConfirmation
+            source={source}
+            onDelete={onDelete}
+            onCancel={() => setIsConfirmingDelete(false)}
+            refreshStats={refreshStats}
+            t={t}
+          />
+        </div>
+      )}
     </li>
   )
 }
@@ -429,7 +451,7 @@ export function StaticSourceItem({
   }
 
   return (
-    <li className='px-3 py-3 flex items-center justify-between gap-4 hover:bg-base-100/40 transition-colors last:rounded-b-2xl'>
+    <li className='px-3 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 hover:bg-base-100/40 transition-colors last:rounded-b-2xl'>
       <div className='flex items-center gap-3 min-w-0 flex-1'>
         <label
           className='flex-shrink-0 flex items-center cursor-pointer'
@@ -496,12 +518,22 @@ export function StaticSourceItem({
               isConfirmingDelete={isConfirmingDelete}
               setIsConfirmingDelete={setIsConfirmingDelete}
               onRenameStart={() => setIsEditing(true)}
-              refreshStats={refreshStats}
               t={t}
             />
           </>
         )}
       </div>
+      {isConfirmingDelete && onDelete && (
+        <div className='w-full basis-full border-t border-base-300 pt-2'>
+          <DeleteConfirmation
+            source={source}
+            onDelete={onDelete}
+            onCancel={() => setIsConfirmingDelete(false)}
+            refreshStats={refreshStats}
+            t={t}
+          />
+        </div>
+      )}
     </li>
   )
 }

@@ -1,12 +1,17 @@
 import { AlertTriangle, ChevronDown, MessageSquare, Send, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
 import type { Source } from '../components/SourceList'
 import { useChatSessions } from '../hooks/useChatSessions'
 import { type ChatMessage, useChatStream } from '../hooks/useChatStream'
 import { useSources } from '../hooks/useSources'
 import { useSuggestedQuestions } from '../hooks/useSuggestedQuestions'
 import { CitationChip, type CitationChunk } from './CitationChip'
+import { markdownComponents } from './markdownComponents'
 import { SessionList } from './SessionList'
 import { Button } from './ui/Button'
 
@@ -16,31 +21,149 @@ interface ChatPanelProps {
   sources?: Source[]
 }
 
-function renderMessageContent(
-  content: string,
+// Chat-tightened variants of the shared Markdown components.
+// Headings and paragraphs keep the same styling language but use smaller
+// margins so the bubbles don't feel oversized.
+const chatMarkdownComponents = {
+  ...markdownComponents,
+  h1: function ChatH1({ children }: { children?: React.ReactNode }) {
+    return (
+      <h1 className='text-lg font-bold text-base-content mb-2 mt-3 border-b border-base-300 pb-1'>
+        {children}
+      </h1>
+    )
+  },
+  h2: function ChatH2({ children }: { children?: React.ReactNode }) {
+    return <h2 className='text-base font-semibold text-base-content mt-3 mb-1.5'>{children}</h2>
+  },
+  h3: function ChatH3({ children }: { children?: React.ReactNode }) {
+    return <h3 className='text-sm font-semibold text-base-content/90 mt-2 mb-1'>{children}</h3>
+  },
+  h4: function ChatH4({ children }: { children?: React.ReactNode }) {
+    return <h4 className='text-sm font-semibold text-base-content/90 mt-2 mb-1'>{children}</h4>
+  },
+  h5: function ChatH5({ children }: { children?: React.ReactNode }) {
+    return <h5 className='text-sm font-semibold text-base-content/90 mt-1.5 mb-0.5'>{children}</h5>
+  },
+  h6: function ChatH6({ children }: { children?: React.ReactNode }) {
+    return <h6 className='text-sm font-semibold text-base-content/90 mt-1.5 mb-0.5'>{children}</h6>
+  },
+  p: function ChatP({ children }: { children?: React.ReactNode }) {
+    return <p className='mb-2 leading-relaxed last:mb-0'>{children}</p>
+  },
+  ul: function ChatUl({ children }: { children?: React.ReactNode }) {
+    return <ul className='list-disc list-inside mb-2 space-y-0.5 pl-1'>{children}</ul>
+  },
+  ol: function ChatOl({ children }: { children?: React.ReactNode }) {
+    return <ol className='list-decimal list-inside mb-2 space-y-0.5 pl-1'>{children}</ol>
+  },
+  blockquote: function ChatBlockquote({ children }: { children?: React.ReactNode }) {
+    return (
+      <blockquote className='border-l-4 border-primary/40 pl-3 py-1 my-2 bg-base-300/20 rounded-r text-base-content/70 italic'>
+        {children}
+      </blockquote>
+    )
+  },
+  table: function ChatTable({ children }: { children?: React.ReactNode }) {
+    return (
+      <div className='overflow-auto mb-2'>
+        <table className='w-full border-collapse text-sm'>{children}</table>
+      </div>
+    )
+  },
+  hr: function ChatHr() {
+    return <hr className='border-0 border-t border-base-300 my-3' />
+  },
+  pre: function ChatPre({ children }: { children?: React.ReactNode }) {
+    return (
+      <pre className='p-2 rounded-lg bg-base-300/40 border border-base-300 overflow-auto mb-2 text-xs'>
+        <code className='font-mono text-xs'>{children}</code>
+      </pre>
+    )
+  },
+  code: function ChatCode({ children }: { children?: React.ReactNode }) {
+    return (
+      <code className='px-1 py-0.5 rounded bg-base-300/60 text-base-content text-xs font-mono'>
+        {children}
+      </code>
+    )
+  },
+}
+
+function createChatMarkdownComponents(
   chunks: CitationChunk[] = [],
   valid: number[] = [],
   invalid: number[] = [],
 ) {
-  const parts = content.split(/(\[\d+\])/g)
-
-  return parts.map((part) => {
-    const match = part.match(/^\[(\d+)\]$/)
-    if (!match) return <span key={part}>{part}</span>
-
-    const index = parseInt(match[1], 10)
+  function CitationChipWrapper({ index }: { index: number }) {
     const chunk = chunks[index - 1]
     const isInvalid = invalid.includes(index)
-    const isValid = valid.includes(index)
+    return <CitationChip index={index} chunk={chunk} invalid={isInvalid} />
+  }
 
-    // Only render as a chip if this citation index appears in valid/invalid lists,
-    // otherwise show plain text so arbitrary brackets don't become chips.
-    if (!isValid && !isInvalid) {
-      return <span key={part}>{part}</span>
+  function splitChildren(children: React.ReactNode): React.ReactNode[] {
+    const result: React.ReactNode[] = []
+    React.Children.forEach(children, (child) => {
+      if (typeof child === 'string') {
+        const parts = child.split(/(\[\d+\])/g)
+        parts.forEach((part) => {
+          const match = part.match(/^\[(\d+)\]$/)
+          if (match) {
+            const index = parseInt(match[1], 10)
+            if (valid.includes(index) || invalid.includes(index)) {
+              result.push(<CitationChipWrapper key={part} index={index} />)
+              return
+            }
+          }
+          if (part) result.push(part)
+        })
+      } else if (React.isValidElement<{ children?: React.ReactNode; key?: React.Key }>(child)) {
+        const childKey = child.key ?? child.props.key
+        result.push(
+          React.cloneElement(child, {
+            key: childKey,
+            children: splitChildren(child.props.children),
+          }),
+        )
+      } else {
+        result.push(child)
+      }
+    })
+    return result
+  }
+
+  function wrapComponent(Tag: keyof JSX.IntrinsicElements) {
+    return function CitationWrapper({
+      node: _node,
+      children,
+      ...props
+    }: {
+      node?: unknown
+      children?: React.ReactNode
+    }) {
+      return React.createElement(Tag, props, splitChildren(children))
     }
+  }
 
-    return <CitationChip key={part} index={index} chunk={chunk} invalid={isInvalid} />
-  })
+  return {
+    ...chatMarkdownComponents,
+    p: wrapComponent('p'),
+    h1: wrapComponent('h1'),
+    h2: wrapComponent('h2'),
+    h3: wrapComponent('h3'),
+    h4: wrapComponent('h4'),
+    h5: wrapComponent('h5'),
+    h6: wrapComponent('h6'),
+    li: wrapComponent('li'),
+    blockquote: wrapComponent('blockquote'),
+    td: wrapComponent('td'),
+    th: wrapComponent('th'),
+    strong: wrapComponent('strong'),
+    em: wrapComponent('em'),
+    a: wrapComponent('a'),
+    del: wrapComponent('del'),
+    code: wrapComponent('code'),
+  }
 }
 
 function RiskBanner({
@@ -100,16 +223,23 @@ function ChatMessageItem({
           <RiskBanner risk={message.risk} reasons={message.reasons} t={t} />
         )}
 
-        <div className='text-sm leading-relaxed whitespace-pre-wrap'>
-          {isEmptyAssistant && isStreaming ? (
+        <div className='text-sm leading-relaxed'>
+          {isUser ? (
+            <span className='whitespace-pre-wrap'>{message.content}</span>
+          ) : isEmptyAssistant && isStreaming ? (
             <TypingIndicator />
           ) : (
-            renderMessageContent(
-              message.content,
-              message.chunks,
-              message.citations?.valid,
-              message.citations?.invalid,
-            )
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
+              components={createChatMarkdownComponents(
+                message.chunks,
+                message.citations?.valid,
+                message.citations?.invalid,
+              )}
+            >
+              {message.content}
+            </ReactMarkdown>
           )}
         </div>
       </div>
